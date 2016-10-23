@@ -1,3 +1,5 @@
+{-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
@@ -9,31 +11,66 @@ import Diagrams.Prelude
 import Diagrams.TwoD.Shapes
 import Diagrams.Backend.Canvas.CmdLine
 
-andGate :: IsName a => a -> Diagram B
-andGate name = (input (-1) "in1" <> input 1 "in2")
-       ||| roundedRect' 1.2 1 (with & radiusBR .~ 0.5
-                                    & radiusTR .~ 0.5
-                                    )
-       ||| line # named (name, "out") # rotate (1/2 @@ turn)
+dualInput :: IsName a => a -> Diagram B
+dualInput name = input 1 "in1" <> input (-1) "in2"
   where
-    line = fromOffsets [unitX] # scale 0.5
-    input d n = line # named (name, n) # translate (r2 (0, spacing * d))
+    input d n = (mkCon (name, n) ||| line) # translate (r2 (0, spacing * d))
     spacing = 0.25
 
--- TODO(sandy): fix this cause it's shitty
-orGate :: Diagram B
-orGate = roundedRect' 1.2 1 (with & radiusBR .~ 0.5
-                                  & radiusTR .~ 0.5
-                                  & radiusBL .~ -0.3
-                                  & radiusTL .~ -0.3
-                                  )
+line :: Diagram B
+line = fromOffsets [unitX] # scale 0.5
 
-test = (andGate "a" ||| andGate "b") # connectPerim' arrowStyle2 ("b", "out") ("a", "in1") (4/12 @@ turn) (2/12 @@ turn)
+andGate :: IsName a => a -> Diagram B
+andGate name = dualInput name
+           ||| roundedRect' 1.2 1 (with & radiusBR .~ 0.5
+                                        & radiusTR .~ 0.5
+                                        )
+           ||| mkCon (name, "out")
+
+machine :: IsName a => a -> [String] -> [String] -> String -> Diagram B
+machine name ins outs labelText = inputStack ||| (rect width height <> inLabels <> outLabels <> label) ||| outputStack
   where
-    shaft' = arc xDir (-2.7/5 @@ turn)
-    arrowStyle2 = (with  & arrowHead   .~ spike
-                     & arrowShaft  .~ shaft' & arrowTail .~ lineTail
-                     & tailTexture .~ solid black & lengths .~ normal)
+    vspacing = 1.9
+    hspacing = width / 2 - textSize
+    labelSize = 0.3
+    textSize = 0.2
+    width = (fromIntegral ( maximum (fmap length ins)
+                          + maximum (fmap length outs)) * textSize)
+          + (fromIntegral (length labelText) * labelSize) + 0.5
+    label = text labelText # scale labelSize
+    height = max (heightOf outs) (heightOf ins) + 0.3
+    -- TODO(sandy): this is negative. wtf?
+    heightOf ls = -vspacing * fromIntegral (length ls - 1) / 2
+    stack as = foldl (\b a -> b # translate (r2 (0, vspacing)) <> a) nothing as
+    inputStack = stack (fmap (\a -> mkCon (name, a) ||| line) ins) # translate (r2 (0, heightOf ins)) # scaleY textSize
+    outputStack = stack (fmap (\a -> mkCon (name, a)) outs) # translate (r2 (0, heightOf outs)) # scaleY textSize
+    textStack ls = stack (fmap text ls) # translate (r2 (0, heightOf ls)) # scale textSize
+    inLabels  = textStack ins # translate (r2 (-hspacing, 0))
+    outLabels = textStack outs # translate (r2 (hspacing, 0))
+
+polyIn :: Diagram B
+polyIn = pline 4 <> pline 3 <> pline 2 <> pline 1
+  where
+    pline h = fromOffsets [unitY] # scale (0.1*h) # translate (r2 ((-0.05) * h, (-0.1 / 2) * h))
+
+smallNot :: Diagram B
+smallNot = circle 0.08
+
+notGate :: IsName a => a -> Diagram B
+notGate name = dualInput name ||| triangle 1 # rotate (-1/4 @@ turn) ||| smallNot ||| mkCon (name, "out")
+
+nothing :: Diagram B
+nothing = pointDiagram $ mkP2 0 0
+
+mkCon :: IsName a => a -> Diagram B
+mkCon name = nothing # named name
+
+test = (machine "sr" ["S", "R", "W"] ["Q", "Q'", "b", "a"] "SR"
+     ||| polyIn
+     ||| andGate "a"
+     ||| notGate "not"
+     ||| andGate "b") # connect ("sr", "Q") ("a", "in1")
+
 
 
 main :: IO ()
