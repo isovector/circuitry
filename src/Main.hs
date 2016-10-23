@@ -52,10 +52,10 @@ norGate :: IsName a => a -> Diagram B
 norGate name = orGate name ||| smallNot
 
 spacer :: Diagram B
-spacer = rect 0.5 0.5 # lc white
+spacer = nothing # withEnvelope (rect 0.5 0.5 :: D V2 Double)
 
 vspacer :: Diagram B
-vspacer = rect 0 0.5 # lc white
+vspacer = strut unitY
 
 sspacer :: Diagram B
 sspacer = spacer # scale 0.5
