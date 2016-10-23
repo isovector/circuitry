@@ -60,6 +60,12 @@ vspacer = strut unitY
 sspacer :: Diagram B
 sspacer = spacer # scale 0.5
 
+svspacer :: Diagram B
+svspacer = vspacer # scale 0.5
+
+ssvspacer :: Diagram B
+ssvspacer = svspacer # scale 0.5
+
 labelSize = 0.3
 textSize = 0.2
 
@@ -127,8 +133,8 @@ test = (labeled "m" (machine "sr" ["S", "R"] ["Q", "Q'"] "SR"
        # connect' headless ("a", "out0") ("not", "in0")
 
 
-test2 :: Diagram B
-test2 = ((norGate "norA" ||| inputLine ||| (con "feedA" === vspacer === mkCon "loopA") ||| inputLine ||| wireLabel "Q")
+rsDef :: Diagram B
+rsDef = ((norGate "norA" ||| inputLine ||| (con "feedA" === vspacer === mkCon "loopA") ||| inputLine ||| wireLabel "Q")
     === spacer
     === spacer
     === (norGate "norB" ||| inputLine ||| (mkCon "loopB" === vspacer === mkCon "feedB") # alignB)
@@ -144,18 +150,45 @@ test2 = ((norGate "norA" ||| inputLine ||| (con "feedA" === vspacer === mkCon "l
       # putAt ((inputLine <> wireLabel "R") # alignR) ("norA", "in0")
       # putAt ((inputLine <> wireLabel "S") # alignR) ("norB", "in1")
 
+rsMachine :: IsName a => a -> Diagram B
+rsMachine name = machine name ["R", "S"] ["Q"] "RS"
+
+isMachine :: IsName a => a -> Diagram B
+isMachine name = machine name ["I", "S"] ["Q"] "IS"
+
 labeled :: String -> Diagram B -> Diagram B
 labeled label d = ( d # center
                  <> rect (width d - 0.5) (height d + 0.25) # lw veryThick
-                  ) === sspacer === text label # scale labelSize
-
+                  ) === svspacer === text label # scale labelSize
 
 headless = with & arrowHead .~ noHead
+
+arr :: (IsName a, IsName b) => a -> b -> Diagram B -> Diagram B
+arr = connect' headless
 
 wireLabel :: String -> Diagram B
 wireLabel s = text s # scale textSize # translate (r2 (0, 0.2))
 
+labeledWire :: String -> Diagram B
+labeledWire s = (wireLabel s <> inputLine) ||| mkCon s
+
+moveDef :: Diagram B
+moveDef = labeled "Mov" $ ( (labeledWire "A" === svspacer === split)
+        ||| spacer
+        ||| spacer
+        ||| (andGate "top" === ssvspacer === andGate "bot")
+          ) # putAt ((con "splitA" ||| inputLine) # alignR) ("top", "in0")
+            # putAt ((mkCon "splitB" ||| inputLine) # alignR) ("bot", "in0")
+            # putAt (inputLine ||| wireLabel "A+") ("top", "out0")
+            # putAt (inputLine ||| wireLabel "A-") ("bot", "out0")
+            # arr "A" "splitA"
+            # arr "splitA" "splitB"
+            # arr ("neg", "out0") ("top", "in1")
+            # arr ("neg", "out1") ("bot", "in1")
+  where
+    split = wireLabel "W" <> machine "neg" [""] ["+", "-"] "±"
+
 main :: IO ()
-main = mainWith $ (labeled "RS" test2 # pad 1.1 # scale 50 :: Diagram B)
+main = mainWith $ (moveDef # pad 2 # scale 50 :: Diagram B)
 
 
