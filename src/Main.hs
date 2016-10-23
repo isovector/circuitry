@@ -191,6 +191,34 @@ moveDef = labeled "Mov" $ ( (labeledWire "A" === svspacer === split)
   where
     split = wireLabel "W" <> machine "neg" [""] ["+", "-"] "±"
 
+originToName :: (Point V2 Double -> Point V2 Double) -> Named -> Diagram B -> Diagram B
+originToName f (Named name) = withName name $ \b d -> d # moveOriginTo (f $ location b)
+
+originToNameY :: Named -> Diagram B -> Diagram B
+originToNameY = originToName go
+  where
+    go p = let (_,  py)  = unp2 p
+            in p2 (0, py)
+
+originToNameX :: Named -> Diagram B -> Diagram B
+originToNameX = originToName go
+  where
+    go p = let (px,  _)  = unp2 p
+            in p2 (px, 0)
+
+data Named where
+  Named :: IsName a => a -> Named
+
+halign :: [Named] -> [Diagram B] -> [Diagram B]
+halign names = fmap (\d -> foldr originToNameY d names)
+
+valign :: [Named] -> [Diagram B] -> [Diagram B]
+valign names = fmap (\d -> foldr originToNameX d names)
+
+test2 = valign (fmap Named ["c", "d"]) [haligned, triangle 1 <> con "d"] # vcat
+  where
+    haligned = halign (fmap Named ["a", "b", "c"]) [con "a" === square 1 === circle 1, square 1 === con "b" === circle 1, square 1 === circle 1 === con "c"] # hcat
+
 blackBox :: IsName a => a -> String -> Diagram B
 blackBox name = machine name [""] [""] # bold
 
@@ -205,6 +233,6 @@ polyMachDef = labeled "Poly[M]"
                 # putAt (polyIn ||| inputWire ||| wireLabel "M-" & alignL) ("m2", "out0")
 
 main :: IO ()
-main = mainWith $ ((polyMachDef === vspacer === moveDef === vspacer === rsDef) # pad 1.2 # scale 50 :: Diagram B)
+main = mainWith $ (test2 # pad 1.2 # scale 50 :: Diagram B)
 
 
