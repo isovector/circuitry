@@ -136,7 +136,8 @@ test = (labeled "m" (machine "sr" ["S", "R"] ["Q", "Q'"] "SR"
 
 
 rsDef :: Diagram B
-rsDef = ((norGate "norA" ||| inputWire ||| (con "feedA" === vspacer === mkCon "loopA") ||| inputWire ||| wireLabel "Q")
+rsDef = labeled "RS"
+    $ ((norGate "norA" ||| inputWire ||| (con "feedA" === vspacer === mkCon "loopA") ||| inputWire ||| wireLabel "Q")
     === spacer
     === spacer
     === (norGate "norB" ||| inputWire ||| (mkCon "loopB" === vspacer === mkCon "feedB") # alignB)
@@ -204,6 +205,6 @@ polyMachDef = labeled "Poly[M]"
                 # putAt (polyIn ||| inputWire ||| wireLabel "M-" & alignL) ("m2", "out0")
 
 main :: IO ()
-main = mainWith $ (polyMachDef # pad 1.2 # scale 50 :: Diagram B)
+main = mainWith $ ((polyMachDef === vspacer === moveDef === vspacer === rsDef) # pad 1.2 # scale 50 :: Diagram B)
 
 
