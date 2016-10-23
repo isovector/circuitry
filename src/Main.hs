@@ -9,15 +9,15 @@ import Diagrams.Prelude
 import Diagrams.TwoD.Shapes
 import Diagrams.Backend.Canvas.CmdLine
 
-andGate :: Diagram B
-andGate = (input (-1) <> input 1)
+andGate :: IsName a => a -> Diagram B
+andGate name = (input (-1) "in1" <> input 1 "in2")
        ||| roundedRect' 1.2 1 (with & radiusBR .~ 0.5
                                     & radiusTR .~ 0.5
                                     )
-       ||| line # named "and-out"
+       ||| line # named (name, "out") # rotate (1/2 @@ turn)
   where
     line = fromOffsets [unitX] # scale 0.5
-    input d = line # translate (r2 (0, spacing * d)) # named ("and-in" ++ show d)
+    input d n = line # named (name, n) # translate (r2 (0, spacing * d))
     spacing = 0.25
 
 -- TODO(sandy): fix this cause it's shitty
@@ -28,7 +28,7 @@ orGate = roundedRect' 1.2 1 (with & radiusBR .~ 0.5
                                   & radiusTL .~ -0.3
                                   )
 
-test = andGate # scale 50 # connectPerim' arrowStyle2 "aabc" "and-out" (4/12 @@ turn) (2/12 @@ turn)
+test = (andGate "a" ||| andGate "b") # connectPerim' arrowStyle2 ("b", "out") ("a", "in1") (4/12 @@ turn) (2/12 @@ turn)
   where
     shaft' = arc xDir (-2.7/5 @@ turn)
     arrowStyle2 = (with  & arrowHead   .~ spike
@@ -37,6 +37,6 @@ test = andGate # scale 50 # connectPerim' arrowStyle2 "aabc" "and-out" (4/12 @@ 
 
 
 main :: IO ()
-main = mainWith $ (test :: Diagram B)
+main = mainWith $ (test # scale 50 :: Diagram B)
 
 
