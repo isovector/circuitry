@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GADTs #-}
@@ -14,11 +15,11 @@ import Diagrams.Backend.Canvas.CmdLine
 dualInput :: IsName a => a -> Diagram B
 dualInput name = input 1 "in1" <> input (-1) "in2"
   where
-    input d n = (mkCon (name, n) ||| line) # translate (r2 (0, spacing * d))
+    input d n = (mkCon (name, n) ||| inputLine) # translate (r2 (0, spacing * d))
     spacing = 0.25
 
-line :: Diagram B
-line = fromOffsets [unitX] # scale 0.5
+inputLine :: Diagram B
+inputLine = fromOffsets [unitX] # scale 0.5
 
 andGate :: IsName a => a -> Diagram B
 andGate name = dualInput name
@@ -26,6 +27,9 @@ andGate name = dualInput name
                                         & radiusTR .~ 0.5
                                         )
            ||| mkCon (name, "out")
+
+spacer :: Diagram B
+spacer = rect 0.5 0.5 # lc white
 
 machine :: IsName a => a -> [String] -> [String] -> String -> Diagram B
 machine name ins outs labelText = inputStack ||| (rect width height <> inLabels <> outLabels <> label) ||| outputStack
@@ -42,14 +46,14 @@ machine name ins outs labelText = inputStack ||| (rect width height <> inLabels 
     -- TODO(sandy): this is negative. wtf?
     heightOf ls = -vspacing * fromIntegral (length ls - 1) / 2
     stack as = foldl (\b a -> b # translate (r2 (0, vspacing)) <> a) nothing as
-    inputStack = stack (fmap (\a -> mkCon (name, a) ||| line) ins) # translate (r2 (0, heightOf ins)) # scaleY textSize
+    inputStack = stack (fmap (\a -> mkCon (name, a) ||| inputLine) ins) # translate (r2 (0, heightOf ins)) # scaleY textSize
     outputStack = stack (fmap (\a -> mkCon (name, a)) outs) # translate (r2 (0, heightOf outs)) # scaleY textSize
     textStack ls = stack (fmap text ls) # translate (r2 (0, heightOf ls)) # scale textSize
     inLabels  = textStack ins # translate (r2 (-hspacing, 0))
     outLabels = textStack outs # translate (r2 (hspacing, 0))
 
 polyIn :: Diagram B
-polyIn = pline 4 <> pline 3 <> pline 2 <> pline 1
+polyIn = pline 3 <> pline 2 <> pline 1
   where
     pline h = fromOffsets [unitY] # scale (0.1*h) # translate (r2 ((-0.05) * h, (-0.1 / 2) * h))
 
@@ -65,12 +69,18 @@ nothing = pointDiagram $ mkP2 0 0
 mkCon :: IsName a => a -> Diagram B
 mkCon name = nothing # named name
 
+putAt :: IsName a => Diagram B -> a -> Diagram B -> Diagram B
+putAt what name = withName name $ \b d -> moveTo (location b) what <> d
+
 test = (machine "sr" ["S", "R", "W"] ["Q", "Q'", "b", "a"] "SR"
      ||| polyIn
+     ||| spacer
      ||| andGate "a"
      ||| notGate "not"
-     ||| andGate "b") # connect ("sr", "Q") ("a", "in1")
+     ||| andGate "b") # connect' headless ("sr", "Q") ("a", "in1")
+                      # putAt polyIn ("sr", "S")
 
+headless = with & arrowHead .~ noHead
 
 
 main :: IO ()
