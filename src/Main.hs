@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
+import Control.Arrow (second)
 import Control.Lens hiding ((#), at)
 import Data.List (zipWith)
 import Diagrams.TwoD.Arrow
@@ -29,11 +30,35 @@ andGate name = dualInput name
                                         )
            ||| mkCon (name, "out0")
 
+orGate :: IsName a => a -> Diagram B
+orGate name = ( dualInput name
+             <> shape # translate (r2 (0.85, 0))
+              ) ||| mkCon (name, "out0")
+  where
+    line = fromOffsets [unitX] # scale 0.5
+    shape = cubicSpline False (fmap p2 [(-0.5, 0.5), (-0.3, 0), (-0.5, -0.5)])
+         <> topBot
+         <> cubicSpline False (fmap p2 splineBits)
+         <> cubicSpline False (fmap (p2 . second negate) splineBits)
+    splineBits = [(0.0, 0.5), (0.2, 0.4), (0.4, 0.2), (0.5, 0)]
+    topBot = ( line # translate (r2 (0, -0.5))
+            <> line # translate (r2 (0, 0.5))
+             ) # translate (r2 (-0.5, 0))
+
+nandGate :: IsName a => a -> Diagram B
+nandGate name = andGate name ||| smallNot
+
+norGate :: IsName a => a -> Diagram B
+norGate name = orGate name ||| smallNot
+
 spacer :: Diagram B
 spacer = rect 0.5 0.5 # lc white
 
+vspacer :: Diagram B
+vspacer = rect 0 0.5 # lc white
+
 sspacer :: Diagram B
-sspacer = rect 0.25 0.25 # lc white
+sspacer = spacer # scale 0.5
 
 labelSize = 0.3
 textSize = 0.2
@@ -83,33 +108,54 @@ mkCon :: IsName a => a -> Diagram B
 mkCon name = nothing # named name
 
 con :: IsName a => a -> Diagram B
-con name = circle 0.05 # fc black # named name
+con name = circle 0.05 # fc black <> mkCon name
 
 putAt :: IsName a => Diagram B -> a -> Diagram B -> Diagram B
 putAt what name = withName name $ \b d -> moveTo (location b) what <> d
 
 test = (labeled "m" (machine "sr" ["S", "R"] ["Q", "Q'"] "SR"
      ||| spacer
-     ||| andGate "a"
+     ||| orGate "a"
      )
      ||| spacer
      ||| notGate "not"
+     ||| machine "neg" [""] ["+", "-"] "±"
      ) # connect' headless ("sr", "out1") ("a", "in1")
        # putAt polyIn ("sr", "S")
        # putAt (con "split") ("a", "in1")
        # connect' headless "split" ("a", "in0")
        # connect' headless ("a", "out0") ("not", "in0")
 
+
+test2 :: Diagram B
+test2 = ((norGate "norA" ||| inputLine ||| (con "feedA" === vspacer === mkCon "loopA") ||| inputLine ||| wireLabel "Q")
+    === spacer
+    === spacer
+    === (norGate "norB" ||| inputLine ||| (mkCon "loopB" === vspacer === mkCon "feedB") # alignB)
+    ) # connect' headless "feedA" "loopA"
+      # connect' headless "feedB" "loopB"
+      # putAt ((mkCon "inB" === vspacer) # alignB) ("norB", "in0")
+      # connect' headless "loopA" "inB"
+      # connect' headless "inB" ("norB", "in0")
+      # putAt (vspacer === mkCon "inA") ("norA", "in1")
+      # connect' headless "loopB" "inA"
+      # connect' headless "inA" ("norA", "in1")
+
+      # putAt ((inputLine <> wireLabel "R") # alignR) ("norA", "in0")
+      # putAt ((inputLine <> wireLabel "S") # alignR) ("norB", "in1")
+
 labeled :: String -> Diagram B -> Diagram B
-labeled label d = ( d # center # translate (r2 (-0.25, 0.125))
-                 <> rect (width d) (height d + 0.25) # lw veryThick
+labeled label d = ( d # center
+                 <> rect (width d - 0.5) (height d + 0.25) # lw veryThick
                   ) === sspacer === text label # scale labelSize
 
 
 headless = with & arrowHead .~ noHead
 
+wireLabel :: String -> Diagram B
+wireLabel s = text s # scale textSize # translate (r2 (0, 0.2))
 
 main :: IO ()
-main = mainWith $ (test # scale 50 :: Diagram B)
+main = mainWith $ (labeled "RS" test2 # pad 1.1 # scale 50 :: Diagram B)
 
 
