@@ -17,11 +17,11 @@ import Diagrams.Backend.Canvas.CmdLine
 dualInput :: IsName a => a -> Diagram B
 dualInput name = input 1 "in0" <> input (-1) "in1"
   where
-    input d n = (mkCon (name, n) ||| inputLine) # translate (r2 (0, spacing * d))
+    input d n = (mkCon (name, n) ||| inputWire) # translate (r2 (0, spacing * d))
     spacing = 0.25
 
-inputLine :: Diagram B
-inputLine = fromOffsets [unitX] # scale 0.5
+inputWire :: Diagram B
+inputWire = fromOffsets [unitX] # scale 0.5
 
 andGate :: IsName a => a -> Diagram B
 andGate name = dualInput name
@@ -70,7 +70,9 @@ labelSize = 0.3
 textSize = 0.2
 
 machine :: IsName a => a -> [String] -> [String] -> String -> Diagram B
-machine name ins outs labelText = inputNumStack ||| inputStack ||| (rect width height <> inLabels <> outLabels <> label) ||| outputStack ||| outputNumStack
+machine name ins outs labelText = inputNumStack ||| inputStack
+                              ||| (rect width height <> inLabels <> outLabels <> label)
+                              ||| outputStack ||| outputNumStack
   where
     vspacing = 2.5
     hspacing = width / 2 - textSize
@@ -78,7 +80,7 @@ machine name ins outs labelText = inputNumStack ||| inputStack ||| (rect width h
                           + maximum (fmap length outs)) * textSize)
           + (fromIntegral (length labelText) * labelSize) + 0.5
     label = text labelText # scale labelSize
-    height = min (heightOf outs) (heightOf ins)
+    height = minimum [heightOf outs, heightOf ins, negate $ textSize + 0.2]
     -- TODO(sandy): this is negative. wtf?
     heightOf ls = -vspacing * fromIntegral (length ls - 1) / 2
     stack as = foldl (\b a -> b # translate (r2 (0, vspacing)) <> a) nothing as
@@ -86,7 +88,7 @@ machine name ins outs labelText = inputNumStack ||| inputStack ||| (rect width h
     objStack as f = stack (fmap f as) # translate (r2 (0, heightOf as)) # scaleY textSize
 
     inputNumStack  = objStack (renumber ins) $ \a -> mkCon (name, "in" ++ a)
-    inputStack     = objStack ins $ \a -> mkCon (name, a) ||| inputLine
+    inputStack     = objStack ins $ \a -> mkCon (name, a) ||| inputWire
     outputStack    = objStack outs $ \a -> mkCon (name, a)
     outputNumStack = objStack (renumber outs) $ \a -> mkCon (name, "out" ++ a)
     textStack ls   = stack (fmap text ls) # translate (r2 (0, heightOf ls)) # scale textSize
@@ -134,10 +136,10 @@ test = (labeled "m" (machine "sr" ["S", "R"] ["Q", "Q'"] "SR"
 
 
 rsDef :: Diagram B
-rsDef = ((norGate "norA" ||| inputLine ||| (con "feedA" === vspacer === mkCon "loopA") ||| inputLine ||| wireLabel "Q")
+rsDef = ((norGate "norA" ||| inputWire ||| (con "feedA" === vspacer === mkCon "loopA") ||| inputWire ||| wireLabel "Q")
     === spacer
     === spacer
-    === (norGate "norB" ||| inputLine ||| (mkCon "loopB" === vspacer === mkCon "feedB") # alignB)
+    === (norGate "norB" ||| inputWire ||| (mkCon "loopB" === vspacer === mkCon "feedB") # alignB)
     ) # connect' headless "feedA" "loopA"
       # connect' headless "feedB" "loopB"
       # putAt ((mkCon "inB" === vspacer) # alignB) ("norB", "in0")
@@ -147,8 +149,8 @@ rsDef = ((norGate "norA" ||| inputLine ||| (con "feedA" === vspacer === mkCon "l
       # connect' headless "loopB" "inA"
       # connect' headless "inA" ("norA", "in1")
 
-      # putAt ((inputLine <> wireLabel "R") # alignR) ("norA", "in0")
-      # putAt ((inputLine <> wireLabel "S") # alignR) ("norB", "in1")
+      # putAt ((inputWire <> wireLabel "R") # alignR) ("norA", "in0")
+      # putAt ((inputWire <> wireLabel "S") # alignR) ("norB", "in1")
 
 rsMachine :: IsName a => a -> Diagram B
 rsMachine name = machine name ["R", "S"] ["Q"] "RS"
@@ -170,17 +172,17 @@ wireLabel :: String -> Diagram B
 wireLabel s = text s # scale textSize # translate (r2 (0, 0.2))
 
 labeledWire :: String -> Diagram B
-labeledWire s = (wireLabel s <> inputLine) ||| mkCon s
+labeledWire s = (wireLabel s <> inputWire) ||| mkCon s
 
 moveDef :: Diagram B
 moveDef = labeled "Mov" $ ( (labeledWire "A" === svspacer === split)
         ||| spacer
         ||| spacer
         ||| (andGate "top" === ssvspacer === andGate "bot")
-          ) # putAt ((con "splitA" ||| inputLine) # alignR) ("top", "in0")
-            # putAt ((mkCon "splitB" ||| inputLine) # alignR) ("bot", "in0")
-            # putAt (inputLine ||| wireLabel "A+") ("top", "out0")
-            # putAt (inputLine ||| wireLabel "A-") ("bot", "out0")
+          ) # putAt ((con "splitA" ||| inputWire) # alignR) ("top", "in0")
+            # putAt ((mkCon "splitB" ||| inputWire) # alignR) ("bot", "in0")
+            # putAt (inputWire ||| wireLabel "A+") ("top", "out0")
+            # putAt (inputWire ||| wireLabel "A-") ("bot", "out0")
             # arr "A" "splitA"
             # arr "splitA" "splitB"
             # arr ("neg", "out0") ("top", "in1")
@@ -188,7 +190,20 @@ moveDef = labeled "Mov" $ ( (labeledWire "A" === svspacer === split)
   where
     split = wireLabel "W" <> machine "neg" [""] ["+", "-"] "±"
 
+blackBox :: IsName a => a -> String -> Diagram B
+blackBox name = machine name [""] [""] # bold
+
+polyMachDef :: Diagram B
+polyMachDef = labeled "Poly[M]"
+                $ machine "move" ["A", "W"] ["A+", "A-"] "Mov"
+                # putAt (polyIn ||| blackBox "m1" "M" & alignL) ("move", "out0")
+                # putAt (polyIn ||| blackBox "m2" "M" & alignL) ("move", "out1")
+                # putAt (polyIn ||| wireLabel "I" & alignR) ("move", "in0")
+                # putAt (wireLabel "W" & alignR) ("move", "in1")
+                # putAt (polyIn ||| inputWire ||| wireLabel "M+" & alignL) ("m1", "out0")
+                # putAt (polyIn ||| inputWire ||| wireLabel "M-" & alignL) ("m2", "out0")
+
 main :: IO ()
-main = mainWith $ (moveDef # pad 2 # scale 50 :: Diagram B)
+main = mainWith $ (polyMachDef # pad 1.2 # scale 50 :: Diagram B)
 
 
