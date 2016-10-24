@@ -6,12 +6,16 @@
 module Main where
 
 import Control.Arrow (second)
+import Control.Monad (zipWithM_)
 import Control.Lens hiding ((#), at)
+import Data.Hashable
 import Data.List (zipWith)
+import Data.Maybe (fromJust)
 import Diagrams.TwoD.Arrow
 import Diagrams.TwoD.Arrowheads
 import Diagrams.Prelude
 import Diagrams.TwoD.Shapes
+import Diagrams.TwoD.Layout.Constrained
 import Diagrams.Backend.Canvas.CmdLine
 
 dualInput :: IsName a => a -> Diagram B
@@ -194,30 +198,8 @@ moveDef = labeled "Mov" $ ( (labeledWire "A" === svspacer === split)
 originToName :: (Point V2 Double -> Point V2 Double) -> Named -> Diagram B -> Diagram B
 originToName f (Named name) = withName name $ \b d -> d # moveOriginTo (f $ location b)
 
-originToNameY :: Named -> Diagram B -> Diagram B
-originToNameY = originToName go
-  where
-    go p = let (_,  py)  = unp2 p
-            in p2 (0, py)
-
-originToNameX :: Named -> Diagram B -> Diagram B
-originToNameX = originToName go
-  where
-    go p = let (px,  _)  = unp2 p
-            in p2 (px, 0)
-
 data Named where
   Named :: IsName a => a -> Named
-
-halign :: [Named] -> [Diagram B] -> [Diagram B]
-halign names = fmap (\d -> foldr originToNameY d names)
-
-valign :: [Named] -> [Diagram B] -> [Diagram B]
-valign names = fmap (\d -> foldr originToNameX d names)
-
-test2 = valign (fmap Named ["c", "d"]) [haligned, triangle 1 <> con "d"] # vcat
-  where
-    haligned = halign (fmap Named ["a", "b", "c"]) [con "a" === square 1 === circle 1, square 1 === con "b" === circle 1, square 1 === circle 1 === con "c"] # hcat
 
 blackBox :: IsName a => a -> String -> Diagram B
 blackBox name = machine name [""] [""] # bold
@@ -233,6 +215,56 @@ polyMachDef = labeled "Poly[M]"
                 # putAt (polyIn ||| inputWire ||| wireLabel "M-" & alignL) ("m2", "out0")
 
 main :: IO ()
-main = mainWith $ (test2 # pad 1.2 # scale 50 :: Diagram B)
+main = mainWith $ (diagonalLayout # pad 1.2 # scale 50 :: Diagram B)
 
+go p = let (_,  py)  = unp2 p
+        in p2 (0, py)
+
+findPort
+  :: (IsName nm, Hashable n,
+      Semigroup m, RealFrac n, Floating n) =>
+     DiaID s -> nm -> Constrained s b n m (P2 (Expr s n))
+findPort d name = newPointOn d (maybe origin location . lookupName name)
+
+diagonalLayout :: Diagram B
+diagonalLayout = labeled "Mov"
+               $ layout constraints
+               # arr "A" "splitA"
+               # arr "splitA" "splitB"
+               # arr "splitA" ("top", "in0")
+               # arr "splitB" ("bot", "in0")
+               # arr ("neg", "out0") "splitD"
+               # arr ("neg", "out1") ("bot", "in1")
+               # arr "splitD" "splitC"
+               # arr "splitC" ("top", "in1")
+  where
+    constraints = do
+      inA <- newDia $ labeledWire "A"
+      inW <- newDia $ (wireLabel "W" <> machine "neg" [""] ["+", "-"] "±") # originToName go (Named ("neg", "out0"))
+      and1 <- newDia $ (andGate "top" ||| inputWire ||| wireLabel "A+") # originToName id (Named ("top", "in0"))
+      and2 <- newDia $ (andGate "bot" ||| inputWire ||| wireLabel "A-") # originToName id (Named ("bot", "in0"))
+      splitA <- newDia $ con "splitA"
+      splitB <- newDia $ mkCon "splitB"
+
+      splitC <- newDia $ mkCon "splitC"
+      splitD <- newDia $ mkCon "splitD"
+
+      and1In1 <- newPointOn and1 (maybe origin location . lookupName ("top", "in1"))
+
+      constrainWith (hsep 0.1) [splitA, and1]
+      constrainWith (hsep 0.5) [inW, splitD]
+
+      sameX splitA splitB
+      sameY splitB and2
+
+      constrainDir (direction $ r2 (1, 0)) (centerOf splitC) and1In1
+
+      sameX splitC splitD
+
+      sameY inA and1
+      sameY inW and2
+      sameX inA inW
+
+      constrainWith (vsep 0.5) [and1, and2]
+      constrainWith (hsep 2) [inA, and1]
 
