@@ -224,7 +224,7 @@ findPort
   :: (IsName nm, Hashable n,
       Semigroup m, RealFrac n, Floating n) =>
      DiaID s -> nm -> Constrained s b n m (P2 (Expr s n))
-findPort d name = newPointOn d (maybe origin location . lookupName name)
+findPort d name = newPointOn d (location . fromJust . lookupName name)
 
 diagonalLayout :: Diagram B
 diagonalLayout = labeled "Mov"
@@ -240,31 +240,58 @@ diagonalLayout = labeled "Mov"
   where
     constraints = do
       inA <- newDia $ labeledWire "A"
-      inW <- newDia $ (wireLabel "W" <> machine "neg" [""] ["+", "-"] "±") # originToName go (Named ("neg", "out0"))
-      and1 <- newDia $ (andGate "top" ||| inputWire ||| wireLabel "A+") # originToName id (Named ("top", "in0"))
-      and2 <- newDia $ (andGate "bot" ||| inputWire ||| wireLabel "A-") # originToName id (Named ("bot", "in0"))
+      inW <- newDia $ (wireLabel "W" <> machine "neg" [""] ["+", "-"] "±")
+      and1 <- newDia $ (andGate "top" ||| inputWire ||| wireLabel "A+")
+      and2 <- newDia $ (andGate "bot" ||| inputWire ||| wireLabel "A-")
       splitA <- newDia $ con "splitA"
       splitB <- newDia $ mkCon "splitB"
 
       splitC <- newDia $ mkCon "splitC"
       splitD <- newDia $ mkCon "splitD"
 
-      and1In1 <- newPointOn and1 (maybe origin location . lookupName ("top", "in1"))
+      and1In0 <- findPort and1 ("top", "in0")
+      and1In1 <- findPort and1 ("top", "in1")
+      and2In0 <- findPort and2 ("bot", "in0")
 
-      constrainWith (hsep 0.1) [splitA, and1]
-      constrainWith (hsep 0.5) [inW, splitD]
+      constrainWith (hsep 1.7) [inA, splitA]
 
       sameX splitA splitB
-      sameY splitB and2
+      leftOf (centerOf splitB) and2In0
 
-      constrainDir (direction $ r2 (1, 0)) (centerOf splitC) and1In1
+      leftOf (centerOf splitC) and1In1
+      leftOf (centerOf inA) and1In0
+
+      spaceH splitC and1 0.5
+      leftOf (centerOf splitD) and2In0
 
       sameX splitC splitD
 
-      sameY inA and1
+      -- sameY inA and1
       sameY inW and2
       sameX inA inW
+      constrainWith (vsep 0.25) [and1, and2]
 
-      constrainWith (vsep 0.5) [and1, and2]
-      constrainWith (hsep 2) [inA, and1]
+      spaceH inA and1 2
+
+leftOf :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
+        => P2 (Expr s n) -> P2 (Expr s n) -> Constrained s b n m ()
+leftOf a b = constrainDir (direction $ r2 (1, 0)) a b
+
+downOf :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
+        => P2 (Expr s n) -> P2 (Expr s n) -> Constrained s b n m ()
+downOf a b = constrainDir (direction $ r2 (0, 1)) a b
+
+spaceH :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
+        => DiaID s -> DiaID s-> n -> Constrained s b n m ()
+spaceH a b s = do
+  spacer <- newDia $ strut unitX # scaleX s # alignR
+  constrainWith hcat [a, spacer]
+  sameX b spacer
+
+spaceV :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
+        => DiaID s -> DiaID s -> n -> Constrained s b n m ()
+spaceV a b s = do
+  spacer <- newDia $ strut unitY # scaleY s # alignB
+  constrainWith vcat [a, spacer]
+  sameY b spacer
 
