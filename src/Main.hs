@@ -253,7 +253,7 @@ diagonalLayout = labeled "Mov"
       and1In1 <- findPort and1 ("top", "in1")
       and2In0 <- findPort and2 ("bot", "in0")
 
-      constrainWith (hsep 1.7) [inA, splitA]
+      constrainWith (hsep 2) [inA, splitA]
 
       sameX splitA splitB
       leftOf (centerOf splitB) and2In0
@@ -261,7 +261,7 @@ diagonalLayout = labeled "Mov"
       leftOf (centerOf splitC) and1In1
       leftOf (centerOf inA) and1In0
 
-      spaceH splitC and1 0.5
+      spaceH splitC and1 0.7
       leftOf (centerOf splitD) and2In0
 
       sameX splitC splitD
@@ -271,15 +271,15 @@ diagonalLayout = labeled "Mov"
       sameX inA inW
       constrainWith (vsep 0.25) [and1, and2]
 
-      spaceH inA and1 2
+      spaceH inA and1 2.2
 
 leftOf :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
         => P2 (Expr s n) -> P2 (Expr s n) -> Constrained s b n m ()
-leftOf a b = constrainDir (direction $ r2 (1, 0)) a b
+leftOf = constrainDir (direction (r2 (1, 0)))
 
-downOf :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
-        => P2 (Expr s n) -> P2 (Expr s n) -> Constrained s b n m ()
-downOf a b = constrainDir (direction $ r2 (0, 1)) a b
+above :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
+      => P2 (Expr s n) -> P2 (Expr s n) -> Constrained s b n m ()
+above = constrainDir (direction (r2 (0, 1)))
 
 spaceH :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
         => DiaID s -> DiaID s-> n -> Constrained s b n m ()
