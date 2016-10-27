@@ -5,122 +5,25 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
-import Control.Arrow (second)
 import Control.Monad (zipWithM_)
 import Control.Lens hiding ((#), at)
 import Data.Hashable
-import Data.List (zipWith)
 import Data.Maybe (fromJust)
 import Diagrams.TwoD.Arrow
 import Diagrams.TwoD.Arrowheads
 import Diagrams.Prelude
 import Diagrams.TwoD.Shapes
 import Diagrams.TwoD.Layout.Constrained
-import Diagrams.Backend.Canvas.CmdLine
 
-dualInput :: IsName a => a -> Diagram B
-dualInput name = input 1 "in0" <> input (-1) "in1"
-  where
-    input d n = (mkCon (name, n) ||| inputWire) # translate (r2 (0, spacing * d))
-    spacing = 0.25
-
-inputWire :: Diagram B
-inputWire = fromOffsets [unitX] # scale 0.5
-
-andGate :: IsName a => a -> Diagram B
-andGate name = dualInput name
-           ||| roundedRect' 1.2 1 (with & radiusBR .~ 0.5
-                                        & radiusTR .~ 0.5
-                                        )
-           ||| mkCon (name, "out0")
-
-orGate :: IsName a => a -> Diagram B
-orGate name = ( dualInput name
-             <> shape # translate (r2 (0.85, 0))
-              ) ||| mkCon (name, "out0")
-  where
-    line = fromOffsets [unitX] # scale 0.5
-    shape = cubicSpline False (fmap p2 [(-0.5, 0.5), (-0.3, 0), (-0.5, -0.5)])
-         <> topBot
-         <> cubicSpline False (fmap p2 splineBits)
-         <> cubicSpline False (fmap (p2 . second negate) splineBits)
-    splineBits = [(0.0, 0.5), (0.2, 0.4), (0.4, 0.2), (0.5, 0)]
-    topBot = ( line # translate (r2 (0, -0.5))
-            <> line # translate (r2 (0, 0.5))
-             ) # translate (r2 (-0.5, 0))
-
-nandGate :: IsName a => a -> Diagram B
-nandGate name = andGate name ||| smallNot
-
-norGate :: IsName a => a -> Diagram B
-norGate name = orGate name ||| smallNot
-
-spacer :: Diagram B
-spacer = nothing # withEnvelope (rect 0.5 0.5 :: D V2 Double)
-
-vspacer :: Diagram B
-vspacer = strut unitY
-
-sspacer :: Diagram B
-sspacer = spacer # scale 0.5
-
-svspacer :: Diagram B
-svspacer = vspacer # scale 0.5
-
-ssvspacer :: Diagram B
-ssvspacer = svspacer # scale 0.5
-
-labelSize = 0.3
-textSize = 0.2
-
-machine :: IsName a => a -> [String] -> [String] -> String -> Diagram B
-machine name ins outs labelText = inputNumStack ||| inputStack
-                              ||| (rect width height <> inLabels <> outLabels <> label)
-                              ||| outputStack ||| outputNumStack
-  where
-    vspacing = 2.5
-    hspacing = width / 2 - textSize
-    width = (fromIntegral ( maximum (fmap length ins)
-                          + maximum (fmap length outs)) * textSize)
-          + (fromIntegral (length labelText) * labelSize) + 0.5
-    label = text labelText # scale labelSize
-    height = minimum [heightOf outs, heightOf ins, negate $ textSize + 0.2]
-    -- TODO(sandy): this is negative. wtf?
-    heightOf ls = -vspacing * fromIntegral (length ls - 1) / 2
-    stack as = foldl (\b a -> b # translate (r2 (0, vspacing)) <> a) nothing as
-
-    objStack as f = stack (fmap f as) # translate (r2 (0, heightOf as)) # scaleY textSize
-
-    inputNumStack  = objStack (renumber ins) $ \a -> mkCon (name, "in" ++ a)
-    inputStack     = objStack ins $ \a -> mkCon (name, a) ||| inputWire
-    outputStack    = objStack outs $ \a -> mkCon (name, a)
-    outputNumStack = objStack (renumber outs) $ \a -> mkCon (name, "out" ++ a)
-    textStack ls   = stack (fmap text ls) # translate (r2 (0, heightOf ls)) # scale textSize
-
-    inLabels  = textStack ins # translate (r2 (-hspacing, 0))
-    outLabels = textStack outs # translate (r2 (hspacing, 0))
-
-    renumber = zipWith ((show .) . const) [0..]
+import Gates
+import Machinery
+import Misc
+import Backend
 
 polyIn :: Diagram B
 polyIn = pline 3 <> pline 2 <> pline 1
   where
     pline h = fromOffsets [unitY] # scale (0.1*h) # translate (r2 ((-0.05) * h, (-0.1 / 2) * h))
-
-smallNot :: Diagram B
-smallNot = circle 0.08
-
-notGate :: IsName a => a -> Diagram B
-notGate name = dualInput name ||| triangle 1 # rotate (-1/4 @@ turn) ||| smallNot ||| mkCon (name, "out")
-
-nothing :: Diagram B
-nothing = pointDiagram $ mkP2 0 0
-
-mkCon :: IsName a => a -> Diagram B
-mkCon name = nothing # named name
-
-con :: IsName a => a -> Diagram B
-con name = circle 0.05 # fc black <> mkCon name
 
 putAt :: IsName a => Diagram B -> a -> Diagram B -> Diagram B
 putAt what name = withName name $ \b d -> moveTo (location b) what <> d
@@ -201,9 +104,6 @@ originToName f (Named name) = withName name $ \b d -> d # moveOriginTo (f $ loca
 data Named where
   Named :: IsName a => a -> Named
 
-blackBox :: IsName a => a -> String -> Diagram B
-blackBox name = machine name [""] [""] # bold
-
 polyMachDef :: Diagram B
 polyMachDef = labeled "Poly[M]"
                 $ machine "move" ["A", "W"] ["A+", "A-"] "Mov"
@@ -213,12 +113,6 @@ polyMachDef = labeled "Poly[M]"
                 # putAt (wireLabel "W" & alignR) ("move", "in1")
                 # putAt (polyIn ||| inputWire ||| wireLabel "M+" & alignL) ("m1", "out0")
                 # putAt (polyIn ||| inputWire ||| wireLabel "M-" & alignL) ("m2", "out0")
-
-main :: IO ()
-main = mainWith $ (diagonalLayout # pad 1.2 # scale 50 :: Diagram B)
-
-go p = let (_,  py)  = unp2 p
-        in p2 (0, py)
 
 findPort
   :: (IsName nm, Hashable n,
@@ -294,4 +188,7 @@ spaceV a b s = do
   spacer <- newDia $ strut unitY # scaleY s # alignB
   constrainWith vcat [a, spacer]
   sameY b spacer
+
+main :: IO ()
+main = mainWith $ (diagonalLayout # pad 1.2 # scale 50 :: Diagram B)
 
