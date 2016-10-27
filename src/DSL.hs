@@ -1,15 +1,16 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module DSL where
 
-import Control.Arrow (second)
+import Control.Arrow (first, second)
 import Control.Monad (forM_)
 import Control.Monad.State.Class
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.State.Strict (StateT, evalStateT)
+import Control.Monad.Trans.State.Strict (StateT, execStateT)
 import Data.Hashable
 import Data.Map.Strict (Map)
 import Data.Maybe (fromJust)
@@ -28,10 +29,17 @@ type DSL' s = DSL s B Double Any
 
 runDSL :: (C n m, Show n) => (forall s. DSL s b n m a) -> QDiagram b V2 n m
 -- TODO(sandy): this is probably ok
-runDSL (DSL dsl) = C.layout $ unsafeCoerce (evalStateT dsl M.empty)
+runDSL (DSL dsl) = let c      = execStateT dsl def
+                       (s, d) = C.layout $ unsafeCoerce c
+                    in d # view compose s
 
 liftDSL :: (C.Constrained s b n m) a -> DSL s b n m a
 liftDSL = DSL . lift
+
+liftDias :: C n m
+         => [DiaID s -> QDiagram b V2 n m]
+         -> DSL s b n m [DiaID s]
+liftDias = mapM liftDia
 
 liftDia :: C n m
         => (DiaID s -> QDiagram b V2 n m)
@@ -41,14 +49,14 @@ liftDia f = mdo
     dia <- liftDSL $ C.newDia d
     forM_ (fmap fst $ names d) $ \pname -> do
         port <- liftDSL $ findPort dia pname
-        modify (M.insert (dia, pname) port)
+        modify (over ports $ M.insert (dia, pname) port)
     return dia
 
 withPort :: DiaID s -> Port -> (P2 (C.Expr s n) -> DSL s b n m a) -> DSL s b n m a
 withPort = ((>>=) .) . getPort
 
 getPort :: DiaID s -> Port -> DSL s b n m (P2 (C.Expr s n))
-getPort c p = gets (M.! (c, toName (show c, p)))
+getPort c p = gets ((M.! (c, toName (show c, p))) . view ports)
 
 findPort
   :: (IsName nm, Hashable n,
@@ -65,15 +73,15 @@ above :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
 above = (liftDSL .) . C.constrainDir (direction (r2 (0, 1)))
 
 spaceH :: (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
-       => DiaID s -> DiaID s-> n -> DSL s b n m ()
-spaceH a b s = liftDSL $ do
+       => n -> DiaID s -> DiaID s-> DSL s b n m ()
+spaceH s a b = liftDSL $ do
   spacer <- C.newDia $ strut unitX # scaleX s # alignR
   C.constrainWith hcat [a, spacer]
   C.sameX b spacer
 
 spaceV :: C n m
-       => DiaID s -> DiaID s -> n -> DSL s b n m ()
-spaceV a b s = liftDSL $ do
+       => n -> DiaID s -> DiaID s -> DSL s b n m ()
+spaceV s a b = liftDSL $ do
   spacer <- C.newDia $ strut unitY # scaleY s # alignB
   C.constrainWith vcat [a, spacer]
   C.sameY b spacer
@@ -83,4 +91,13 @@ sameX = (liftDSL .) . C.sameX
 
 sameY :: C n m => DiaID s -> DiaID s -> DSL s b n m ()
 sameY = (liftDSL .) . C.sameY
+
+afterwards :: (QDiagram b V2 n m -> QDiagram b V2 n m) -> DSL s b n m ()
+afterwards f = modify (over compose (f .))
+
+arr :: (Typeable n, RealFloat n, Renderable (Path V2 n) b)
+    => (DiaID s, Port) -> (DiaID s, Port) -> DSL s b n Any ()
+arr a b = afterwards $ connect' headless (first show a) (first show b)
+  where
+    headless = def & arrowHead .~ noHead
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveGeneric    #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Rank2Types       #-}
@@ -620,13 +621,13 @@ getDiaVars deps d = M.fromList $
 layout
   :: (Monoid' m, Hashable n, Floating n, RealFrac n, Show n)
   => (forall s. Constrained s b n m a)
-  -> QDiagram b V2 n m
+  -> (a, QDiagram b V2 n m)
 layout constr =
   case MFS.execSolver (MFS.ignore $ s ^. equations) MFS.noDeps of
     Left _depError -> error "overconstrained"
     Right deps    ->
       let deps' = resolve (map fst dias) deps
-      in  mconcat . flip map dias $ \(d, dia) ->
+      in  (a, ) . mconcat . flip map dias $ \(d, dia) ->
         let vars = getDiaVars deps' d
             expectedRes ty = vars ^?! L.at ty . _Just . resolution . _Just
         in
@@ -642,7 +643,7 @@ layout constr =
                  -- a diagram if they aren't already constrained, so getDiaVars
                  -- should return three resolved variables
   where
-    s = execState constr initConstrainedState
+    (a, s) = runState constr initConstrainedState
     dias = M.assocs (s ^. diagrams)
 
 resolve

@@ -5,6 +5,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
+import Data.Typeable
+import Control.Arrow (first)
 import Control.Monad (zipWithM_)
 import Control.Lens hiding ((#), at)
 import Diagrams.TwoD.Arrow
@@ -21,13 +23,14 @@ import Types
 
 test :: Diagram B
 test = runDSL $ do
-    and1 <- liftDia andGate
-    or1  <- liftDia orGate
+    [and1, or1] <- liftDias [andGate, orGate]
     withPort and1 (Out 0)
         $ \p1 -> withPort or1 (In 0)
         $ \p2 -> leftOf p1 p2
+    arr (and1, Out 0) (or1, In 0)
+    arr (or1, In 0) (or1, In 1)
 
-    spaceH and1 or1 2
+    spaceH 1 and1 or1
 
     return ()
 
@@ -35,11 +38,6 @@ labeled :: String -> Diagram B -> Diagram B
 labeled label d = ( d # center
                  <> rect (width d - 0.5) (height d + 0.25) # lw veryThick
                   ) === svspacer === text label # scale labelSize
-
-headless = with & arrowHead .~ noHead
-
-arr :: (IsName a, IsName b) => a -> b -> Diagram B -> Diagram B
-arr = connect' headless
 
 wireLabel :: String -> Diagram B
 wireLabel s = text s # scale textSize # translate (r2 (0, 0.2))
