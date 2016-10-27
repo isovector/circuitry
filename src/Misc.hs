@@ -2,12 +2,7 @@ module Misc where
 
 import Diagrams.Prelude
 import Backend
-
-dualInput :: IsName a => a -> Diagram B
-dualInput name = input 1 "in0" <> input (-1) "in1"
-  where
-    input d n = (mkCon (name, n) ||| inputWire) # translate (r2 (0, spacing * d))
-    spacing = 0.25
+import Types
 
 inputWire :: Diagram B
 inputWire = fromOffsets [unitX] # scale 0.5
@@ -31,7 +26,7 @@ labelSize = 0.3
 textSize = 0.2
 
 mkCon :: IsName a => a -> Diagram B
-mkCon name = nothing # named name
+mkCon name = nothing # named (toName name)
 
 con :: IsName a => a -> Diagram B
 con name = circle 0.05 # fc black <> mkCon name

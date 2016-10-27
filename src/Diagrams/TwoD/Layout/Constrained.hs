@@ -143,6 +143,7 @@ import           Control.Monad.State
 import qualified Data.Foldable        as F
 import           Data.Hashable
 import           Data.List            (sortBy)
+import           Data.Typeable
 import qualified Data.Map             as M
 import           Data.Maybe           (fromJust)
 import           Data.Ord             (comparing)
@@ -295,7 +296,7 @@ initConstrainedState = ConstrainedState
 --   Note that @s@ is a phantom parameter, used in a similar fashion
 --   to the 'ST' monad, to ensure that generated diagram IDs cannot be
 --   mixed between different 'layout' blocks.
-type Constrained s b n m a = State (ConstrainedState s b n m) a
+type Constrained s b n m = State (ConstrainedState s b n m)
 
 ------------------------------------------------------------
 -- Constraint DSL
