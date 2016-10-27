@@ -47,6 +47,8 @@ newtype DSL s b n m a = DSL
 
 data Port = In Int
           | Out Int
+          | Split
+          | Named String
           deriving (Typeable, Ord, Show, Read, Eq)
 instance IsName Port
 

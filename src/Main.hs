@@ -13,6 +13,7 @@ import Diagrams.TwoD.Arrow
 import Diagrams.TwoD.Arrowheads
 import Diagrams.Prelude
 import Diagrams.TwoD.Shapes
+import Diagrams.TwoD.Layout.Constrained ((=.=))
 
 import Gates
 import Machinery
@@ -24,9 +25,10 @@ import Types
 test :: Diagram B
 test = runDSL $ do
     [and1, or1] <- liftDias [andGate, orGate]
-    withPort and1 (Out 0)
-        $ \p1 -> withPort or1 (In 0)
-        $ \p2 -> leftOf p1 p2
+    withPort or1 (In 0)
+        $ \p1 -> do
+            withPort and1 (Out 0) $ \p2 -> leftOf p2 p1
+            splitting $ \s -> liftDSL $ p1 =.= s
     arr (and1, Out 0) (or1, In 0)
     arr (or1, In 0) (or1, In 1)
 

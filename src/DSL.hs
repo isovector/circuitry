@@ -101,3 +101,5 @@ arr a b = afterwards $ connect' headless (first show a) (first show b)
   where
     headless = def & arrowHead .~ noHead
 
+type FoundPort s n = P2 (C.Expr s n)
+
