@@ -8,10 +8,9 @@ module Main where
 import Data.Typeable
 import Control.Arrow (first)
 import Control.Monad (zipWithM_)
-import Control.Lens hiding ((#), at)
 import Diagrams.TwoD.Arrow
 import Diagrams.TwoD.Arrowheads
-import Diagrams.Prelude
+import Diagrams.Prelude hiding (anon)
 import Diagrams.TwoD.Shapes
 import Diagrams.TwoD.Layout.Constrained ((=.=))
 
@@ -25,12 +24,27 @@ import Types
 test :: Diagram B
 test = runDSL $ do
     [and1, or1] <- liftDias [andGate, orGate]
-    withPort or1 (In 0)
-        $ \p1 -> do
-            withPort and1 (Out 0) $ \p2 -> leftOf p2 p1
-            splitting $ \s -> liftDSL $ p1 =.= s
+    withPort or1 (In 0) $ \p1 -> do
+        withPort and1 (Out 0) $ \p2 -> leftOf p2 p1
+        anon con $ \(s, p2) -> do
+            liftDSL $ p1 =.= p2
+            arr (s, Split) (or1, In 1)
+        withPort and1 (In 1) $ \p2 ->
+            anon bend $ \(b1, b1p) ->
+            anon bend $ \(b2, b2p) -> do
+                above p2 b1p
+                above p1 b2p
+                leftOf b1p b2p
+                spaceV 0.25 or1 b1
+                arr (b1, Split) (b2, Split)
+                arr (b1, Split) (and1, In 1)
+                arr (b2, Split) (or1, In 1)
+    withPort or1 (In 1) $ \p1 -> do
+        anon con $ \(s, p2) -> do
+            liftDSL $ p1 =.= p2
+
+
     arr (and1, Out 0) (or1, In 0)
-    arr (or1, In 0) (or1, In 1)
 
     spaceH 1 and1 or1
 

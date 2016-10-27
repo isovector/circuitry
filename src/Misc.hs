@@ -32,12 +32,15 @@ mkCon n = nothing # named n
 con :: DiaID s -> Diagram B
 con n = circle 0.05 # fc black <> mkCon (show n, Split)
 
+bend :: DiaID s -> Diagram B
+bend n = mkCon (show n, Split)
+
 nothing :: Diagram B
 nothing = pointDiagram $ mkP2 0 0
 
-splitting :: (FoundPort s Double -> DSL s B Double Any a) -> DSL s B Double Any a
-splitting f = do
-    d <- liftDia con
+anon :: (DiaID s -> Diagram B) -> ((DiaID s, FoundPort s Double) -> DSL s B Double Any a) -> DSL s B Double Any a
+anon t f = do
+    d <- liftDia t
     p <- getPort d Split
-    f p
+    f (d, p)
 
