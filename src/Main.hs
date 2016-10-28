@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
+
 module Main where
 
 import Data.Typeable
@@ -14,20 +15,19 @@ import Diagrams.Prelude hiding (anon)
 import Diagrams.TwoD.Shapes
 import Diagrams.TwoD.Layout.Constrained ((=.=))
 
-import Gates
-import Machinery
-import Misc
-import Backend
-import DSL
-import Types
+import Circuitry
+import Circuitry.Backend
+import Circuitry.Gates
+import Circuitry.Misc
+import Circuitry.Types
 
 test :: Diagram B
-test = runDSL $ do
+test = runCircuit $ do
     [and1, or1] <- liftDias [andGate, orGate]
     withPort or1 (In 0) $ \p1 -> do
         withPort and1 (Out 0) $ \p2 -> leftOf p2 p1
         anon con $ \(s, p2) -> do
-            liftDSL $ p1 =.= p2
+            liftCircuit $ p1 =.= p2
             arr (s, Split) (or1, In 1)
         withPort and1 (In 1) $ \p2 ->
             anon bend $ \(b1, b1p) ->
@@ -41,13 +41,10 @@ test = runDSL $ do
                 arr (b2, Split) (or1, In 1)
     withPort or1 (In 1) $ \p1 -> do
         anon con $ \(s, p2) -> do
-            liftDSL $ p1 =.= p2
-
+            liftCircuit $ p1 =.= p2
 
     arr (and1, Out 0) (or1, In 0)
-
     spaceH 1 and1 or1
-
     return ()
 
 labeled :: String -> Diagram B -> Diagram B

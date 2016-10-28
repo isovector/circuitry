@@ -1,9 +1,10 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ConstraintKinds #-}
-module Types
+{-# LANGUAGE TemplateHaskell            #-}
+
+module Circuitry.Types
     ( C
-    , DSL (..)
+    , Circuit (..)
     , Port (..)
     , DiaID
     , ports
@@ -23,25 +24,25 @@ import Diagrams.Prelude
 import Diagrams.TwoD.Layout.Constrained
 import Diagrams.TwoD.Shapes
 
-data DSLState s b n m = DSLState
+data CircuitState s b n m = CircuitState
     { _ports   :: Map (DiaID s, Name) (P2 (Expr s n))
     , _compose :: QDiagram b V2 n m -> QDiagram b V2 n m
     }
-makeLenses ''DSLState
+makeLenses ''CircuitState
 
-instance Default (DSLState s b n m) where
-    def = DSLState M.empty id
+instance Default (CircuitState s b n m) where
+    def = CircuitState M.empty id
 
 type C n m = (Hashable n, Semigroup m, RealFrac n, Floating n, Monoid m)
 
-newtype DSL s b n m a = DSL
-    { unDSL :: StateT (DSLState s b n m)
-                      (Constrained s b n m) a
+newtype Circuit s b n m a = Circuit
+    { unCircuit :: StateT (CircuitState s b n m)
+                          (Constrained s b n m) a
     }
     deriving ( Functor
              , Applicative
              , Monad
-             , MonadState (DSLState s b n m)
+             , MonadState (CircuitState s b n m)
              , MonadFix
              )
 

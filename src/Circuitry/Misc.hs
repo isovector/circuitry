@@ -1,9 +1,9 @@
-module Misc where
+module Circuitry.Misc where
 
 import Diagrams.Prelude
-import Backend
-import Types
-import DSL
+import Circuitry.Backend
+import Circuitry.Types
+import Circuitry
 
 inputWire :: Diagram B
 inputWire = fromOffsets [unitX] # scale 0.5
@@ -38,7 +38,9 @@ bend n = mkCon (show n, Split)
 nothing :: Diagram B
 nothing = pointDiagram $ mkP2 0 0
 
-anon :: (DiaID s -> Diagram B) -> ((DiaID s, FoundPort s Double) -> DSL s B Double Any a) -> DSL s B Double Any a
+anon :: (DiaID s -> Diagram B)
+     -> ((DiaID s, FoundPort s Double) -> Circuit s B Double Any a)
+     -> Circuit s B Double Any a
 anon t f = do
     d <- liftDia t
     p <- getPort d Split

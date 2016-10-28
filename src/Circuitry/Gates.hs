@@ -1,10 +1,11 @@
-module Gates where
+module Circuitry.Gates where
 
 import Control.Arrow (second)
-import Backend
 import Diagrams.Prelude
-import Misc
-import Types
+
+import Circuitry.Backend
+import Circuitry.Misc
+import Circuitry.Types
 
 andGate :: DiaID s -> Diagram B
 andGate n = dualInput n
