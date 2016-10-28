@@ -19,6 +19,20 @@ library
   -- exposed-modules:
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.9 && <4.10, diagrams, diagrams-lib, diagrams-svg, diagrams-canvas, lens, mfsolve, hashable, mtl, containers, transformers
+  build-depends: base >=4.9 && <4.10
+               , diagrams
+               , diagrams-lib
+               , diagrams-svg
+               , diagrams-canvas
+               , lens
+               , mfsolve
+               , hashable
+               , mtl
+               , containers
+               , transformers
+               , bytestring
+               , svg-builder
+               , string-conv
+               , base64-bytestring
   hs-source-dirs:      src
   default-language:    Haskell2010
