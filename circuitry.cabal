@@ -16,7 +16,12 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  -- exposed-modules:
+  exposed-modules: Circuitry
+                 , Circuitry.Types
+                 , Circuitry.Gates
+                 , Circuitry.Misc
+                 , Circuitry.Backend
+                 , Diagrams.TwoD.Layout.Constrained
   -- other-modules:
   -- other-extensions:
   build-depends: base >=4.9 && <4.10
