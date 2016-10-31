@@ -1,14 +1,16 @@
-module Machinery where
+module Circuitry.Machinery where
 
 import Control.Arrow (second)
-import Backend
 import Diagrams.Prelude
-import Misc
 
-machine :: IsName a => a -> [String] -> [String] -> String -> Diagram B
-machine name ins outs labelText = inputNumStack ||| inputStack
-                              ||| (rect width height <> inLabels <> outLabels <> label)
-                              ||| outputStack ||| outputNumStack
+import Circuitry.Backend
+import Circuitry.Misc
+import Circuitry.Types
+
+machine :: DiaID s -> [String] -> [String] -> String -> Diagram B
+machine n ins outs labelText = inputNumStack ||| inputStack
+                           ||| (rect width height <> inLabels <> outLabels <> label)
+                           ||| outputStack ||| outputNumStack
   where
     vspacing = 2.5
     hspacing = width / 2 - textSize
@@ -23,17 +25,17 @@ machine name ins outs labelText = inputNumStack ||| inputStack
 
     objStack as f = stack (fmap f as) # translate (r2 (0, heightOf as)) # scaleY textSize
 
-    inputNumStack  = objStack (renumber ins) $ \a -> mkCon (name, "in" ++ a)
-    inputStack     = objStack ins $ \a -> mkCon (name, a) ||| inputWire
-    outputStack    = objStack outs $ \a -> mkCon (name, a)
-    outputNumStack = objStack (renumber outs) $ \a -> mkCon (name, "out" ++ a)
+    inputNumStack  = objStack (renumber ins) $ \a -> mkCon n (In a)
+    inputStack     = objStack ins $ \a -> mkCon n (Named a) ||| inputWire
+    outputStack    = objStack outs $ \a -> mkCon n (Named a)
+    outputNumStack = objStack (renumber outs) $ \a -> mkCon n (Out a)
     textStack ls   = stack (fmap text ls) # translate (r2 (0, heightOf ls)) # scale textSize
 
     inLabels  = textStack ins # translate (r2 (-hspacing, 0))
     outLabels = textStack outs # translate (r2 (hspacing, 0))
 
-    renumber = zipWith ((show .) . const) [0..]
+    renumber = zipWith const [0..]
 
-blackBox :: IsName a => a -> String -> Diagram B
-blackBox name = machine name [""] [""] # bold
+blackBox :: DiaID s -> String -> Diagram B
+blackBox n = machine n [""] [""] # bold
 

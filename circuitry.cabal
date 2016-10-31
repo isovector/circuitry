@@ -19,6 +19,7 @@ library
   exposed-modules: Circuitry
                  , Circuitry.Types
                  , Circuitry.Gates
+                 , Circuitry.Machinery
                  , Circuitry.Misc
                  , Circuitry.Backend
                  , Diagrams.TwoD.Layout.Constrained

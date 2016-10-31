@@ -26,14 +26,14 @@ ssvspacer = svspacer # scale 0.5
 labelSize = 0.3
 textSize = 0.2
 
-mkCon :: IsName a => a -> Diagram B
-mkCon n = nothing # named n
+mkCon :: DiaID s -> Port -> Diagram B
+mkCon d p = nothing # named (show d, p)
 
 con :: DiaID s -> Diagram B
-con n = circle 0.05 # fc black <> mkCon (show n, Split)
+con n = circle 0.05 # fc black <> mkCon n Split
 
 bend :: DiaID s -> Diagram B
-bend n = mkCon (show n, Split)
+bend n = mkCon n Split
 
 nothing :: Diagram B
 nothing = pointDiagram $ mkP2 0 0
