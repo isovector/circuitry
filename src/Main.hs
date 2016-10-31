@@ -6,6 +6,7 @@
 
 module Main where
 
+import qualified Data.ByteString as BS
 import Data.Typeable
 import Control.Arrow (first)
 import Control.Monad (zipWithM_)
@@ -59,5 +60,6 @@ labeledWire :: String -> Diagram B
 labeledWire s = (wireLabel s <> inputWire) ||| mkCon s
 
 main :: IO ()
-main = mainWith $ (test # pad 1.2 # scale 50 :: Diagram B)
+main = BS.putStrLn $ toDataURL test
+  -- mainWith $ (test # pad 1.2 # scale 50 :: Diagram B)
 
