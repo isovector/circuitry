@@ -58,6 +58,12 @@ withPort = ((>>=) .) . getPort
 getPort :: DiaID s -> Port -> Circuit s b n m (P2 (C.Expr s n))
 getPort c p = gets ((M.! (c, toName (show c, p))) . view ports)
 
+assertSame :: C n m => DiaID s -> Port -> DiaID s -> Port -> Circuit s b n m ()
+assertSame c p c' p' = do
+  p1 <- getPort c p
+  p2 <- getPort c' p'
+  liftCircuit $ p1 C.=.= p2
+
 findPort
   :: (IsName nm, Hashable n,
       Semigroup m, RealFrac n, Floating n) =>

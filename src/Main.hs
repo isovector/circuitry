@@ -48,17 +48,6 @@ test = runCircuit $ do
     spaceH 1 and1 or1
     return ()
 
-labeled :: String -> Diagram B -> Diagram B
-labeled label d = ( d # center
-                 <> rect (width d - 0.5) (height d + 0.25) # lw veryThick
-                  ) === svspacer === text label # scale labelSize
-
-wireLabel :: String -> Diagram B
-wireLabel s = text s # scale textSize # translate (r2 (0, 0.2))
-
-labeledWire :: String -> Diagram B
-labeledWire s = (wireLabel s <> inputWire) ||| mkCon s
-
 main :: IO ()
 main = BS.putStrLn $ toDataURL test
   -- mainWith $ (test # pad 1.2 # scale 50 :: Diagram B)

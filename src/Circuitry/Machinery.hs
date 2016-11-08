@@ -7,8 +7,11 @@ import Circuitry.Backend
 import Circuitry.Misc
 import Circuitry.Types
 
-machine :: DiaID s -> [String] -> [String] -> String -> Diagram B
-machine n ins outs labelText = inputNumStack ||| inputStack
+machine :: [String] -> [String] -> String -> DiaID s -> Diagram B
+machine = machine' (repeat inputWire)
+
+machine' :: [Diagram B] -> [String] -> [String] -> String -> DiaID s -> Diagram B
+machine' wires ins outs labelText n = inputNumStack ||| inputStack
                            ||| (rect width height <> inLabels <> outLabels <> label)
                            ||| outputStack ||| outputNumStack
   where
@@ -18,7 +21,7 @@ machine n ins outs labelText = inputNumStack ||| inputStack
                           + maximum (fmap length outs)) * textSize)
           + (fromIntegral (length labelText) * labelSize) + 0.5
     label = text labelText # scale labelSize
-    height = minimum [heightOf outs, heightOf ins, negate $ textSize + 0.2]
+    height = minimum [heightOf outs, heightOf ins, negate $ textSize + 0.2] / vspacing * 1.35
     -- TODO(sandy): this is negative. wtf?
     heightOf ls = -vspacing * fromIntegral (length ls - 1) / 2
     stack as = foldl (\b a -> b # translate (r2 (0, vspacing)) <> a) nothing as
@@ -26,7 +29,7 @@ machine n ins outs labelText = inputNumStack ||| inputStack
     objStack as f = stack (fmap f as) # translate (r2 (0, heightOf as)) # scaleY textSize
 
     inputNumStack  = objStack (renumber ins) $ \a -> mkCon n (In a)
-    inputStack     = objStack ins $ \a -> mkCon n (Named a) ||| inputWire
+    inputStack     = objStack (zip ins (fmap (scaleY (1 / textSize)) wires)) $ \(a, d) -> mkCon n (Named a) ||| d
     outputStack    = objStack outs $ \a -> mkCon n (Named a)
     outputNumStack = objStack (renumber outs) $ \a -> mkCon n (Out a)
     textStack ls   = stack (fmap text ls) # translate (r2 (0, heightOf ls)) # scale textSize
@@ -36,6 +39,6 @@ machine n ins outs labelText = inputNumStack ||| inputStack
 
     renumber = zipWith const [0..]
 
-blackBox :: DiaID s -> String -> Diagram B
-blackBox n = machine n [""] [""] # bold
+blackBox :: String -> DiaID s -> Diagram B
+blackBox str n = machine [""] [""] str n # bold
 

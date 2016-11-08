@@ -12,5 +12,5 @@ toDataURL :: Diagram B -> BS.ByteString
 toDataURL = (BS.append "data:image/svg+xml;utf8,")
           . toS
           . renderBS
-          . renderDia SVG (SVGOptions (mkWidth 250) Nothing "" [] True)
+          . renderDia SVG (SVGOptions (dims2D 624 300) Nothing "" [] True)
 
