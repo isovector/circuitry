@@ -107,5 +107,36 @@ arr a b = afterwards $ connect' headless (first show a) (first show b)
   where
     headless = def & arrowHead .~ noHead
 
+aligning :: C n m
+         => (DiaID s -> QDiagram b V2 n m)
+         -> Port
+         -> (DiaID s, Port)
+         -> (DiaID s, Port)
+         -> Circuit s b n m (DiaID s)
+aligning d p (dx, px) (dy, py) = do
+  getPort dx px >>= \p1 ->
+    getPort dy py >>= \p2 -> do
+      z <- liftDia d
+      zp <- getPort z p
+      liftCircuit $ do
+        C.along yDir [zp, p1]
+        C.along xDir [zp, p2]
+      return z
+
 type FoundPort s n = P2 (C.Expr s n)
+
+connecting :: C n m => [(DiaID s, Port, Port)] -> Circuit s b n m ()
+connecting ((d, _, output):ds@((d', input, _):_)) =
+  assertSame d output d' input >> connecting ds
+connecting _ = return ()
+
+same :: C n m
+     => (DiaID s -> QDiagram b V2 n m)
+     -> Port
+     -> (DiaID s, Port)
+     -> Circuit s b n m (DiaID s)
+same d p (x, y) = do
+  d' <- liftDia d
+  assertSame d' p x y
+  return d'
 

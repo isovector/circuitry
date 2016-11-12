@@ -8,14 +8,20 @@ import Circuitry.Misc
 import Circuitry.Types
 
 andGate :: DiaID s -> Diagram B
-andGate n = dualInput n
+andGate = andGate' inputWire inputWire
+
+andGate' :: Diagram B -> Diagram B -> DiaID s -> Diagram B
+andGate' a b n = dualInput' a b n
       ||| roundedRect' 1.2 1 (with & radiusBR .~ 0.5
                                    & radiusTR .~ 0.5
                                    )
       ||| mkCon n (Out 0)
 
 orGate :: DiaID s -> Diagram B
-orGate n = ( dualInput n
+orGate = orGate' inputWire inputWire
+
+orGate' :: Diagram B -> Diagram B -> DiaID s -> Diagram B
+orGate' a b n = ( dualInput' a b n
         <> shape # translate (r2 (0.85, 0))
          ) ||| mkCon n (Out 0)
   where
@@ -30,7 +36,10 @@ orGate n = ( dualInput n
              ) # translate (r2 (-0.5, 0))
 
 xorGate :: DiaID s -> Diagram B
-xorGate n = ( dualInput n
+xorGate = xorGate' inputWire inputWire
+
+xorGate' :: Diagram B -> Diagram B -> DiaID s -> Diagram B
+xorGate' a b n = ( dualInput' a b n
         <> shape # translate (r2 (0.85, 0))
          ) ||| mkCon n (Out 0)
   where
@@ -57,8 +66,11 @@ smallNot = circle 0.08
 notGate :: DiaID s -> Diagram B
 notGate n = mkCon n (In 0) ||| inputWire ||| triangle 1 # rotate (-1/4 @@ turn) ||| smallNot ||| mkCon n (Out 0)
 
-dualInput :: DiaID s -> Diagram B
-dualInput name = input 1 0 <> input (-1) 1
+dualInput' :: Diagram B -> Diagram B -> DiaID s -> Diagram B
+dualInput' a b name = input a 1 0 <> input b (-1) 1
   where
-    input d n = (mkCon name (In n) ||| inputWire) # translate (r2 (0, spacing * d))
+    input x d n = (mkCon name (In n) ||| x) # translate (r2 (0, spacing * d))
     spacing = 0.25
+
+dualInput :: DiaID s -> Diagram B
+dualInput = dualInput' inputWire inputWire
