@@ -1,0 +1,33 @@
+name: circuitry
+version: '0.1.0.0'
+category: Graphics
+author: Sandy Maguire
+maintainer: sandy@sandymaguire.me
+license: MIT
+dependencies:
+- base >=4.9 && <4.11
+- diagrams
+- diagrams-lib
+- diagrams-svg
+- diagrams-canvas
+- lens
+- mfsolve
+- hashable
+- mtl
+- containers
+- transformers
+- bytestring
+- svg-builder
+- string-conv
+- base64-bytestring
+library:
+  source-dirs: src
+  exposed-modules:
+  - Circuitry
+  - Circuitry.Types
+  - Circuitry.Gates
+  - Circuitry.Machinery
+  - Circuitry.Misc
+  - Circuitry.Backend
+  - Diagrams.TwoD.Layout.Constrained
+  other-modules: []
