@@ -9,6 +9,7 @@ dependencies:
 - diagrams
 - diagrams-lib
 - diagrams-svg
+- diagrams-contrib
 - diagrams-canvas
 - lens
 - mfsolve

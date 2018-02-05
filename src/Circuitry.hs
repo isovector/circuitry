@@ -30,7 +30,7 @@ type Circuit' s = Circuit s B Double Any
 runCircuit :: (C n m, Show n) => (forall s. Circuit s b n m a) -> QDiagram b V2 n m
 -- TODO(sandy): this is probably ok
 runCircuit (Circuit dsl) = let c      = execStateT dsl def
-                               (s, d) = C.layout $ unsafeCoerce c
+                               (s, d) = C.runLayout $ unsafeCoerce c
                             in d # view compose s
 
 liftCircuit :: (C.Constrained s b n m) a -> Circuit s b n m a
