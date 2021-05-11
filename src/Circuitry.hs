@@ -7,6 +7,11 @@
 module Circuitry where
 
 import           Control.Arrow (first, second)
+import           Control.Category
+import           Control.Category.Cartesian
+import           Control.Category.Free
+import           Control.Category.Monoidal
+import           Control.Category.Recursive
 import           Control.Monad (forM_)
 import           Control.Monad.State.Class
 import           Control.Monad.Trans (lift)
@@ -14,16 +19,20 @@ import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State.Strict (StateT, execStateT)
 import           Data.Hashable
 import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
 import           Data.Maybe (fromJust)
 import           Data.Typeable
 import           Diagrams.Prelude hiding (trace, showTrace)
 import qualified Diagrams.TwoD.Layout.Constrained as C
 import           Diagrams.TwoD.Shapes
+import           Prelude hiding (id, (.))
 import           Unsafe.Coerce
-import qualified Data.Map.Strict as M
 
 import Circuitry.Backend
 import Circuitry.Types
+import Data.Maybe (mapMaybe)
+import Debug.Trace (traceShowId)
+import Data.List (sort)
 
 type Circuit' s = Circuit s B Double Any
 
@@ -49,19 +58,48 @@ liftDia f = mdo
     dia <- liftCircuit $ C.newDia d
     forM_ (fmap fst $ names d) $ \pname -> do
         port <- liftCircuit $ findPort dia pname
-        modify (over ports $ M.insert (dia, pname) port)
+        modify (over ports $ M.insert pname port)
     return dia
 
 withPort :: DiaID s -> Port -> (P2 (C.Expr s n) -> Circuit s b n m a) -> Circuit s b n m a
 withPort = ((>>=) .) . getPort
 
 getPort :: DiaID s -> Port -> Circuit s b n m (P2 (C.Expr s n))
-getPort c p = gets ((M.! (c, toName (show c, p))) . view ports)
+getPort c p = gets ((M.! toName (show c, p)) . view ports)
+
+getPort' :: Name -> Circuit s b n m (P2 (C.Expr s n))
+getPort' n = gets ((M.! n) . view ports)
+
+getPortsFor :: DiaID s -> Circuit s b n m [Port]
+getPortsFor c = do
+  z <- gets $ view ports
+  pure
+    . sort
+    . fmap snd
+    . filter ((== show c) . fst)
+    . mapMaybe toPort
+    . fmap fst
+    $ M.toList z
+
+isInPort :: Port -> Bool
+isInPort (In _) = True
+isInPort _ = False
+
+isOutPort :: Port -> Bool
+isOutPort (Out _) = True
+isOutPort _ = False
+
 
 assertSame :: C n m => DiaID s -> Port -> DiaID s -> Port -> Circuit s b n m ()
 assertSame c p c' p' = do
   p1 <- getPort c p
   p2 <- getPort c' p'
+  liftCircuit $ p1 C.=.= p2
+
+assertSame' :: C n m => Name -> Name -> Circuit s b n m ()
+assertSame' n1 n2 = do
+  p1 <- getPort' n1
+  p2 <- getPort' n2
   liftCircuit $ p1 C.=.= p2
 
 findPort
@@ -103,7 +141,11 @@ afterwards f = modify (over compose (f .))
 
 arr :: (Typeable n, RealFloat n, Renderable (Path V2 n) b)
     => (DiaID s, Port) -> (DiaID s, Port) -> Circuit s b n Any ()
-arr a b = afterwards $ connect' headless (first show a) (first show b)
+arr a b = arr' (toName $ first show a) (toName $ first show b)
+
+arr' :: (Typeable n, RealFloat n, Renderable (Path V2 n) b)
+    => Name -> Name -> Circuit s b n Any ()
+arr' n1 n2 = afterwards $ connect' headless n1 n2
   where
     headless = def & arrowHead .~ noHead
 

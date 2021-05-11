@@ -1,0 +1,47 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 4da5896e88c4c4e583fc97aa186a229e47050a509a24b36908d046a3ccc3d588
+
+name:           circuitry
+version:        0.1.0.0
+category:       Graphics
+author:         Sandy Maguire
+maintainer:     sandy@sandymaguire.me
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+
+library
+  exposed-modules:
+      Circuitry
+      Circuitry.Types
+      Circuitry.Gates
+      Circuitry.Machinery
+      Circuitry.Misc
+      Circuitry.Backend
+  hs-source-dirs:
+      src
+  build-depends:
+      base
+    , base64-bytestring
+    , bytestring
+    , catalyst
+    , containers
+    , diagrams
+    , diagrams-contrib
+    , diagrams-core
+    , diagrams-lib
+    , diagrams-svg
+    , hashable
+    , lattices
+    , lens
+    , mfsolve
+    , mtl
+    , string-conv
+    , svg-builder
+    , transformers
+  default-language: Haskell2010

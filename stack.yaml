@@ -1,11 +1,13 @@
-resolver: lts-10.3
+resolver: lts-16.31
 
 packages:
 - '.'
 
 extra-deps:
 - 'mfsolve-0.3.2.0'
-- 'diagrams-contrib-1.4.2'
+- 'diagrams-contrib-1.4.4'
+- catalyst-0.0.0.1
+
 
 flags: {}
 extra-package-dbs: []

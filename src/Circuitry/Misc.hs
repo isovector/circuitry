@@ -33,8 +33,14 @@ mkCon d p = nothing # named (show d, p)
 con :: DiaID s -> Diagram B
 con n = circle 0.05 # fc black <> mkCon n Split
 
+con' :: DiaID s -> Diagram B
+con' n = circle 0.05 # fc black <> mkCon n (In 0) <> mkCon n (Out 0)
+
 bend :: DiaID s -> Diagram B
 bend n = mkCon n Split
+
+bend' :: DiaID s -> Diagram B
+bend' n = mkCon n (In 0) <> mkCon n (Out 0)
 
 nothing :: Diagram B
 nothing = pointDiagram $ mkP2 0 0

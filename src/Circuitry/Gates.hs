@@ -74,3 +74,8 @@ dualInput' a b name = input a 1 0 <> input b (-1) 1
 
 dualInput :: DiaID s -> Diagram B
 dualInput = dualInput' inputWire inputWire
+
+
+input :: DiaID s -> Diagram B
+input name = mkCon name (In 0) ||| inputWire ||| mkCon name (Out 0)
+

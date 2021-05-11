@@ -5,12 +5,12 @@ author: Sandy Maguire
 maintainer: sandy@sandymaguire.me
 license: MIT
 dependencies:
-- base >=4.9 && <4.11
+- base
 - diagrams
 - diagrams-lib
 - diagrams-svg
 - diagrams-contrib
-- diagrams-canvas
+- diagrams-core
 - lens
 - mfsolve
 - hashable
@@ -21,6 +21,9 @@ dependencies:
 - svg-builder
 - string-conv
 - base64-bytestring
+- catalyst
+- lattices
+
 library:
   source-dirs: src
   exposed-modules:
@@ -30,5 +33,4 @@ library:
   - Circuitry.Machinery
   - Circuitry.Misc
   - Circuitry.Backend
-  - Diagrams.TwoD.Layout.Constrained
   other-modules: []
