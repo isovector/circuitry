@@ -23,6 +23,7 @@ dependencies:
 - base64-bytestring
 - catalyst
 - lattices
+- profunctors
 
 library:
   source-dirs: src

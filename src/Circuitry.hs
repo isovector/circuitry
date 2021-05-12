@@ -12,7 +12,6 @@ import           Control.Category.Cartesian
 import           Control.Category.Free
 import           Control.Category.Monoidal
 import           Control.Category.Recursive
-import           Control.Monad (forM_)
 import           Control.Monad.State.Class
 import           Control.Monad.Trans (lift)
 import           Control.Monad.Trans.Class
@@ -33,6 +32,7 @@ import Circuitry.Types
 import Data.Maybe (mapMaybe)
 import Debug.Trace (traceShowId)
 import Data.List (sort)
+import Data.Foldable (for_)
 
 type Circuit' s = Circuit s B Double Any
 
@@ -48,7 +48,7 @@ liftCircuit = Circuit . lift
 liftDias :: C n m
          => [DiaID s -> QDiagram b V2 n m]
          -> Circuit s b n m [DiaID s]
-liftDias = mapM liftDia
+liftDias = traverse liftDia
 
 liftDia :: C n m
         => (DiaID s -> QDiagram b V2 n m)
@@ -56,10 +56,10 @@ liftDia :: C n m
 liftDia f = mdo
     let d = f dia
     dia <- liftCircuit $ C.newDia d
-    forM_ (fmap fst $ names d) $ \pname -> do
+    for_ (fmap fst $ names d) $ \pname -> do
         port <- liftCircuit $ findPort dia pname
         modify (over ports $ M.insert pname port)
-    return dia
+    pure dia
 
 withPort :: DiaID s -> Port -> (P2 (C.Expr s n) -> Circuit s b n m a) -> Circuit s b n m a
 withPort = ((>>=) .) . getPort
@@ -131,10 +131,10 @@ spaceV s a b = liftCircuit $ do
   C.sameY b spacer
 
 sameX :: C n m => DiaID s -> DiaID s -> Circuit s b n m ()
-sameX = (liftCircuit .) . C.sameX
+sameX = fmap liftCircuit . C.sameX
 
 sameY :: C n m => DiaID s -> DiaID s -> Circuit s b n m ()
-sameY = (liftCircuit .) . C.sameY
+sameY = fmap liftCircuit . C.sameY
 
 afterwards :: (QDiagram b V2 n m -> QDiagram b V2 n m) -> Circuit s b n m ()
 afterwards f = modify (over compose (f .))
@@ -163,14 +163,14 @@ aligning d p (dx, px) (dy, py) = do
       liftCircuit $ do
         C.along yDir [zp, p1]
         C.along xDir [zp, p2]
-      return z
+      pure z
 
 type FoundPort s n = P2 (C.Expr s n)
 
 connecting :: C n m => [(DiaID s, Port, Port)] -> Circuit s b n m ()
 connecting ((d, _, output):ds@((d', input, _):_)) =
   assertSame d output d' input >> connecting ds
-connecting _ = return ()
+connecting _ = pure ()
 
 same :: C n m
      => (DiaID s -> QDiagram b V2 n m)
@@ -180,5 +180,5 @@ same :: C n m
 same d p (x, y) = do
   d' <- liftDia d
   assertSame d' p x y
-  return d'
+  pure d'
 

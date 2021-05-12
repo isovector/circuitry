@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4da5896e88c4c4e583fc97aa186a229e47050a509a24b36908d046a3ccc3d588
+-- hash: 64d53a79727175952aadf7c68ae3129aac882d502a889501a5907f8587ab308b
 
 name:           circuitry
 version:        0.1.0.0
@@ -41,6 +41,7 @@ library
     , lens
     , mfsolve
     , mtl
+    , profunctors
     , string-conv
     , svg-builder
     , transformers
