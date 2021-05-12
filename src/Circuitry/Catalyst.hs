@@ -45,32 +45,32 @@ type FreeFunction c = Catalyst ('Req 'HasCategory 'HasSymmetricProduct 'NoSymmet
 
 data CircuitF a b where
   Feedback :: Heyting s => Circuit (a, s) (b, s) -> CircuitF a b
-  AndG :: Heyting a => CircuitF (a, a) a
-  NandG :: Heyting a => CircuitF (a, a) a
-  OrG  :: Heyting a => CircuitF (a, a) a
-  NorG :: Heyting a => CircuitF (a, a) a
-  NotG :: Heyting a => CircuitF a a
+  AndG :: CircuitF (Bool, Bool) Bool
+  NandG ::CircuitF (Bool, Bool) Bool
+  OrG  :: CircuitF (Bool, Bool) Bool
+  NorG :: CircuitF (Bool, Bool) Bool
+  NotG :: CircuitF Bool Bool
   -- Machine :: String -> [String] -> [String] -> Circuit a b -> CircuitF a b
   -- Label :: String -> Circuit a b -> CircuitF a b
 
 deriving instance Show (CircuitF a b)
 
 
-andGate :: Heyting a => Catalyst r CircuitF (a, a) a
+andGate :: Catalyst r CircuitF (Bool, Bool) Bool
 andGate = LiftC AndG
 
-nandGate :: Heyting a => Catalyst r CircuitF (a, a) a
+nandGate :: Catalyst r CircuitF (Bool, Bool) Bool
 nandGate = LiftC NandG
 
 
-orGate :: Heyting a => Catalyst r CircuitF (a, a) a
+orGate :: Catalyst r CircuitF (Bool, Bool) Bool
 orGate = LiftC OrG
 
-norGate :: Heyting a => Catalyst r CircuitF (a, a) a
+norGate :: Catalyst r CircuitF (Bool, Bool) Bool
 norGate = LiftC NorG
 
 
-notGate :: Heyting a => Catalyst r CircuitF a a
+notGate :: Catalyst r CircuitF Bool Bool
 notGate = LiftC NotG
 
 
@@ -78,7 +78,7 @@ type Circuit = FreeFunction CircuitF
 
 
 
-test :: Heyting a => Circuit ((a, a), a) ((a, a), a)
+test :: Circuit ((Bool, Bool), Bool) ((Bool, Bool), Bool)
 test = notGate *** notGate *** notGate
 
 
@@ -100,51 +100,58 @@ noCircuitry = component Empty ["i"] ["o"]
 
 type family PortMap t where
   PortMap (a, b) = (PortMap a, PortMap b)
-  PortMap _1 = [PortRef]
+  PortMap _1 = PortRef
 
 
-compile :: PortMap a -> Circuit a b -> GraphViz (PortMap b)
-compile i ID = pure i
-compile i (Comp cat cat') = do
-  o1 <- compile i cat
-  o2 <- compile o1 cat'
+compile :: Circuit a b -> PortMap a -> GraphViz (PortMap b)
+compile ID i = pure i
+compile (Comp cat cat') i = do
+  o1 <- compile cat i
+  o2 <- compile cat' o1
   pure o2
-compile x Swap =
-  case x of
-    (i1, i2) -> pure (i2, i1)
-compile x Reassoc =
-  case x of
-    (i1, (i2, i3)) -> pure ((i1, i2), i3)
-compile i (First cat) = undefined
-compile i (Second cat) = undefined
-compile x (Alongside cat cat') =
+compile Swap (i1, i2) =
+  pure (i2, i1)
+compile Reassoc (i1, (i2, i3)) =
+  pure ((i1, i2), i3)
+compile (First cat) i = undefined
+compile (Second cat) i = undefined
+compile (Alongside cat cat') x =
   case x of
     (i1, i2) -> do
-      o1 <- compile i1 cat
-      o2 <- compile i2 cat'
+      o1 <- compile cat i1
+      o2 <- compile cat' i2
       pure (o1, o2)
-compile i (Fanout cat cat') = undefined
-compile i Copy = do
+compile (Fanout cat cat') i = undefined
+compile Copy i = do
   (inp, out) <- component Point ["i"] ["o1", "o2"]
   undefined
   -- connect i inp
   -- pure out
-compile i Consume = undefined
-compile x Fst =
-  case x of
-    (i1, i2) -> pure i1
-compile x Snd =
-  case x of
-    (i1, i2) -> pure i2
-compile i (LiftC (Feedback cat)) = mdo
-  (o, s) <- compile (i, s) cat
+compile Consume i = undefined
+compile Fst (i1, i2) =
+  pure i1
+compile Snd (i1, i2) =
+  pure i2
+compile (LiftC (Feedback cat)) i = mdo
+  (o, s) <- compile cat (i, s)
   pure o
-compile _ _ = undefined
--- compile i (LiftC AndG) = component (Record "and") ["", ""] [""]
+compile (LiftC AndG) (i1, i2) = do
+  ([ai1, ai2], [o]) <- component (Record "and") ["", ""] [""]
+  connect i1 ai1
+  connect i2 ai2
+  pure o
 -- compile i (LiftC NandG) = component (Record "nand") ["", ""] [""]
--- compile i (LiftC OrG) = component (Record "⦈") ["", ""] [""]
+compile (LiftC OrG) (i1, i2) = do
+  ([ai1, ai2], [o]) <- component (Record "⦈") ["", ""] [""]
+  connect i1 ai1
+  connect i2 ai2
+  pure o
 -- compile i (LiftC NorG) = component (Record "nor") ["", ""] [""]
--- compile i (LiftC NotG) = component (Record "▷") [""] [""]
+compile (LiftC NotG) i = do
+  ([ai1], [o]) <- component (Record "▷") [""] [""]
+  connect i ai1
+  pure o
+compile z _ = error $ show z
 
 
 newtype Roar r a b = Roar { runRoar :: (r -> a) -> (r -> b) }
@@ -254,17 +261,17 @@ feedback = liftC . Feedback
 --   renderSVG "/tmp/test.svg" (dims 500) d
 
 
-test2 :: Heyting a => Circuit a a
+test2 :: Circuit Bool Bool
 test2 = notGate >>> (feedback $ orGate >>> copy) >>> notGate >>> id
 
-test3 :: Heyting a => Circuit (a, a) a
+test3 :: Circuit (Bool, Bool) Bool
 test3 = feedback $ reassoc' >>> second' norGate >>> norGate >>> copy
 
 reassoc' :: (MonoidalProduct k, SymmetricProduct k) => ((a, b), c) `k` (a, (b, c))
 reassoc' = first' swap >>> swap >>> reassoc >>> swap >>> second' swap
 
 
-clock :: Heyting a => Circuit () a
+clock :: Circuit () Bool
 clock = feedback $ snd' >>> notGate >>> copy
 
 

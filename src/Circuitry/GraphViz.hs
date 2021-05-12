@@ -9,7 +9,7 @@ module Circuitry.GraphViz
   , component
   , connect
   , Shape (..)
-  , PortRef
+  , PortRef (..)
   ) where
 
 
@@ -29,6 +29,9 @@ newtype GraphViz a = GraphViz
     , MonadWriter [GraphVizCmd]
     , MonadFix
     )
+
+instance MonadFail GraphViz where
+  fail = error
 
 data GraphVizCmd
   = Node Component
@@ -62,6 +65,7 @@ newtype PortId = PortId
   { getPortId ::  Int
   }
   deriving stock (Eq, Ord)
+  deriving newtype Num
 
 instance Show PortId where
   show = mappend "p" . show . getPortId
@@ -70,6 +74,7 @@ newtype ComponentId = ComponentId
   { getComponentId :: Int
   }
   deriving stock (Eq, Ord)
+  deriving newtype Num
 
 instance Show ComponentId where
   show = mappend "c" . show . getComponentId
