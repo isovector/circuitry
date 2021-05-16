@@ -8,6 +8,7 @@ module Circuitry.GraphViz
   , runGraphViz
   , component
   , connect
+  , GraphVizCmd(..)
   , Shape (..)
   , PortRef (..)
   ) where
@@ -36,6 +37,7 @@ instance MonadFail GraphViz where
 data GraphVizCmd
   = Node Component
   | Edge PortRef PortRef
+  | Raw String
   deriving (Eq, Ord)
 
 instance Show GraphVizCmd where
@@ -46,18 +48,31 @@ instance Show GraphVizCmd where
     , show pr'
     , ";"
     ]
+  show (Raw s) = s
+
+
+data Compass = East | West
+ deriving (Eq, Ord, Enum, Bounded)
+
+instance Show Compass where
+  show East = "e"
+  show West = "w"
 
 data PortRef = PortRef
   { pr_cid :: ComponentId
   , pr_pid :: PortId
+  , pr_io  :: Compass
   }
   deriving (Eq, Ord)
+
 
 instance Show PortRef where
   show pr = mconcat
     [ show $ pr_cid pr
     , ":"
     , show $ pr_pid pr
+    , ":"
+    , show $ pr_io pr
     ]
 
 
@@ -82,7 +97,8 @@ instance Show ComponentId where
 data Shape
   = Record String
   | Point
-  | Empty
+  | Wire
+  | Ground
   deriving (Eq, Ord, Show)
 
 layoutShape :: Shape -> [Port] -> [Port] -> String
@@ -96,7 +112,8 @@ layoutShape (Record str) inp out = mconcat
   , "}}\"]"
   ]
 layoutShape Point _ _ = "[shape=point]"
-layoutShape Empty _ _ = "[label=\" \", style=invis]"
+layoutShape Wire _ _ = "[label=\" \", style=invis]"
+layoutShape Ground _ _ = "[label=\"\", shape=invhouse]"
 
 
 data Port = Port
@@ -164,10 +181,10 @@ component
 component sym ins outs = do
   c <- mkComponent sym ins outs
   let cid = c_id c
-      mkRef = PortRef cid . p_id
+      mkRef io x = PortRef cid (p_id x) io
   tell $ pure $ Node c
-  pure ( fmap mkRef $ c_inputs c
-       , fmap mkRef $ c_outputs c
+  pure ( fmap (mkRef West) $ c_inputs c
+       , fmap (mkRef East) $ c_outputs c
        )
 
 

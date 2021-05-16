@@ -12,7 +12,6 @@ dependencies:
 - diagrams-contrib
 - diagrams-core
 - lens
-- mfsolve
 - hashable
 - mtl
 - containers
@@ -27,11 +26,4 @@ dependencies:
 
 library:
   source-dirs: src
-  exposed-modules:
-  - Circuitry
-  - Circuitry.Types
-  - Circuitry.Gates
-  - Circuitry.Machinery
-  - Circuitry.Misc
-  - Circuitry.Backend
   other-modules: []

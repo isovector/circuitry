@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 64d53a79727175952aadf7c68ae3129aac882d502a889501a5907f8587ab308b
+-- hash: 74161a2938311833c196e73835685fa0eaf978e65b399f3b21073305d248013d
 
 name:           circuitry
 version:        0.1.0.0
@@ -18,11 +18,13 @@ build-type:     Simple
 library
   exposed-modules:
       Circuitry
-      Circuitry.Types
+      Circuitry.Backend
+      Circuitry.Catalyst
       Circuitry.Gates
+      Circuitry.GraphViz
       Circuitry.Machinery
       Circuitry.Misc
-      Circuitry.Backend
+      Circuitry.Types
   hs-source-dirs:
       src
   build-depends:
@@ -39,7 +41,6 @@ library
     , hashable
     , lattices
     , lens
-    , mfsolve
     , mtl
     , profunctors
     , string-conv

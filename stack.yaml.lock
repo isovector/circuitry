@@ -25,6 +25,13 @@ packages:
       sha256: 91ecf4f6ab3eb3e02a81ae77d735ed2983b063d37e4b2cd0a067c2c97f839342
   original:
     hackage: catalyst-0.0.0.1
+- completed:
+    hackage: unordered-containers-0.2.12.0@sha256:164a47850c4536c8b7cc12f74578588cf3b6c331f04e671306d2dcb806284bb1,4978
+    pantry-tree:
+      size: 1388
+      sha256: 6c5fc0b867c11681dbadeb9cbcae10864abe3c5a4799410016c90871d3406c6e
+  original:
+    hackage: unordered-containers-0.2.12.0
 snapshots:
 - completed:
     size: 534126
