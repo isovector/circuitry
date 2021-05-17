@@ -23,6 +23,7 @@ dependencies:
 - catalyst
 - lattices
 - profunctors
+- clash-prelude
 
 library:
   source-dirs: src

@@ -26,53 +26,35 @@
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
+{-# OPTIONS_GHC -Wno-missing-methods #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DefaultSignatures #-}
 
 module Circuitry.Catalyst
   ( module Circuitry.Category
   , module Circuitry.Catalyst
   ) where
 
-import Algebra.Heyting ( Heyting(neg) )
-import Algebra.Lattice
-    ( BoundedJoinSemiLattice(bottom), Lattice((\/), (/\)) )
-import Circuitry.GraphViz
-    ( component,
-      connect,
-      runGraphViz,
-      GraphViz,
-      GraphVizCmd(Raw),
-      PortRef,
-      Shape(Record, Wire, Point) )
-import Circuitry.Category
-    ( Category(..),
-      (<<<),
-      (>>>),
-      Fixed(..),
-      Recursive(..),
-      AllOk,
-      Cocartesian(..),
-      Cartesian(..),
-      CategoryPlus(..),
-      CategoryZero(..),
-      SymmetricSum(..),
-      SymmetricProduct(..),
-      MonoidalSum(..),
-      MonoidalProduct(..),
-      TrivialConstraint,
-      Catalyst(..),
-      runFree,
-      liftC,
-      Distrib(..) )
-import Data.Bool (bool)
-import Data.Function (fix)
-import Data.Profunctor.Types ( Profunctor(lmap, rmap) )
-import Numeric.Natural (Natural)
-import Prelude hiding (id, (.), sum, zip)
-import Data.Typeable (Typeable)
-import Control.Monad.Writer (tell)
-import Data.Profunctor.Choice (unleft)
-import GHC.Exts (IsList(..))
-import Data.Kind (Type, Constraint)
+import           Algebra.Heyting
+import           Algebra.Lattice
+import           Circuitry.Category
+import           Circuitry.GraphViz
+import           Clash.Sized.Vector (Vec(..))
+import qualified Clash.Sized.Vector as V
+import           Control.Monad.Writer (tell)
+import           Data.Bool (bool)
+import           Data.Function (fix)
+import           Data.Kind (Type, Constraint)
+import           Data.Profunctor.Choice (unleft)
+import           Data.Profunctor.Types
+import           Data.Typeable (Typeable)
+import           GHC.Exts (IsList(..))
+import qualified GHC.TypeLits as TL
+import           GHC.TypeLits hiding (Nat, KnownNat)
+import           Numeric.Natural (Natural)
+import           Prelude hiding (id, (.), sum, zip)
+import GHC.Generics hiding (S)
 
 
 data Nat = Z | S Nat
@@ -513,23 +495,16 @@ split :: Circuit Bool (Bool, Bool)
 split = id &&& notGate
 
 
-demux2 :: (Show a, Heyting a, Stuff a) => Circuit (a, Bool) (a, a)
-demux2
-    = swap
-  >>> tag
-  >>> (id &&& (consume >>> always bottom))
-  ||| ((consume >>> always bottom) &&& id)
+demux2 :: (Show a, Heyting a, Stuff a) => Circuit (a, Bool) (Either a a)
+demux2 = swap >>> tag
 
 
 introduce :: Stuff a => Circuit a (a, ())
 introduce = id &&& consume
 
 
-mux2 :: Stuff a => Circuit ((a, a), Bool) a
-mux2
-    = second' ((id &&& consume) >>> tag)
-  >>> distrib
-  >>> (fst' >>> fst') ||| (fst' >>> snd')
+mux2 :: Stuff a => Circuit (Either a a) a
+mux2 = unify
 
 hold :: Circuit Bool Bool
 hold = feedback $ orGate >>> copy
@@ -568,4 +543,76 @@ snappingN :: KnownNat n => Natural -> (Bool, Vector n Bool)
 snappingN n@3 = (True, mkVector $ odd n)
 snappingN n@6 = (True, mkVector $ odd n)
 snappingN n = (False, mkVector $ odd n)
+
+
+
+class GEmbedable (f :: Type -> Type) where
+  type GSize f :: TL.Nat
+  gembed :: f x -> Vec (GSize f) Bool
+  greify :: Vec (GSize f) Bool -> f x
+
+instance GEmbedable U1 where
+  type GSize U1 = 0
+  gembed _ = Nil
+  greify _ = U1
+
+instance Embeddable a => GEmbedable (K1 _1 a) where
+  type GSize (K1 _1 a) = Size a
+  gembed = embed . unK1
+  greify = K1 . reify
+
+instance GEmbedable f => GEmbedable (M1 _1 _2 f) where
+  type GSize (M1 _1 _2 f) = GSize f
+  gembed = gembed . unM1
+  greify = M1 . greify
+
+instance (GEmbedable f, GEmbedable g, TL.KnownNat (GSize f)) => GEmbedable (f :*: g) where
+  type GSize (f :*: g) = GSize f + GSize g
+  gembed (f :*: g) = gembed f V.++ gembed g
+  greify v =
+    let (va, vb) = V.splitAtI v
+     in greify va :*: greify vb
+
+instance
+    (GEmbedable f, GEmbedable g, TL.KnownNat (GSize f), TL.KnownNat (GSize g))
+      => GEmbedable (f :+: g)
+    where
+  type GSize (f :+: g) = GSize f + GSize g + 1
+  gembed (L1 f) = False :> gembed f V.++ V.repeat @(GSize g) False
+  gembed (R1 g) = True :> V.repeat @(GSize f) False V.++ gembed g
+  greify (t :> v) =
+    case t of
+      False -> L1 $ greify $ V.takeI v
+      True  -> R1 $ greify $ V.dropI @(GSize f) v
+
+
+
+class Embeddable a where
+  type Size a :: TL.Nat
+  type Size a = GSize (Rep a)
+
+  embed :: a -> Vec (Size a) Bool
+  default embed
+      :: (GSize (Rep a) ~ Size a, Generic a, GEmbedable (Rep a))
+      => a -> Vec (Size a) Bool
+  embed = gembed . from
+
+  reify :: Vec (Size a) Bool -> a
+  default reify
+     :: (GSize (Rep a) ~ Size a, Generic a, GEmbedable (Rep a))
+     => Vec (Size a) Bool -> a
+  reify = to . greify
+
+
+instance Embeddable ()
+
+instance Embeddable Bool
+
+instance
+    (Embeddable a, Embeddable b, TL.KnownNat (Size a))
+      => Embeddable (a, b)
+
+instance
+    (Embeddable a, Embeddable b, TL.KnownNat (Size a), TL.KnownNat (Size b))
+      => Embeddable (Either a b)
 

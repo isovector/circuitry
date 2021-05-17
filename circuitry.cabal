@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 74161a2938311833c196e73835685fa0eaf978e65b399f3b21073305d248013d
+-- hash: f4b8afcaf27b5bea97aec7fc699f0b1e5ff2455117f9d461a9f2a5f361b789b0
 
 name:           circuitry
 version:        0.1.0.0
@@ -20,6 +20,7 @@ library
       Circuitry
       Circuitry.Backend
       Circuitry.Catalyst
+      Circuitry.Category
       Circuitry.Gates
       Circuitry.GraphViz
       Circuitry.Machinery
@@ -32,6 +33,7 @@ library
     , base64-bytestring
     , bytestring
     , catalyst
+    , clash-prelude
     , containers
     , diagrams
     , diagrams-contrib
