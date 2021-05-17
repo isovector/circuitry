@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -49,36 +50,15 @@ import           Data.Kind (Type, Constraint)
 import           Data.Profunctor.Choice (unleft)
 import           Data.Profunctor.Types
 import           Data.Typeable (Typeable)
-import           GHC.Exts (IsList(..))
-import qualified GHC.TypeLits as TL
-import           GHC.TypeLits hiding (Nat, KnownNat)
+import           GHC.Generics hiding (S)
+import           GHC.TypeLits
 import           Numeric.Natural (Natural)
 import           Prelude hiding (id, (.), sum, zip)
-import GHC.Generics hiding (S)
 
-
-data Nat = Z | S Nat
-
-data Vector (n :: Nat) a where
-  Empty :: Vector Z a
-  (:|) :: a -> Vector n a -> Vector (S n) a
-
-deriving instance Show a => Show (Vector n a)
-
-infixr 3 :|
 
 type family Yo (a :: k) :: Constraint where
-  Yo (a :: Type) = PortMapUtils (PortMap a)
+  Yo (a :: Type) = (() :: Constraint)
   Yo (a :: Nat) = KnownNat a
-
-class KnownNat (n :: Nat) where
-  mkVector :: a -> Vector n a
-
-instance KnownNat Z where
-  mkVector _ = Empty
-
-instance KnownNat n => KnownNat (S n) where
-  mkVector a = a :| mkVector a
 
 class (Typeable a, Yo a) => Stuff (a :: k)
 instance (Typeable a, Yo a) => Stuff (a :: k)
@@ -102,9 +82,9 @@ data CircuitF a b where
       => Circuit () r
       -> Circuit r ()
       -> Circuit (a, r) (b, r)
-      -> CircuitF (Vector n a) (Vector n b)
-  CloneV :: KnownNat n => CircuitF a (Vector n a)
-  ZipV :: KnownNat n => CircuitF (Vector n a, Vector n b) (Vector n (a, b))
+      -> CircuitF (Vec n a) (Vec n b)
+  CloneV :: KnownNat n => CircuitF a (Vec n a)
+  ZipV :: KnownNat n => CircuitF (Vec n a, Vec n b) (Vec n (a, b))
 
   Together :: Circuit a b -> CircuitF a b
   -- Machine :: String -> [String] -> [String] -> Circuit a b -> CircuitF a b
@@ -148,13 +128,19 @@ always = LiftC . Always
 
 type Circuit = FreeFunction CircuitF
 
+data PortMap t where
+  NoPortMap :: PortMap ()
+  Pair :: PortMap a -> PortMap b -> PortMap (a, b)
+  VecPM :: KnownNat n => Vec n (PortMap a) -> PortMap (Vec n a)
+  Ref :: PortRef -> PortMap a
 
-type family PortMap t where
-  PortMap () = ()
-  PortMap (a, b) = (PortMap a, PortMap b)
-  PortMap (Vector Z a) = ()
-  PortMap (Vector (S n) a) = PortMap (a, Vector n a)
-  PortMap _1 = PortRef
+
+-- type family PortMap t where
+--   PortMap () = ()
+--   PortMap (a, b) = (PortMap a, PortMap b)
+--   PortMap (Vec 0 a) = ()
+--   PortMap (Vec (n + 1) a) = PortMap (a, Vec n a)
+--   PortMap _1 = PortRef
 
 
 class PortMapUtils t where
@@ -186,93 +172,93 @@ raw :: String -> GraphViz ()
 raw = tell . pure . Raw
 
 
-actualize :: forall a b. (PortMapUtils (PortMap a), PortMapUtils (PortMap b), Typeable a) => Circuit a b -> String
-actualize c = runGraphViz $ do
-  raw "subgraph input {"
-  raw "rank=\"source\";"
-  inp <- emptyPorts @(PortMap a) Wire
-  raw "}"
-  z <- compile c inp
-  raw "subgraph output {"
-  raw "rank=\"sink\";"
-  out <- emptyPorts @(PortMap b) Wire
-  raw "}"
-  zipConnect @(PortMap b) z out
+-- actualize :: forall a b. (PortMapUtils (PortMap a), PortMapUtils (PortMap b), Typeable a) => Circuit a b -> String
+-- actualize c = runGraphViz $ do
+--   raw "subgraph input {"
+--   raw "rank=\"source\";"
+--   inp <- emptyPorts @(PortMap a) Wire
+--   raw "}"
+--   z <- compile c inp
+--   raw "subgraph output {"
+--   raw "rank=\"sink\";"
+--   out <- emptyPorts @(PortMap b) Wire
+--   raw "}"
+--   zipConnect @(PortMap b) z out
 
 
 
-compile :: forall a b. Circuit a b -> PortMap a -> GraphViz (PortMap b)
-compile ID i = pure i
-compile (Comp cat cat') i = do
-  o1 <- compile cat i
-  o2 <- compile cat' o1
-  pure o2
-compile Swap (i1, i2) =
-  pure (i2, i1)
-compile Reassoc (i1, (i2, i3)) =
-  pure ((i1, i2), i3)
-compile (First cat) (i1, i2) = do
-  o <- compile cat i1
-  pure (o, i2)
-compile (Second cat) (i1, i2) = do
-  o <- compile cat i2
-  pure (i1, o)
-compile (Alongside cat cat') (i1, i2) = do
-  o1 <- compile cat i1
-  o2 <- compile cat' i2
-  pure (o1, o2)
-compile (Fanout cat cat') i = undefined
-compile Copy i = do
-  a <- emptyPorts @(PortMap a) Point
-  zipConnect @(PortMap a) i a
-  pure (a, a)
-  -- connect i inp
-  -- pure out
-compile Consume i = undefined
-compile Fst (i1, i2 :: x) = do
-  -- gr <- emptyPorts @x Ground
-  -- zipConnect @x i2 gr
-  pure i1
-compile Snd (i1 :: x, i2) = do
-  -- gr <- emptyPorts @x Ground
-  -- zipConnect @x i1 gr
-  pure i2
-compile SwapE _ = undefined
-compile ReassocE _ = undefined
-compile (Left' _) _ = undefined
-compile (Right' _) _ = undefined
-compile (EitherOf _ _) _ = undefined
-compile (Fanin _ _) _ = undefined
-compile (InjectL) _ = undefined
-compile (InjectR) _ = undefined
-compile (Unify) _ = undefined
-compile Tag _ = undefined
-compile (RecurseL _) _ = undefined
-compile (RecurseR _) _ = undefined
-compile (FixL _) _ = undefined
-compile (FixR _) _ = undefined
-compile (LiftC (Feedback cat)) i = mdo
-  (o, s) <- compile cat (i, s)
-  pure o
-compile (LiftC AndG) i = liftC2 "and" i
-compile (LiftC NandG) i = liftC2 "nand" i
-compile (LiftC OrG) i = liftC2 "⦈" i
-compile (LiftC NorG) i = liftC2 "nor" i
-compile (LiftC XorG) i = liftC2 "xor" i
-compile (LiftC NotG) i = do
-  ([ai1], [o]) <- component (Record "▷") [""] [""]
-  connect i ai1
-  pure o
-compile (LiftC (Together c)) i = do
-  raw "subgraph hi {"
-  raw "rank=\"same\";"
-  compile c i <* raw "}"
-compile (LiftC (FoldrV create destroy each)) i = undefined
-compile (LiftC (Always c)) i = undefined
-compile Distribute _ = undefined
-compile Factor _ = undefined
-compile (LiftC ZipV) _ = undefined
-compile (LiftC CloneV) i = undefined
+-- compile :: forall a b. Circuit a b -> PortMap a -> GraphViz (PortMap b)
+-- compile ID i = pure i
+-- compile (Comp cat cat') i = do
+--   o1 <- compile cat i
+--   o2 <- compile cat' o1
+--   pure o2
+-- compile Swap (i1, i2) =
+--   pure (i2, i1)
+-- compile Reassoc (i1, (i2, i3)) =
+--   pure ((i1, i2), i3)
+-- compile (First cat) (i1, i2) = do
+--   o <- compile cat i1
+--   pure (o, i2)
+-- compile (Second cat) (i1, i2) = do
+--   o <- compile cat i2
+--   pure (i1, o)
+-- compile (Alongside cat cat') (i1, i2) = do
+--   o1 <- compile cat i1
+--   o2 <- compile cat' i2
+--   pure (o1, o2)
+-- compile (Fanout cat cat') i = undefined
+-- compile Copy i = do
+--   a <- emptyPorts @(PortMap a) Point
+--   zipConnect @(PortMap a) i a
+--   pure (a, a)
+--   -- connect i inp
+--   -- pure out
+-- compile Consume i = undefined
+-- compile Fst (i1, i2 :: x) = do
+--   -- gr <- emptyPorts @x Ground
+--   -- zipConnect @x i2 gr
+--   pure i1
+-- compile Snd (i1 :: x, i2) = do
+--   -- gr <- emptyPorts @x Ground
+--   -- zipConnect @x i1 gr
+--   pure i2
+-- compile SwapE _ = undefined
+-- compile ReassocE _ = undefined
+-- compile (Left' _) _ = undefined
+-- compile (Right' _) _ = undefined
+-- compile (EitherOf _ _) _ = undefined
+-- compile (Fanin _ _) _ = undefined
+-- compile (InjectL) _ = undefined
+-- compile (InjectR) _ = undefined
+-- compile (Unify) _ = undefined
+-- compile Tag _ = undefined
+-- compile (RecurseL _) _ = undefined
+-- compile (RecurseR _) _ = undefined
+-- compile (FixL _) _ = undefined
+-- compile (FixR _) _ = undefined
+-- compile (LiftC (Feedback cat)) i = mdo
+--   (o, s) <- compile cat (i, s)
+--   pure o
+-- compile (LiftC AndG) i = liftC2 "and" i
+-- compile (LiftC NandG) i = liftC2 "nand" i
+-- compile (LiftC OrG) i = liftC2 "⦈" i
+-- compile (LiftC NorG) i = liftC2 "nor" i
+-- compile (LiftC XorG) i = liftC2 "xor" i
+-- compile (LiftC NotG) i = do
+--   ([ai1], [o]) <- component (Record "▷") [""] [""]
+--   connect i ai1
+--   pure o
+-- compile (LiftC (Together c)) i = do
+--   raw "subgraph hi {"
+--   raw "rank=\"same\";"
+--   compile c i <* raw "}"
+-- compile (LiftC (FoldrV create destroy each)) i = undefined
+-- compile (LiftC (Always c)) i = undefined
+-- compile Distribute _ = undefined
+-- compile Factor _ = undefined
+-- compile (LiftC ZipV) _ = undefined
+-- compile (LiftC CloneV) i = undefined
 
 
 liftC2 :: String -> (PortRef, PortRef) -> GraphViz PortRef
@@ -350,14 +336,14 @@ arr :: (a -> b) -> Roar r a b
 arr fab = Roar (\ fra r -> fab (fra r))
 
 
-runCircuit :: Circuit a b -> (Natural -> a) -> Natural -> b
+runCircuit :: Circuit a b -> (Time -> a) -> Time -> b
 runCircuit c ta t = runRoar (lowerCircuit c) ta t
 
 instantCircuit :: Circuit a b -> a -> b
 instantCircuit c a = runRoar (lowerCircuit c) (const a) 0
 
 
-lowerCircuit :: Circuit a b -> Roar Natural a b
+lowerCircuit :: Circuit a b -> Roar Time a b
 lowerCircuit = runFree $ \case
     AndG -> arr $ uncurry (/\)
     OrG  -> arr $ uncurry (\/)
@@ -375,7 +361,7 @@ lowerCircuit = runFree $ \case
           f = flip (runRoar (lowerCircuit each)) t
        in foldrV (f . const) rc v
     Always c -> Roar $ \ _ _ -> c
-    CloneV -> Roar $ \ f nat -> mkVector $ f nat
+    CloneV -> Roar $ \ f nat -> V.repeat $ f nat
     ZipV -> Roar $ \f n -> uncurry zipV $ f n
 
 
@@ -392,9 +378,9 @@ xor True True = False
 
 loop
     :: Heyting s
-    => ((Natural -> (x, s)) -> Natural -> (y, s))
-    -> (Natural -> x)
-    -> Natural
+    => ((Time -> (x, s)) -> Time -> (y, s))
+    -> (Time -> x)
+    -> Time
     -> (y, s)
 loop f tx 0 = f ((, bottom) . tx) 0
 loop f tx t =
@@ -407,42 +393,30 @@ reassoc' :: (AllOk k [a, b, c], MonoidalProduct k, SymmetricProduct k) => ((a, b
 reassoc' = first' swap >>> swap >>> reassoc >>> swap >>> second' swap
 
 
-spike :: Natural -> Natural -> Bool
+spike :: Time -> Time -> Bool
 spike n t = bool False True $ n == t
 
 
 ---
 
 
-instance IsList (Vector Z a) where
-  type Item (Vector Z a) = a
-  fromList _ = Empty
-  toList _ = []
 
-instance (IsList (Vector n a), Item (Vector n a) ~ a) => IsList (Vector (S n) a) where
-  type Item (Vector (S n) a) = a
-  fromList (a : as) = a :| fromList as
-  fromList [] = error "not enough elements for IsList Vector"
-  toList (a :| as) = a : toList as
-
-
-zipV :: Vector n a -> Vector n b -> Vector n (a, b)
-zipV Empty Empty = Empty
-zipV (a' :| vec) (b' :| vec') = (a', b') :| zipV vec vec'
+zipV :: Vec n a -> Vec n b -> Vec n (a, b)
+zipV = V.zip
 
 
 -- foldrC
 --     :: Circuit () r
 --     -> Circuit r ()
 --     -> Circuit a (b, r)
---     -> Circuit (Vector n a) (Vector n b)
+--     -> Circuit (Vec n a) (Vec n b)
 -- foldrC create destroy one = recurseL $ peel >>> _
 
-foldrV :: ((a, r) -> (b, r)) -> r -> Vector n a -> Vector n b
-foldrV _ _ Empty = Empty
-foldrV f r (a :| vec) =
+foldrV :: ((a, r) -> (b, r)) -> r -> Vec n a -> Vec n b
+foldrV _ _ Nil = Nil
+foldrV f r (Cons a vec) =
   let (b, r') = f (a, r)
-   in b :| foldrV f r' vec
+   in b :> foldrV f r' vec
 
 
 
@@ -479,15 +453,15 @@ add :: Circuit ((Bool, Bool), Bool) (Bool, Bool)
 add = sum &&& cout
 
 
-type One = S Z
-type Two = S One
-type Three = S Two
-type Four = S Three
+type One = 1
+type Two = 2
+type Three = 3
+type Four = 4
 
-#define PMU(n,a) PortMapUtils (PortMap (Vector n a))
+#define PMU(n,a) PortMapUtils (PortMap (Vec n a))
 
 
-addN :: (Stuff n, PMU(n,(Bool)), PMU(n,(Bool,Bool))) => Circuit (Vector n (Bool, Bool)) (Vector n Bool)
+addN :: (Stuff n, PMU(n,(Bool)), PMU(n,(Bool,Bool))) => Circuit (Vec n (Bool, Bool)) (Vec n Bool)
 addN = LiftC $ FoldrV (always False) consume add
 
 
@@ -524,30 +498,32 @@ shuffle = reassoc &&& (second' swap >>> reassoc)
 snap :: Circuit (Bool, Bool) Bool
 snap = (copy *** (split >>> swap)) >>> shuffle >>> (andGate *** andGate) >>> rsLatch
 
-clone :: (PMU(n,a), Stuff n, Stuff a) => Circuit a (Vector n a)
+clone :: (PMU(n,a), Stuff n, Stuff a) => Circuit a (Vec n a)
 clone = LiftC CloneV
 
-zip :: (PMU(n,a), PMU(n,b), PMU(n,(a,b)), Stuff n, Stuff a, Stuff b) => Circuit (Vector n a, Vector n b) (Vector n (a, b))
+zip :: (PMU(n,a), PMU(n,b), PMU(n,(a,b)), Stuff n, Stuff a, Stuff b) => Circuit (Vec n a, Vec n b) (Vec n (a, b))
 zip = LiftC ZipV
 
-snapN :: (PMU(n,Bool), PMU(n,(Bool,Bool)), Stuff n) => Circuit (Bool, Vector n Bool) (Vector n Bool)
+snapN :: (PMU(n,Bool), PMU(n,(Bool,Bool)), Stuff n) => Circuit (Bool, Vec n Bool) (Vec n Bool)
 snapN = first' clone >>> zip >>> LiftC (FoldrV consume consume $ first' snap)
 
 
-snapping :: Natural -> (Bool, Bool)
+snapping :: Time -> (Bool, Bool)
 snapping n@3 = (True, odd n)
 snapping n@6 = (True, odd n)
 snapping n = (False, odd n)
 
-snappingN :: KnownNat n => Natural -> (Bool, Vector n Bool)
-snappingN n@3 = (True, mkVector $ odd n)
-snappingN n@6 = (True, mkVector $ odd n)
-snappingN n = (False, mkVector $ odd n)
+type Time = Natural
+
+snappingN :: KnownNat n => Time -> (Bool, Vec n Bool)
+snappingN n@3 = (True, V.repeat $ odd n)
+snappingN n@6 = (True, V.repeat $ odd n)
+snappingN n = (False, V.repeat $ odd n)
 
 
 
 class GEmbedable (f :: Type -> Type) where
-  type GSize f :: TL.Nat
+  type GSize f :: Nat
   gembed :: f x -> Vec (GSize f) Bool
   greify :: Vec (GSize f) Bool -> f x
 
@@ -566,15 +542,16 @@ instance GEmbedable f => GEmbedable (M1 _1 _2 f) where
   gembed = gembed . unM1
   greify = M1 . greify
 
-instance (GEmbedable f, GEmbedable g, TL.KnownNat (GSize f)) => GEmbedable (f :*: g) where
+instance (GEmbedable f, GEmbedable g, KnownNat (GSize f)) => GEmbedable (f :*: g) where
   type GSize (f :*: g) = GSize f + GSize g
   gembed (f :*: g) = gembed f V.++ gembed g
   greify v =
     let (va, vb) = V.splitAtI v
      in greify va :*: greify vb
 
+-- TODO(sandy): stupid instance; should overlap bits
 instance
-    (GEmbedable f, GEmbedable g, TL.KnownNat (GSize f), TL.KnownNat (GSize g))
+    (GEmbedable f, GEmbedable g, KnownNat (GSize f), KnownNat (GSize g))
       => GEmbedable (f :+: g)
     where
   type GSize (f :+: g) = GSize f + GSize g + 1
@@ -588,7 +565,7 @@ instance
 
 
 class Embeddable a where
-  type Size a :: TL.Nat
+  type Size a :: Nat
   type Size a = GSize (Rep a)
 
   embed :: a -> Vec (Size a) Bool
@@ -609,10 +586,15 @@ instance Embeddable ()
 instance Embeddable Bool
 
 instance
-    (Embeddable a, Embeddable b, TL.KnownNat (Size a))
+    (Embeddable a, Embeddable b, KnownNat (Size a))
       => Embeddable (a, b)
 
 instance
-    (Embeddable a, Embeddable b, TL.KnownNat (Size a), TL.KnownNat (Size b))
+    (Embeddable a, Embeddable b, KnownNat (Size a), KnownNat (Size b))
       => Embeddable (Either a b)
+
+data Test = A | B | C | D
+  deriving (Generic)
+
+instance Embeddable Test
 
