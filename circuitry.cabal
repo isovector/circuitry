@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f4b8afcaf27b5bea97aec7fc699f0b1e5ff2455117f9d461a9f2a5f361b789b0
+-- hash: 1962bb8862002457b4eb286b3c94d0950bcc09b8f26b89a76e13b6f5ff211689
 
 name:           circuitry
 version:        0.1.0.0
@@ -29,10 +29,12 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base
+      QuickCheck
+    , base
     , base64-bytestring
     , bytestring
     , catalyst
+    , checkers
     , clash-prelude
     , containers
     , diagrams

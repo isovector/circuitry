@@ -24,6 +24,8 @@ dependencies:
 - lattices
 - profunctors
 - clash-prelude
+- QuickCheck
+- checkers
 
 library:
   source-dirs: src
