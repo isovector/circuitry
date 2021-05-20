@@ -26,6 +26,11 @@ dependencies:
 - clash-prelude
 - QuickCheck
 - checkers
+- generic-lens
+- ghc-typelits-natnormalise
+- ghc-typelits-knownnat
+- ghc-typelits-extra
+
 
 library:
   source-dirs: src

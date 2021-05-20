@@ -158,6 +158,7 @@ data CircuitF a b where
   Reify :: Embeddable a => CircuitF (Vec (Size a) Bool) a
 
   MapMaybe :: Circuit a b -> CircuitF (Maybe a) (Maybe b)
+  ConsV :: CircuitF (a, Vec n a) (Vec (n + 1) a)
   Uncons :: CircuitF (Vec (n + 1) a) (a, Vec n a)
 
   Cross
@@ -457,6 +458,7 @@ lowerCircuit = runFree $ \case
           m' = flip (runRoar (lowerCircuit m)) n
        in fmap (m' . const) v
     Uncons -> Roar $ \f n -> uncons $ f n
+    ConsV -> Roar $ \f n -> uncurry (:>) $ f n
 
 uncons :: Vec (n + 1) a1 -> (a1, Vec n a1)
 uncons (a :> v) = (a, v)
@@ -465,6 +467,8 @@ uncons _ = error "impossible"
 
 
 
+ifC :: Stuff a => Circuit a a -> Circuit (Bool, a) a
+ifC c = tag >>> id ||| c
 
 
 

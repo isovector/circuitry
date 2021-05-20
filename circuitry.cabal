@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1962bb8862002457b4eb286b3c94d0950bcc09b8f26b89a76e13b6f5ff211689
+-- hash: 760a866893579964d14051a58f0504cbc53ea08e12d57e2f550b97a88727afa6
 
 name:           circuitry
 version:        0.1.0.0
@@ -26,6 +26,7 @@ library
       Circuitry.Machinery
       Circuitry.Misc
       Circuitry.Types
+      Take2
   hs-source-dirs:
       src
   build-depends:
@@ -42,6 +43,10 @@ library
     , diagrams-core
     , diagrams-lib
     , diagrams-svg
+    , generic-lens
+    , ghc-typelits-extra
+    , ghc-typelits-knownnat
+    , ghc-typelits-natnormalise
     , hashable
     , lattices
     , lens

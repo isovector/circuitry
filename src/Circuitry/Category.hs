@@ -25,7 +25,6 @@ import           Prelude hiding (id, (.))
 import qualified Control.Arrow as C
 
 class ( Ok k ()
-      , Ok k Void
       , forall x y okK. (Ok k x, Ok k y, okK ~ Ok k) => okK (x, y)
       , forall x y okK. (Ok k x, Ok k y, okK ~ Ok k) => okK (Either x y)
       ) => Category k where
