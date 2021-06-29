@@ -11,7 +11,7 @@
 
 module Take2.Instances where
 
-import           Circuitry.Catalyst (Roar(..))
+import           Circuitry.Catalyst (Roar(..), Time)
 import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum)
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
@@ -23,13 +23,19 @@ import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
 import qualified Take2.Primitives as Prim
+import Test.QuickCheck
+import qualified Data.Bits as B
 
+
+instance Arbitrary (Roar Time a b) => Arbitrary (Circuit a b) where
+  arbitrary = Circuit <$> pure (error "yo") <*> arbitrary
 
 instance SymmetricProduct Circuit where
   swap = Prim.swap
   reassoc = unsafeReinterpret
 
 instance MonoidalProduct Circuit where
+  (***) = (Prim.***)
   first' = Prim.first'
   second' c = swap >>> first' c >>> swap
 
@@ -72,6 +78,9 @@ instance SymmetricSum Circuit where
   --             _ -> error "impossible"
 
 
+{-# RULES
+"unsafeReinterpret . unsafeReinterpret" unsafeReinterpret . unsafeReinterpret = unsafeReinterpret
+#-}
 
 
 unsafeReinterpret :: (OkCircuit a, OkCircuit b, SizeOf a ~ SizeOf b) => Circuit a b

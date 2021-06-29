@@ -13,7 +13,6 @@ module Circuitry.Catalyst
 import           Circuitry.Category
 import           Data.Bool (bool)
 import           Data.Function (fix)
-import           Data.MemoTrie
 import           Data.Profunctor.Choice (unleft)
 import           Data.Profunctor.Types
 import           Data.Word (Word8)
@@ -38,10 +37,10 @@ instance (Show a, EqProp b, CoArbitrary r, Arbitrary a, Arbitrary r, Show r, Sho
   Roar r1 =-= Roar r2 = property $ do
     t <- arbitrary
     pure $ forAllShrink arbitrary shrink $ \f' -> do
-    let f = applyFun f'
-        v1 = r1 f t
-        v2 = r2 f t
-    counterexample (show t) $ counterexample (show v1) $ counterexample (show v2) $ v1 =-= v2
+      let f = applyFun f'
+          v1 = r1 f t
+          v2 = r2 f t
+      counterexample (show t) $ counterexample (show v1) $ counterexample (show v2) $ v1 =-= v2
 
 
 instance EqProp Word8 where
@@ -50,6 +49,16 @@ instance EqProp Word8 where
 
 newtype Roar r a b = Roar { runRoar :: (r -> a) -> (r -> b) }
   deriving stock Functor
+
+instance Applicative (Roar r a) where
+  pure a = Roar $ \ _ _ -> a
+  (<*>) (Roar f) (Roar g) = Roar $ \ra r -> f ra r (g ra r)
+
+instance Monad (Roar r a) where
+  (>>=) (Roar g) f = Roar $ \ fra r -> runRoar (f $ g fra r) fra r
+
+instance (CoArbitrary a, CoArbitrary r, Arbitrary r, Arbitrary b) => Arbitrary (Roar r a b) where
+  arbitrary = Roar <$> arbitrary
 
 instance Distrib (Roar r) where
   distrib = Roar $ \ f r -> case f r of { (a, e) -> case e of
@@ -67,15 +76,22 @@ instance Profunctor (Roar r) where
 instance Category (Roar r) where
   type Ok (Roar r) = TrivialConstraint
   id = Roar id
+  {-# INLINE id #-}
   (.) (Roar f) (Roar g) = Roar (f . g)
+  {-# INLINE (.) #-}
 
 instance SymmetricProduct (Roar r) where
   swap = Roar (\ f r -> swap $ f r)
+  {-# INLINE swap #-}
   reassoc = Roar (\ f r -> reassoc $ f r)
 
 instance MonoidalProduct (Roar r) where
   first' (Roar f) = Roar $ \rac r ->
      (f (fst . rac) r, snd $ rac r)
+  {-# INLINE first' #-}
+  second' (Roar f) = Roar $ \rac r ->
+     (fst $ rac r, f (snd . rac) r)
+  {-# INLINE second' #-}
 
 instance Cartesian (Roar r) where
   consume = Roar (\ _ _ -> ())
@@ -122,8 +138,8 @@ loop
     -> (Time -> x)
     -> Time
     -> (y, s)
-loop b f tx = memo $ \case
-  0 -> f ((, b) . tx) 0
+loop b f tx = \case
+  n | n <= 0 -> f ((, b) . tx) 0
   t -> let (_, s) = loop b f tx $ t - 1
         in f ((, s) . tx) t
 
@@ -131,5 +147,5 @@ loop b f tx = memo $ \case
 spike :: Time -> Time -> Bool
 spike n t = bool False True $ n == t
 
-type Time = Int
+type Time = Natural
 

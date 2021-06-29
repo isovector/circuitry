@@ -27,14 +27,15 @@ primitive = id
 
 
 timeInv :: (a -> b) -> Roar r a b
-timeInv fab = Roar (\ fra -> fab . fra)
+timeInv fab = Roar $ \ fra -> fab . fra
+{-# INLINE timeInv #-}
 
 
 raw :: (OkCircuit a, OkCircuit b) => Circuit (Vec (SizeOf a) Bool) (Vec (SizeOf b) Bool) -> Circuit a b
 raw c = Circuit (genComp "unravel" >>> c_graph c >>> genComp "ravel") $
-  Roar $ \f t ->
+  Roar $ \f ->
     let x = runRoar (c_roar c) (fmap embed f)
-     in reify $ x t
+     in reify . x
 
 
 swap :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
@@ -114,4 +115,10 @@ foldVC :: Circuit (a, b) b -> Circuit (Vec n a, b) b
 foldVC c = primitive $ Circuit undefined $ Roar $ \f t ->
   let (v, b) = f t
    in V.foldr (curry $ flip (runRoar (c_roar c)) t . const) b v
+
+
+------------------------------------------------------------------------------
+-- | Too slow to run real world physics? JET STREAM IT, BABY.
+shortcircuit :: (a -> b) -> Circuit a b -> Circuit a b
+shortcircuit f c = Circuit (c_graph c) $ Roar $ \fa t -> f (fa t)
 

@@ -32,8 +32,8 @@ evalCircuit :: Circuit a b -> Time -> a -> b
 evalCircuit c t a = runRoar (c_roar c) (const a) t
 
 
-evalCircuitT :: Circuit a b -> Time -> (Time -> a) -> b
-evalCircuitT c t a = runRoar (c_roar c) (a) t
+evalCircuitT :: Circuit a b -> (Time -> a) -> Time -> b
+evalCircuitT c a t = runRoar (c_roar c) (a) t
 
 
 class (Stuff a, Embed a) => OkCircuit a

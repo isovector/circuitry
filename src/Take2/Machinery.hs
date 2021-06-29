@@ -11,8 +11,3 @@ import Take2.Instances as X
 import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, constC)
 import Clash.Sized.Vector (Vec (..))
 
-------------------------------------------------------------------------------
--- | Too slow to run real world physics? JET STREAM IT, BABY.
-shortcircuit :: (a -> b) -> Circuit a b -> Circuit a b
-shortcircuit f c = Circuit (c_graph c) $ Roar $ \fa t -> f (fa t)
-

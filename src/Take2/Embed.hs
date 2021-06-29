@@ -50,18 +50,24 @@ class KnownNat (GSizeOf f) => GEmbed f where
 
 instance GEmbed f => GEmbed (M1 _1 _2 f) where
   type GSizeOf (M1 _1 _2 f) = GSizeOf f
-  gembed (M1 fx) = gembed fx
+  gembed = gembed . unM1
   greify = M1 . greify
+  {-# INLINE[~2] gembed #-}
+  {-# INLINE[~2] greify #-}
 
 instance GEmbed U1 where
   type GSizeOf U1 = 0
   gembed U1 = Nil
   greify _ = U1
+  {-# INLINE[~2] gembed #-}
+  {-# INLINE[~2] greify #-}
 
 instance Embed a => GEmbed (K1 _1 a) where
   type GSizeOf (K1 _1 a) = SizeOf a
   gembed = embed . unK1
   greify = K1 . reify
+  {-# INLINE[~2] gembed #-}
+  {-# INLINE[~2] greify #-}
 
 instance (GEmbed f, GEmbed g) => GEmbed (f :*: g) where
   type GSizeOf (f :*: g) = GSizeOf f + GSizeOf g
@@ -69,6 +75,8 @@ instance (GEmbed f, GEmbed g) => GEmbed (f :*: g) where
   greify v =
     let (a, b) = V.splitAtI v
      in greify a :*: greify b
+  {-# INLINE[~2] gembed #-}
+  {-# INLINE[~2] greify #-}
 
 instance (GEmbed f, GEmbed g) => GEmbed (f :+: g) where
   type GSizeOf (f :+: g) = Max (GSizeOf f) (GSizeOf g) + 1
@@ -85,6 +93,8 @@ instance (GEmbed f, GEmbed g) => GEmbed (f :+: g) where
           False -> L1 $ greify $ V.takeI v
           True  -> R1 $ greify $ V.takeI v
   greify _ = error "impossible"
+  {-# INLINE[~2] gembed #-}
+  {-# INLINE[~2] greify #-}
 
 
 instance Embed ()
@@ -99,6 +109,8 @@ instance Embed Word8 where
     let s b = B.shiftL (bool 0 1 b)
      in foldr @[] (B..|.) 0 $ zipWith s [b0, b1, b2, b3, b4, b5, b6, b7] [0..]
   reify _ = error "impossible"
+  {-# INLINE[~2] embed #-}
+  {-# INLINE[~2] reify #-}
 
 instance Embed Bool
 
@@ -108,6 +120,8 @@ instance (Embed a, KnownNat n) => Embed (Vec n a) where
   type SizeOf (Vec n a) = n * SizeOf a
   embed = V.concatMap embed
   reify = V.map reify . V.unconcatI
+  {-# INLINE[~2] embed #-}
+  {-# INLINE[~2] reify #-}
 
 instance (Embed a, Embed b) => Embed (Either a b)
 
@@ -140,6 +154,7 @@ withSomeNat i f =
   case someNatVal i of
    Nothing -> error "don't be an idiot"
    Just (SomeNat n) -> f n
+{-# INLINE withSomeNat #-}
 
 type Bigger a b = Max (SizeOf a) (SizeOf b)
 

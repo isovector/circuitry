@@ -64,26 +64,31 @@ instance Fixed (->) where
 
 (<<<) :: (Category k, AllOk k [a, b, c]) => k b c -> k a b -> k a c
 (<<<) = (.)
+{-# INLINE (<<<) #-}
 
 (>>>) :: (Category k, AllOk k [a, b, c]) => k a b -> k b c -> k a c
 f >>> g = g . f
+{-# INLINE (>>>) #-}
 
 
 class SymmetricProduct k => MonoidalProduct k where
-  {-# MINIMAL first' | second' #-}
+  {-# MINIMAL (***) | (first', second') #-}
   (***) :: AllOk k [al, bl, ar, br] => (al `k` bl) -> (ar `k` br) -> ((al, ar) `k` (bl, br))
   l *** r = first' l >>> second' r
 
   first' :: AllOk k [a, b, c] => (a `k` b) -> ((a, c) `k` (b, c))
-  first' f = swap >>> second' f >>> swap
+  first' = flip (***) id
 
   second' :: AllOk k [a, b, c] => (a `k` b) -> ((c, a) `k` (c, b))
-  second' f = swap >>> first' f >>> swap
+  second' = (***) id
 
 instance MonoidalProduct (->) where
   (***) = (A.***)
   first' = A.first
   second' = A.second
+  {-# INLINE (***) #-}
+  {-# INLINE first' #-}
+  {-# INLINE second' #-}
 
 class SymmetricSum k => MonoidalSum k where
   {-# MINIMAL left | right #-}
@@ -118,6 +123,10 @@ class Category k => SymmetricProduct k where
   swap :: AllOk k [l, r] => (l, r) `k` (r, l)
   reassoc :: AllOk k [a, b, c] => (a, (b, c)) `k` ((a, b), c)
 
+{-# RULES
+"swap . swap" forall a. swap (swap a) = a
+#-}
+
 class Category k => SymmetricSum k where
   swapE :: AllOk k [l, r] => (Either l r) `k` (Either r l)
   reassocE :: AllOk k [a, b, c]
@@ -126,6 +135,8 @@ class Category k => SymmetricSum k where
 instance SymmetricProduct (->) where
   swap (a, b) = (b, a)
   reassoc (a, (b, c)) = ((a, b), c)
+  {-# INLINE swap #-}
+  {-# INLINE reassoc #-}
 
 instance SymmetricSum (->) where
   swapE (Left a) = Right a
