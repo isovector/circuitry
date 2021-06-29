@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 61170ca7e3ce6705891cc03fefdcd876a54760834139e95fb61d773dbfb660ff
+-- hash: af4432906908ce70bac3625d4ea14b567fbdce35069424185a38c7110380ba90
 
 name:           circuitry
 version:        0.1.0.0
@@ -30,7 +30,9 @@ library
       Take2.Circuit
       Take2.Embed
       Take2.Graph
+      Take2.Instances
       Take2.Numeric
+      Take2.Primitives
   hs-source-dirs:
       src
   default-extensions:

@@ -9,10 +9,6 @@
 
 module Take2 where
 
-import           Circuitry.Category (Category(..), (&&&), (>>>), swapE, Cartesian(..), SymmetricSum(..))
-import           Circuitry.Category (MonoidalProduct(..))
-import           Circuitry.Category (SymmetricProduct(..))
-import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
 import           Data.Bool (bool)
@@ -22,7 +18,9 @@ import           Data.Word (Word8)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
+import           Take2.Machinery
 import           Take2.Numeric
+import           Take2.Primitives (timeInv)
 import           Test.QuickCheck
 
 
