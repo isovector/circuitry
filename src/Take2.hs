@@ -105,6 +105,15 @@ prop_circuit f c = property $ do
     counterexample ("input: " <> show a) $
       f a === evalCircuit c t a
 
+prop_equivalent :: (Function a, Arbitrary a, Eq b, Show a, Show b) => Circuit a b -> Circuit a b -> Property
+prop_equivalent c1 c2 = property $ do
+  a <- arbitrary
+  t <- resize 10 $ arbitrary
+  pure $
+    counterexample ("time: " <> show t) $
+    counterexample ("input: " <> show a) $
+      evalCircuitT c1 t (applyFun a) === evalCircuitT c2 t (applyFun a)
+
 
 prop_embedRoundtrip :: forall a. (Show a, Eq a, Embed a, Arbitrary a) => Property
 prop_embedRoundtrip = property $ do
@@ -115,7 +124,9 @@ prop_embedRoundtrip = property $ do
 main :: IO ()
 main = do
   traverse_ quickCheck
-    [ prop_embedRoundtrip @()
+    [ prop_equivalent (create >>> first' rsLatch >>> destroy) rsLatch
+
+    , prop_embedRoundtrip @()
     , prop_embedRoundtrip @Bool
     , prop_embedRoundtrip @Word8
     , prop_embedRoundtrip @(Either Bool ())
