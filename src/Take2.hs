@@ -1,9 +1,13 @@
+{-# LANGUAGE AllowAmbiguousTypes        #-}
 {-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DefaultSignatures          #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MagicHash                  #-}
 {-# LANGUAGE NoStarIsType               #-}
 {-# LANGUAGE OverloadedLabels           #-}
@@ -13,20 +17,22 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
+
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
+
 {-# OPTIONS_GHC -Wall                   #-}
 {-# OPTIONS_GHC -Wredundant-constraints #-}
-
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DefaultSignatures #-}
+{-# OPTIONS_GHC -Wno-unused-imports     #-}
 
 module Take2 where
 
 import           Circuitry.Catalyst (Roar(..))
-import           Circuitry.Category (Category(..), first', swap, (&&&), (>>>), swapE)
+import           Circuitry.Category (Category(..), first', swap, (&&&), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum)
+import           Circuitry.Category (MonoidalProduct(..))
+import           Circuitry.Category (MonoidalSum(..))
+import           Circuitry.Category (SymmetricProduct(..))
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import           Control.Lens ((%~), (+~))
@@ -44,6 +50,7 @@ import           GHC.TypeLits.Extra
 import           Numeric.Natural
 import           Prelude hiding ((.), id)
 import           Test.QuickCheck
+import           Unsafe.Coerce (unsafeCoerce)
 
 
 newtype Port = Port { getPort :: Int }
@@ -85,45 +92,75 @@ raw c = Circuit (genComp "unravel" >>> c_graph c >>> genComp "ravel") $
     let x = runRoar (c_roar c) (fmap embed f)
      in reify $ x t
 
-copyC :: OkCircuit a => Circuit a (a, a)
-copyC = primitive $ raw $ Circuit (genComp "copy") $ Roar $ \f t ->
-  let v = f t in v V.++ v
-
 nandGate :: Circuit (Bool, Bool) Bool
 nandGate = Circuit (genComp "nand") $ Roar $ \f t -> not . uncurry (&&) $ f t
 
 notGate :: Circuit Bool Bool
-notGate = copyC >>> nandGate
+notGate = copy >>> nandGate
 
 andGate :: Circuit (Bool, Bool) Bool
 andGate = nandGate >>> notGate
+
+orGate :: Circuit (Bool, Bool) Bool
+orGate = both notGate >>> nandGate
 
 swapC :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
 swapC = primitive $ raw $ Circuit (genComp "swap") $ timeInv $ \v ->
   let (va, vb) = V.splitAtI @(SizeOf a) v
    in vb V.++ va
 
-reassoc :: forall a b c. (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit (a, (b, c)) ((a, b), c)
-reassoc = reinterpret
-
 reassoc' :: forall a b c. (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit ((a, b), c) (a, (b, c))
-reassoc' = reinterpret
+reassoc' = unsafeReinterpret
 
 unconsC :: (KnownNat n, OkCircuit a) => Circuit (Vec (n + 1) a) (a, Vec n a)
-unconsC = reinterpret
+unconsC = unsafeReinterpret
+
+inductionV
+    :: forall n r a
+     . KnownNat n
+      => Circuit (Vec 0 a) r
+    -> (forall x. KnownNat x => Circuit (Vec (x + 1) a) r)
+    -> Circuit (Vec n a) r
+inductionV nil plus = primitive $ Circuit undefined $ Roar $ \f t ->
+  let v = f t
+   in case natVal $ Proxy @n of
+        0 -> runRoar (c_roar nil) (const $ unsafeCoerce v) t
+        _ -> runRoar (c_roar $ plus @n) (const $ unsafeCoerce v) t
+
 
 consC :: (KnownNat n, OkCircuit a) => Circuit (a, Vec n a) (Vec (n + 1) a)
-consC = reinterpret
+consC = unsafeReinterpret
 
 firstC :: forall a b c. (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit a b -> Circuit (a, c) (b, c)
-firstC c = primitive $ raw $ Circuit undefined $ Roar $ \f t ->
-  let v = f t
-      (va, vc) = V.splitAtI @(SizeOf a) v
-      b = runRoar (c_roar c) (const $ reify va) t
-   in embed b V.++ vc
+firstC c =
+  primitive $ raw $ Circuit (genComp "first" >>> c_graph c >>> genComp "just for typechecking") $
+    Roar $ \f t ->
+      let v = f t
+          (va, vc) = V.splitAtI @(SizeOf a) v
+          b = runRoar (c_roar c) (const $ reify va) t
+       in embed b V.++ vc
 
-mapVC :: (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r) => Circuit (a, r) (b, r) -> Circuit (Vec n a, r) (Vec n b, r)
-mapVC = undefined
+cloneV :: KnownNat n => Circuit r (Vec n r)
+cloneV = primitive $ Circuit undefined $ timeInv V.repeat
+
+mapFoldVC
+    :: (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
+    => Circuit (a, r) (b, r)
+    -> Circuit (Vec n a, r) (Vec n b, r)
+mapFoldVC c = primitive $ Circuit undefined $ Roar $ \f t ->
+  let (v, r0) = f t
+   in case v of
+        Nil -> (Nil, r0)
+        Cons a v_cons ->
+          let (b, r') = runRoar (c_roar c) (const (a, r0)) t
+              (v', _) = runRoar (c_roar $ mapFoldVC c) (const (v_cons, r0)) t
+           in (Cons b v', r')
+
+mapV
+    :: (KnownNat n, OkCircuit a, OkCircuit b)
+    => Circuit a b
+    -> Circuit (Vec n a) (Vec n b)
+mapV c = introduce >>> mapFoldVC (destroy >>> c >>> introduce) >>> destroy
 
 zipVC :: Circuit (Vec n a, Vec n b) (Vec n (a, b))
 zipVC = primitive $ Circuit undefined $ timeInv $ uncurry V.zip
@@ -136,46 +173,80 @@ foldVC c = primitive $ Circuit undefined $ Roar $ \f t ->
   let (v, b) = f t
    in V.foldr (curry $ flip (runRoar (c_roar c)) t . const) b v
 
--- rightE :: forall a b c. (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit a b -> Circuit (Either c a) (Either c b)
--- rightE c = serial >>> unconsC >>> _
+secondC
+    :: (OkCircuit a, OkCircuit b, OkCircuit c)
+    => Circuit a b
+    -> Circuit (c, a) (c, b)
+secondC c = swapC >>> firstC c >>> swapC
 
--- ifC :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit a b -> Circuit (Bool, a) b
--- ifC t f = serial >>> unconsC >>> _
+-- rightE
+--     :: forall a b c
+--      . (OkCircuit a, OkCircuit b, OkCircuit c)
+--     => Circuit a b
+--     -> Circuit (Either c a) (Either c b)
+-- rightE = undefined
+
+dup :: OkCircuit a => Circuit a (a, a)
+dup = cloneV >>> unsafeReinterpret
+
+
+both :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit (a, a) (b, b)
+both f = f *** f
+
+ifC :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit a b -> Circuit (Bool, a) b
+ifC t f = secondC (dup >>> (t *** f))
+      >>> distrib
+      >>> secondC (firstC notGate)
+      >>> both (secondC serial >>> distribV >>> mapV andGate)
+      >>> zipVC
+      >>> mapV orGate
+      >>> unsafeParse
 
 type BitsOf a = Vec (SizeOf a) Bool
 
-distrib :: Circuit (a, (b, c)) ((a, b), (a, c))
-distrib = undefined
+distrib :: (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit (a, (b, c)) ((a, b), (a, c))
+distrib = firstC dup
+      >>> reassoc'
+      >>> secondC ( swap
+                >>> reassoc'
+                >>> secondC swap
+                  )
+      >>> reassoc
 
+distribV :: (OkCircuit a, OkCircuit b, KnownNat n) => Circuit (a, Vec n b) (Vec n (a, b))
+distribV = firstC cloneV >>> zipVC
+
+raise :: OkCircuit a => Circuit a (Vec 1 a)
+raise = unsafeReinterpret
+
+lower :: OkCircuit a => Circuit (Vec 1 a) a
+lower = unsafeReinterpret
 
 -- cloneAnd :: OkCircuit a => Circuit (Bool, a) (BitsOf a, BitsOf a)
 -- cloneAnd = firstC split >>> secondC serial >>> swapC >>> distrib >>> swapC >>> _ >>> zipVC >>>
 
-secondC :: (GenPorts l, GenPorts r, GenPorts b, Embed l, Embed r, Embed b) => Circuit r b -> Circuit (l, r) (l, b)
-secondC c = swapC >>> firstC c >>> swapC
-
 -- | a -> (a, not a)
 split :: Circuit Bool (Bool, Bool)
-split = copyC >>> firstC notGate >>> swapC
+split = copy >>> firstC notGate >>> swapC
 
 
 serial :: OkCircuit a => Circuit a (Vec (SizeOf a) Bool)
-serial = reinterpret
+serial = unsafeReinterpret
 
-parse :: OkCircuit a => Circuit (Vec (SizeOf a) Bool) a
-parse = reinterpret
+unsafeParse :: OkCircuit a => Circuit (Vec (SizeOf a) Bool) a
+unsafeParse = unsafeReinterpret
 
-reinterpret :: (OkCircuit a, OkCircuit b, SizeOf a ~ SizeOf b) => Circuit a b
-reinterpret = raw id
+unsafeReinterpret :: (OkCircuit a, OkCircuit b, SizeOf a ~ SizeOf b) => Circuit a b
+unsafeReinterpret = raw id
 
 introduce :: OkCircuit a => Circuit a (a, ())
-introduce = reinterpret
+introduce = unsafeReinterpret
 
 destroy :: OkCircuit a => Circuit (a, ()) a
-destroy = reinterpret
+destroy = unsafeReinterpret
 
 swapEC :: (OkCircuit a, OkCircuit b) => Circuit (Either a b) (Either b a)
-swapEC = serial >>> unconsC >>> firstC notGate >>> consC >>> parse
+swapEC = serial >>> unconsC >>> firstC notGate >>> consC >>> unsafeParse
 
 
 timeInv :: (a -> b) -> Roar r a b
@@ -187,6 +258,61 @@ prop_circuit f c = property $ do
   a <- arbitrary
   t <- arbitrary
   pure $ f a === runRoar (c_roar c) (const a) t
+
+
+constC :: a -> Circuit () a
+constC a = primitive $ Circuit undefined $ timeInv $ const a
+
+
+instance SymmetricProduct Circuit where
+  swap = swapC
+  reassoc = unsafeReinterpret
+
+instance MonoidalProduct Circuit where
+  first' c = primitive $ raw $ Circuit (genComp "first'") $ Roar $ \f t ->
+    let v = f t
+        (va, vc) = V.splitAtI v
+        b = runRoar (c_roar c) (const $ reify va) t
+    in embed b V.++ vc
+  second' c = swapC >>> firstC c >>> swapC
+
+instance Cartesian Circuit where
+  consume = primitive $ raw $ Circuit (genComp "consume") $ timeInv $ const Nil
+  copy = primitive $ raw $ Circuit (genComp "copy") $ timeInv $ \v -> v V.++ v
+  fst' = primitive $ raw $ Circuit (genComp "fst") $ timeInv V.takeI
+  snd' = primitive $ raw $ Circuit (genComp "snd") $ timeInv V.dropI
+
+instance SymmetricSum Circuit where
+  swapE = swapEC
+
+  reassocE = undefined
+  -- reassocE :: forall a b c. (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit
+  --               (Either a (Either b c))
+  --               (Either (Either a b) c)
+  -- reassocE = primitive $ raw $ Circuit (genComp "snd") $
+  --   case (maxProof @a @(Either b c), maxProof @b @c, maxProof @(Either a b) @c) of
+  --     (MaxProof, MaxProof, MaxProof) -> timeInv $ \(t1 :> v) ->
+  --       case t1 of
+  --         False -> let a = reify @a $ V.takeI @(SizeOf a) v
+  --                   in embed (Left (Left a) :: Either (Either a b) c)
+  --         True ->
+  --           case v of
+  --             (False :> v') ->
+  --               let b = reify @b $ V.takeI @(SizeOf b) v'
+  --               in embed (Left (Right b) :: Either (Either a b) c)
+  --             (True :> v') ->
+  --               let c = reify @c $ V.takeI @(SizeOf c) v'
+  --               in embed (Right c :: Either (Either a b) c)
+  --             _ -> error "impossible"
+
+
+-- reassocF :: Either (Either a b) c -> Either a (Either b c)
+-- reassocF (Left (Left a)) = Left a
+-- reassocF (Left (Right b)) = Right (Left b)
+-- reassocF (Right c) = Right (Right c)
+
+-- instance MonoidalSum Circuit where
+--   right = rightE
 
 
 
@@ -214,11 +340,28 @@ main = do
     , prop_circuit (uncurry (&&)) andGate
     , prop_circuit (not . uncurry (&&)) nandGate
     , prop_circuit not notGate
-    , prop_circuit (id &&& id) (copyC @(Either (Vec 10 Bool) Bool))
+    , prop_circuit (id &&& id) (copy @Circuit @(Either (Vec 10 Bool) Bool))
     , prop_circuit swap (swapC @(Either (Vec 10 Bool) Bool) @Bool)
     , prop_circuit swapE (swapEC @(Either (Vec 10 Bool) Bool) @Bool)
     , prop_circuit (first' (uncurry (&&))) (firstC @_ @_ @Bool andGate)
+    , prop_circuit
+        (first' $ V.map not)
+        (mapFoldVC @10 $ destroy >>> notGate >>> introduce)
+    , prop_circuit
+        (\(v, r0) -> foldrV @10 (\(a :: Bool) r -> (a B..&. r, B.xor a r)) r0 v)
+        (mapFoldVC $ Circuit undefined $ timeInv $ \(a, r) ->
+            (a B..&. r, B.xor a r))
+    , prop_circuit
+        (bool 10 5 . fst)
+        (ifC (constC @Word8 5) (constC 10))
     ]
+
+foldrV :: forall n a b r. (a -> r -> (b, r)) -> r -> Vec n a -> (Vec n b, r)
+foldrV _ r Nil = (Nil, r)
+foldrV f r (Cons a vec) =
+  let (vec', _) = foldrV f r vec
+      (b, r') = f a r
+   in (Cons b vec', r')
 
 class KnownNat (SizeOf a) => Embed a where
   type SizeOf a :: Nat
@@ -277,6 +420,9 @@ instance (GEmbed f, GEmbed g) => GEmbed (f :+: g) where
 
 instance Embed ()
 instance Embed a => Embed (Maybe a)
+
+instance GenPorts Word8 where
+  genPorts = undefined
 
 instance Embed Word8 where
   type SizeOf Word8 = 8
