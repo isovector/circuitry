@@ -81,6 +81,7 @@ nandGate :: Circuit (Bool, Bool) Bool
 nandGate = primitive $ Circuit (genComp "nand") $ timeInv $ not . uncurry (&&)
 
 
+-- TODO(sandy): i think this might not work over time-varying structures
 mapFoldVC
     :: (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
     => Circuit (a, r) (b, r)

@@ -77,6 +77,8 @@ default-extensions:
   - NoStarIsType
   - DataKinds
   - DefaultSignatures
+  - TypeApplications
+  - LambdaCase
 
 
 library:

@@ -112,7 +112,7 @@ create = unsafeReinterpret
 
 
 destroy :: OkCircuit a => Circuit (a, ()) a
-destroy = fst'
+destroy = unsafeReinterpret
 
 
 serial :: OkCircuit a => Circuit a (Vec (SizeOf a) Bool)
@@ -147,10 +147,14 @@ ifC :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit a b -> Circuit (Bool
 ifC t f = second' (copy >>> (t *** f))
       >>> distrib
       >>> second' (first' notGate)
-      >>> both (second' serial >>> distribV >>> mapV andGate)
+      >>> both (swap >>> andAll)
       >>> Prim.zipVC
       >>> mapV orGate
       >>> unsafeParse
+
+
+andAll :: OkCircuit a => Circuit (a, Bool) (Vec (SizeOf a) Bool)
+andAll = swap >>> second' serial >>> distribV >>> mapV andGate
 
 
 distrib :: (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit (a, (b, c)) ((a, b), (a, c))
@@ -173,6 +177,9 @@ andGate = Prim.nandGate >>> notGate
 
 orGate :: Circuit (Bool, Bool) Bool
 orGate = both notGate >>> Prim.nandGate
+
+norGate :: Circuit (Bool, Bool) Bool
+norGate = orGate >>> notGate
 
 
 xorGate :: Circuit (Bool, Bool) Bool

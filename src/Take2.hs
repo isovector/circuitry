@@ -80,6 +80,22 @@ clock = fixC (zero @a) $ first' (constC one)
                      >>> second' (addN >>> fst')
 
 
+-- input: R S
+rsLatch :: Circuit (Bool, Bool) Bool
+rsLatch = fixC False $ reassoc' >>> second' norGate >>> norGate >>> copy
+
+
+-- input: S V
+snap :: Circuit (Bool, Bool) Bool
+snap = second' (split >>> swap)
+   >>> distrib
+   >>> both andGate
+   >>> rsLatch
+
+snapN :: OkCircuit a => Circuit (Bool, a) (Vec (SizeOf a) Bool)
+snapN = second' serial >>> distribV >>> mapV snap
+
+
 prop_circuit :: (Arbitrary a, Eq b, Show a, Show b) => (a -> b) -> Circuit a b -> Property
 prop_circuit f c = property $ do
   a <- arbitrary
