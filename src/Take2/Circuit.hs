@@ -37,6 +37,15 @@ data Circuit a b = Circuit
   , c_roar :: Roar Time a b
   }
 
+
+evalCircuit :: Circuit a b -> Time -> a -> b
+evalCircuit c t a = runRoar (c_roar c) (const a) t
+
+
+evalCircuitT :: Circuit a b -> Time -> (Time -> a) -> b
+evalCircuitT c t a = runRoar (c_roar c) (a) t
+
+
 class (Stuff a, Embed a) => OkCircuit a
 instance (Stuff a, Embed a) => OkCircuit a
 
@@ -104,6 +113,12 @@ instance SymmetricSum Circuit where
 
 unsafeReinterpret :: (OkCircuit a, OkCircuit b, SizeOf a ~ SizeOf b) => Circuit a b
 unsafeReinterpret = raw id
+
+raise :: OkCircuit a => Circuit a (Vec 1 a)
+raise = unsafeReinterpret
+
+lower :: OkCircuit a => Circuit (Vec 1 a) a
+lower = unsafeReinterpret
 
 
 raw :: (OkCircuit a, OkCircuit b) => Circuit (Vec (SizeOf a) Bool) (Vec (SizeOf b) Bool) -> Circuit a b

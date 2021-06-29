@@ -1,7 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes  #-}
-{-# LANGUAGE MagicHash            #-}
-{-# LANGUAGE OverloadedLabels     #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
@@ -12,7 +9,6 @@
 
 module Take2 where
 
-import           Circuitry.Catalyst (Roar(..), Time)
 import           Circuitry.Category (Category(..), (&&&), (>>>), swapE, Cartesian(..), SymmetricSum(..))
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (SymmetricProduct(..))
@@ -22,10 +18,11 @@ import qualified Data.Bits as B
 import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
-import           Data.Word (Word8, Word16, Word32, Word64)
+import           Data.Word (Word8)
 import           Prelude hiding ((.), id, sum)
-import           Take2.Embed
 import           Take2.Circuit
+import           Take2.Embed
+import           Take2.Numeric
 import           Test.QuickCheck
 
 
@@ -36,6 +33,7 @@ everyPair
 everyPair = (reassoc >>> fst')
        &&& ((second' swap >>> reassoc >>> fst') &&& snd')
 
+
 cout :: Circuit (Bool, (Bool, Bool)) Bool
 cout = everyPair
    >>> andGate *** (andGate *** andGate)
@@ -43,43 +41,15 @@ cout = everyPair
    >>> orGate *** orGate
    >>> orGate
 
+
 sum :: Circuit (Bool, (Bool, Bool)) Bool
 sum = second' xorGate >>> xorGate
+
 
 -- input: A B Cin
 -- output: S Cout
 add2 :: Circuit (Bool, (Bool, Bool)) (Bool, Bool)
 add2 = copy >>> sum *** cout
-
-
-class Numeric a where
-  zero :: a
-  default zero :: Num a => a
-  zero = 0
-
-  one :: a
-  default one :: Num a => a
-  one = 1
-
-  addNumeric :: a -> a -> (a, Bool)
-  default addNumeric :: (Num a, Ord a, Bounded a) => a -> a -> (a, Bool)
-  addNumeric a b = (a + b, maxBound - a <= b)
-
-instance Numeric Bool where
-  zero = False
-  one = True
-  addNumeric a b = (B.xor a b, a && b)
-
-instance Numeric Word8
-instance Numeric Word16
-instance Numeric Word32
-instance Numeric Word64
-
-instance Numeric (Vec 8 Bool) where
-  zero = V.repeat False
-  one = V.repeat False V.++ Cons True Nil
-  addNumeric v1 v2 = first' embed $ reify @Word8 v1 `addNumeric` reify v2
-
 
 
 addN :: (Numeric a, OkCircuit a) => Circuit (a, a) (a, Bool)
@@ -92,23 +62,17 @@ addN = shortcircuit (uncurry addNumeric)
    >>> first' unsafeParse
 
 
-
 split :: Circuit Bool (Bool, Bool)
 split = copy >>> second' notGate
-
-
-raise :: OkCircuit a => Circuit a (Vec 1 a)
-raise = unsafeReinterpret
-
-lower :: OkCircuit a => Circuit (Vec 1 a) a
-lower = unsafeReinterpret
 
 
 hold :: Circuit Bool Bool
 hold = fixC False $ orGate >>> copy
 
+
 tickTock :: Circuit () Bool
 tickTock = fixC False $ snd' >>> copy >>> second' notGate
+
 
 clock :: forall a. (OkCircuit a, Numeric a) => Circuit () a
 clock = fixC (zero @a) $ first' (constC one)
@@ -116,7 +80,6 @@ clock = fixC (zero @a) $ first' (constC one)
                      >>> first' copy
                      >>> reassoc'
                      >>> second' (addN >>> fst')
-
 
 
 prop_circuit :: (Arbitrary a, Eq b, Show a, Show b) => (a -> b) -> Circuit a b -> Property
@@ -128,29 +91,12 @@ prop_circuit f c = property $ do
     counterexample ("input: " <> show a) $
       f a === evalCircuit c t a
 
-evalCircuit :: Circuit a b -> Time -> a -> b
-evalCircuit c t a = runRoar (c_roar c) (const a) t
-
-evalCircuitT :: Circuit a b -> Time -> (Time -> a) -> b
-evalCircuitT c t a = runRoar (c_roar c) (a) t
-
-
-
-
--- reassocF :: Either (Either a b) c -> Either a (Either b c)
--- reassocF (Left (Left a)) = Left a
--- reassocF (Left (Right b)) = Right (Left b)
--- reassocF (Right c) = Right (Right c)
-
-
-
-
-
 
 prop_embedRoundtrip :: forall a. (Show a, Eq a, Embed a, Arbitrary a) => Property
 prop_embedRoundtrip = property $ do
   a <- arbitrary @a
   pure $ a === reify (embed a)
+
 
 main :: IO ()
 main = do
@@ -195,11 +141,11 @@ main = do
         (uncurry (+))
         (addN @Word8 >>> fst')
     ]
-
-foldrV :: forall n a b r. (a -> r -> (b, r)) -> r -> Vec n a -> (Vec n b, r)
-foldrV _ r Nil = (Nil, r)
-foldrV f r (Cons a vec) =
-  let (b, r') = f a r
-      (vec', _) = foldrV f r' vec
-   in (Cons b vec', r')
+  where
+    foldrV :: forall n a b r. (a -> r -> (b, r)) -> r -> Vec n a -> (Vec n b, r)
+    foldrV _ r Nil = (Nil, r)
+    foldrV f r (Cons a vec) =
+      let (b, r') = f a r
+          (vec', _) = foldrV f r' vec
+      in (Cons b vec', r')
 
