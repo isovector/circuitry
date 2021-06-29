@@ -25,10 +25,11 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# OPTIONS_GHC -Wredundant-constraints #-}
 {-# OPTIONS_GHC -Wno-unused-imports     #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Take2 where
 
-import           Circuitry.Catalyst (Roar(..))
+import           Circuitry.Catalyst (Roar(..), loop)
 import           Circuitry.Category (Category(..), first', swap, (&&&), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum)
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
@@ -39,16 +40,16 @@ import           Control.Lens ((%~), (+~))
 import           Control.Monad.State
 import qualified Data.Bits as B
 import           Data.Bool (bool)
-import           Data.Foldable
+import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
 import           Data.Generics.Wrapped ( _Unwrapped )
 import           Data.Typeable
-import           Data.Word (Word8)
+import           Data.Word (Word8, Word16, Word32, Word64)
 import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra
 import           Numeric.Natural
-import           Prelude hiding ((.), id)
+import           Prelude hiding ((.), id, sum)
 import           Test.QuickCheck
 import           Unsafe.Coerce (unsafeCoerce)
 
@@ -104,6 +105,9 @@ andGate = nandGate >>> notGate
 orGate :: Circuit (Bool, Bool) Bool
 orGate = both notGate >>> nandGate
 
+xorGate :: Circuit (Bool, Bool) Bool
+xorGate = dup >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
+
 swapC :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
 swapC = primitive $ raw $ Circuit (genComp "swap") $ timeInv $ \v ->
   let (va, vb) = V.splitAtI @(SizeOf a) v
@@ -114,6 +118,52 @@ reassoc' = unsafeReinterpret
 
 unconsC :: (KnownNat n, OkCircuit a) => Circuit (Vec (n + 1) a) (a, Vec n a)
 unconsC = unsafeReinterpret
+
+everyPair
+    :: (OkCircuit a, OkCircuit b, OkCircuit c)
+    => Circuit (a, (b, c))
+               ((a, b), ((a, c), (b, c)))
+everyPair = (reassoc >>> fst')
+       &&& ((second' swap >>> reassoc >>> fst') &&& snd')
+
+cout :: Circuit (Bool, (Bool, Bool)) Bool
+cout = everyPair
+   >>> andGate *** (andGate *** andGate)
+   >>> ((reassoc >>> fst') &&& snd')
+   >>> orGate *** orGate
+   >>> orGate
+
+sum :: Circuit (Bool, (Bool, Bool)) Bool
+sum = second' xorGate >>> xorGate
+
+-- input: A B Cin
+-- output: S Cout
+add2 :: Circuit (Bool, (Bool, Bool)) (Bool, Bool)
+add2 = dup >>> sum *** cout
+
+
+class Numeric a
+
+instance Numeric Bool
+instance Numeric Word8
+instance Numeric Word16
+instance Numeric Word32
+instance Numeric Word64
+instance Numeric (Vec n Bool)
+
+
+addN :: (Numeric a, OkCircuit a) => Circuit (a, a) (a, Bool)
+addN = serial *** serial
+   >>> zipVC
+   >>> create
+   >>> second' (constC False)
+   >>> mapFoldVC (reassoc' >>> add2)
+   >>> first' unsafeParse
+
+fixC :: s -> Circuit (a, s) (b, s) -> Circuit a b
+fixC s k = primitive $ Circuit undefined $
+  let f = runRoar $ c_roar k
+    in Roar $ \tx t -> fst $ loop s f tx t
 
 inductionV
     :: forall n r a
@@ -144,14 +194,14 @@ mapFoldVC c = primitive $ Circuit undefined $ Roar $ \f t ->
         Nil -> (Nil, r0)
         Cons a v_cons ->
           let (b, r') = runRoar (c_roar c) (const (a, r0)) t
-              (v', _) = runRoar (c_roar $ mapFoldVC c) (const (v_cons, r0)) t
+              (v', _) = runRoar (c_roar $ mapFoldVC c) (const (v_cons, r')) t
            in (Cons b v', r')
 
 mapV
     :: (KnownNat n, OkCircuit a, OkCircuit b)
     => Circuit a b
     -> Circuit (Vec n a) (Vec n b)
-mapV c = introduce >>> mapFoldVC (destroy >>> c >>> introduce) >>> destroy
+mapV c = create >>> mapFoldVC (destroy >>> c >>> create) >>> destroy
 
 
 pad
@@ -173,6 +223,7 @@ foldVC c = primitive $ Circuit undefined $ Roar $ \f t ->
   let (v, b) = f t
    in V.foldr (curry $ flip (runRoar (c_roar c)) t . const) b v
 
+
 eitherE
     :: (OkCircuit a, OkCircuit b, OkCircuit c)
     => Circuit a c
@@ -184,15 +235,15 @@ eitherE l r = serial
                  (separate >>> first' (unsafeParse >>> l) >>> fst')
 
 
-mkLeft :: (OkCircuit a, OkCircuit b) => Circuit a (Either a b)
-mkLeft = introduce
+injl :: (OkCircuit a, OkCircuit b) => Circuit a (Either a b)
+injl = create
    >>> swap
    >>> (constC False *** (serial >>> pad False))
    >>> consC
    >>> unsafeParse
 
-mkRight :: (OkCircuit a, OkCircuit b) => Circuit a (Either b a)
-mkRight = mkLeft >>> swapE
+injr :: (OkCircuit a, OkCircuit b) => Circuit a (Either b a)
+injr = injl >>> swapE
 
 
 bimapE
@@ -200,7 +251,7 @@ bimapE
     => Circuit a a'
     -> Circuit b b'
     -> Circuit (Either a b) (Either a' b')
-bimapE l r = eitherE (l >>> mkLeft) (r >>> mkRight)
+bimapE l r = eitherE (l >>> injl) (r >>> injr)
 
 
 unsafeCoerceC
@@ -270,8 +321,8 @@ separate = unsafeReinterpret
 unseparate :: (KnownNat m, KnownNat n, m <= n, OkCircuit a) => Circuit (Vec m a, Vec (n - m) a) (Vec n a)
 unseparate = unsafeReinterpret
 
-introduce :: OkCircuit a => Circuit a (a, ())
-introduce = unsafeReinterpret
+create :: OkCircuit a => Circuit a (a, ())
+create = unsafeReinterpret
 
 destroy :: OkCircuit a => Circuit (a, ()) a
 destroy = unsafeReinterpret
@@ -284,11 +335,17 @@ timeInv :: (a -> b) -> Roar r a b
 timeInv fab = Roar (\ fra -> fab . fra)
 
 
-prop_circuit :: (Arbitrary a, Eq b, Show b) => (a -> b) -> Circuit a b -> Property
+prop_circuit :: (Arbitrary a, Eq b, Show a, Show b) => (a -> b) -> Circuit a b -> Property
 prop_circuit f c = property $ do
   a <- arbitrary
   t <- arbitrary
-  pure $ f a === runRoar (c_roar c) (const a) t
+  pure $
+    counterexample ("time: " <> show t) $
+    counterexample ("input: " <> show a) $
+      f a === evalCircuit c t a
+
+evalCircuit :: Circuit a b -> Natural -> a -> b
+evalCircuit c t a = runRoar (c_roar c) (const a) t
 
 
 constC :: a -> Circuit () a
@@ -378,7 +435,7 @@ main = do
     -- , prop_circuit (first' (uncurry (&&))) (first' andGate)
     , prop_circuit
         (first' $ V.map not)
-        (mapFoldVC @10 $ destroy >>> notGate >>> introduce)
+        (mapFoldVC @10 $ destroy >>> notGate >>> create)
     , prop_circuit
         (\(v, r0) -> foldrV @10 (\(a :: Bool) r -> (a B..&. r, B.xor a r)) r0 v)
         (mapFoldVC $ Circuit undefined $ timeInv $ \(a, r) ->
@@ -389,13 +446,22 @@ main = do
     , prop_circuit
         (either (const 127) (const 10))
         (eitherE (constC @Word8 127) (constC 10))
+    , prop_circuit
+        (uncurry B.xor)
+        (xorGate)
+    , prop_circuit
+        (\(a, (b, c)) -> (a `B.xor` b `B.xor` c, (fromEnum a + fromEnum b + fromEnum c) >= 2))
+        add2
+    , prop_circuit
+        (uncurry (+))
+        (addN @Word8 >>> fst')
     ]
 
 foldrV :: forall n a b r. (a -> r -> (b, r)) -> r -> Vec n a -> (Vec n b, r)
 foldrV _ r Nil = (Nil, r)
 foldrV f r (Cons a vec) =
-  let (vec', _) = foldrV f r vec
-      (b, r') = f a r
+  let (b, r') = f a r
+      (vec', _) = foldrV f r' vec
    in (Cons b vec', r')
 
 class KnownNat (SizeOf a) => Embed a where

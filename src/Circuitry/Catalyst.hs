@@ -433,7 +433,7 @@ lowerCircuit = runFree $ \case
     NotG -> arr neg
     Feedback k ->
       let f = runRoar $ lowerCircuit k
-       in Roar $ \tx t -> fst $ loop f tx t
+       in Roar $ \tx t -> fst $ loop bottom f tx t
     Together k -> lowerCircuit k
     MapStateV each -> Roar $ \fv t ->
       let (v, r) = fv t
@@ -482,14 +482,14 @@ xor True True = False
 
 
 loop
-    :: Heyting s
-    => ((Time -> (x, s)) -> Time -> (y, s))
+    :: s
+    -> ((Time -> (x, s)) -> Time -> (y, s))
     -> (Time -> x)
     -> Time
     -> (y, s)
-loop f tx 0 = f ((, bottom) . tx) 0
-loop f tx t =
-  let (_, s) = loop f tx $ t - 1
+loop b f tx 0 = f ((, b) . tx) 0
+loop b f tx t =
+  let (_, s) = loop b f tx $ t - 1
    in f ((, s) . tx) t
 
 
