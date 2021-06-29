@@ -30,6 +30,53 @@ dependencies:
 - ghc-typelits-natnormalise
 - ghc-typelits-knownnat
 - ghc-typelits-extra
+- MemoTrie
+
+default-extensions:
+  - EmptyCase
+  - PostfixOperators
+  - TupleSections
+  - NamedFieldPuns
+  - BangPatterns
+  - BinaryLiterals
+  - HexFloatLiterals
+  - NumericUnderscores
+  - GADTSyntax
+  - RankNTypes
+  - TypeApplications
+  - PolyKinds
+  - ExistentialQuantification
+  - TypeOperators
+  - ConstraintKinds
+  - ExplicitForAll
+  - KindSignatures
+  - NamedWildCards
+  - ScopedTypeVariables
+  - FlexibleContexts
+  - FlexibleInstances
+  - MultiParamTypeClasses
+  - ConstrainedClassMethods
+  - InstanceSigs
+  - TypeSynonymInstances
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveTraversable
+  - StandaloneDeriving
+  - EmptyDataDeriving
+  - DeriveLift
+  - GeneralisedNewtypeDeriving
+  - DeriveGeneric
+  - DerivingStrategies
+  - DerivingVia
+  - NumDecimals
+  - ViewPatterns
+  - PatternSynonyms
+  - TypeFamilies
+  - DeriveAnyClass
+  - NoStarIsType
+  - DataKinds
+  - DefaultSignatures
 
 
 library:

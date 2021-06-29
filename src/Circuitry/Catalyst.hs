@@ -44,13 +44,17 @@ import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import           Control.Arrow (first)
 import           Control.Monad.Writer (tell)
+import qualified Data.Bits as B
 import           Data.Bool (bool)
 import           Data.Function (fix, on)
 import           Data.Kind (Type, Constraint)
+import           Data.MemoTrie
 import           Data.Profunctor.Choice (unleft)
 import           Data.Profunctor.Types
+import           Data.Type.Equality
 import           Data.Typeable (Typeable)
 import           Data.Word (Word8)
+import           Debug.Trace (trace)
 import           GHC.Generics hiding (S)
 import           GHC.TypeLits
 import           Numeric.Natural (Natural)
@@ -58,11 +62,8 @@ import           Prelude hiding (id, (.), sum, zip)
 import           Test.QuickCheck (CoArbitrary, Testable (property), Arbitrary (arbitrary), counterexample, applyFun, Function (function), functionMap, forAllShrink, shrink, (===), quickCheck)
 import           Test.QuickCheck.Arbitrary (CoArbitrary(coarbitrary))
 import           Test.QuickCheck.Checkers
-import qualified Data.Bits as B
-import Test.QuickCheck.Property (Property)
-import Debug.Trace (trace)
-import Data.Type.Equality
-import Unsafe.Coerce (unsafeCoerce)
+import           Test.QuickCheck.Property (Property)
+import           Unsafe.Coerce (unsafeCoerce)
 
 
 
@@ -487,11 +488,10 @@ loop
     -> (Time -> x)
     -> Time
     -> (y, s)
-loop b f tx 0 = f ((, b) . tx) 0
-loop b f tx t =
-  let (_, s) = loop b f tx $ t - 1
-   in f ((, s) . tx) t
-
+loop b f tx = memo $ \case
+  0 -> f ((, b) . tx) 0
+  t -> let (_, s) = loop b f tx $ t - 1
+        in f ((, s) . tx) t
 
 
 reassoc' :: (AllOk k [a, b, c], MonoidalProduct k, SymmetricProduct k) => ((a, b), c) `k` (a, (b, c))
@@ -632,7 +632,7 @@ snapping n@3 = (True, odd n)
 snapping n@6 = (True, odd n)
 snapping n = (False, odd n)
 
-type Time = Natural
+type Time = Int
 
 snappingN :: Time -> (Bool, (Bool, Word8))
 snappingN n = (False, (n < 256, fromIntegral $ n `mod` 255))

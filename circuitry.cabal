@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 760a866893579964d14051a58f0504cbc53ea08e12d57e2f550b97a88727afa6
+-- hash: f67fd24d2c4ab801afeffee3d80f58a1faaa8f1a7d960b6aec0aae6c6e831ce8
 
 name:           circuitry
 version:        0.1.0.0
@@ -27,10 +27,59 @@ library
       Circuitry.Misc
       Circuitry.Types
       Take2
+      Take2.Circuit
+      Take2.Embed
+      Take2.Graph
   hs-source-dirs:
       src
+  default-extensions:
+      EmptyCase
+      PostfixOperators
+      TupleSections
+      NamedFieldPuns
+      BangPatterns
+      BinaryLiterals
+      HexFloatLiterals
+      NumericUnderscores
+      GADTSyntax
+      RankNTypes
+      TypeApplications
+      PolyKinds
+      ExistentialQuantification
+      TypeOperators
+      ConstraintKinds
+      ExplicitForAll
+      KindSignatures
+      NamedWildCards
+      ScopedTypeVariables
+      FlexibleContexts
+      FlexibleInstances
+      MultiParamTypeClasses
+      ConstrainedClassMethods
+      InstanceSigs
+      TypeSynonymInstances
+      DeriveDataTypeable
+      DeriveFoldable
+      DeriveFunctor
+      DeriveTraversable
+      StandaloneDeriving
+      EmptyDataDeriving
+      DeriveLift
+      GeneralisedNewtypeDeriving
+      DeriveGeneric
+      DerivingStrategies
+      DerivingVia
+      NumDecimals
+      ViewPatterns
+      PatternSynonyms
+      TypeFamilies
+      DeriveAnyClass
+      NoStarIsType
+      DataKinds
+      DefaultSignatures
   build-depends:
-      QuickCheck
+      MemoTrie
+    , QuickCheck
     , base
     , base64-bytestring
     , bytestring

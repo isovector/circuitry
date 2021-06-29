@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses   #-}
 {-# LANGUAGE QuantifiedConstraints   #-}
 {-# LANGUAGE RankNTypes              #-}
+{-# LANGUAGE StarIsType              #-}
 {-# LANGUAGE TypeFamilies            #-}
 {-# LANGUAGE TypeOperators           #-}
 {-# LANGUAGE UndecidableInstances    #-}
