@@ -7,7 +7,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-module Take2 where
+module Main where
 
 import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
@@ -107,24 +107,37 @@ prop_circuit f c = property $ do
 
 prop_equivalent :: (Function a, Arbitrary a, Eq b, Show a, Show b) => Circuit a b -> Circuit a b -> Property
 prop_equivalent c1 c2 = property $ do
-  a <- arbitrary
-  t <- resize 10 $ arbitrary
-  pure $
-    counterexample ("time: " <> show t) $
-    counterexample ("input: " <> show a) $
-      evalCircuitT c1 t (applyFun a) === evalCircuitT c2 t (applyFun a)
+  forAllShrink arbitrary shrink $ \a  -> do
+    t <- resize 5 $ arbitrary
+    let c1_r = evalCircuitT c1 (applyFun a) t
+        c2_r = evalCircuitT c2 (applyFun a) t
+    pure $
+      counterexample ("time: " <> show t) $
+      counterexample ("c1: " <> show c1_r) $
+      counterexample ("c2: " <> show c2_r) $
+        c1_r === c2_r
 
 
 prop_embedRoundtrip :: forall a. (Show a, Eq a, Embed a, Arbitrary a) => Property
 prop_embedRoundtrip = property $ do
-  a <- arbitrary @a
-  pure $ a === reify (embed a)
+  forAllShrink arbitrary shrink $ \(a :: a)  ->
+    a === reify (embed a)
 
 
 main :: IO ()
 main = do
   traverse_ quickCheck
-    [ prop_equivalent (create >>> first' rsLatch >>> destroy) rsLatch
+    [ property $ do
+        c <- arbitrary @(Circuit Word8 Word8)
+        pure $ prop_equivalent (create >>> first' c >>> destroy) c
+
+    , property $ do
+        c <- arbitrary @(Circuit Word8 Word8)
+        pure $ prop_equivalent
+                 (create >>> swap >>> second' c >>> swap >>> destroy)
+                 c
+
+    , prop_equivalent (create >>> first' rsLatch >>> destroy) rsLatch
 
     , prop_embedRoundtrip @()
     , prop_embedRoundtrip @Bool

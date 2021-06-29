@@ -181,18 +181,21 @@ notGate = copy >>> Prim.nandGate
 
 
 andGate :: Circuit (Bool, Bool) Bool
-andGate = Prim.nandGate >>> notGate
+andGate = Prim.shortcircuit (uncurry (&&))
+         $ Prim.nandGate >>> notGate
 
 
 orGate :: Circuit (Bool, Bool) Bool
-orGate = both notGate >>> Prim.nandGate
+orGate = Prim.shortcircuit (uncurry (||))
+       $ both notGate >>> Prim.nandGate
 
 norGate :: Circuit (Bool, Bool) Bool
 norGate = orGate >>> notGate
 
 
 xorGate :: Circuit (Bool, Bool) Bool
-xorGate = copy >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
+xorGate = Prim.shortcircuit (uncurry B.xor)
+        $ copy >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
 
 
 both :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit (a, a) (b, b)

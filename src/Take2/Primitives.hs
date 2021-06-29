@@ -11,15 +11,18 @@ module Take2.Primitives where
 
 import           Circuitry.Catalyst (Roar(..), loop)
 import           Circuitry.Category (Category(..), (>>>))
+import qualified Circuitry.Category as Category
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import           Control.Monad.State
 import           Data.Generics.Labels ()
+import           Debug.RecoverRTTI (anythingToString)
+import           Debug.Trace (trace)
 import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
+import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Graph
-import           Take2.Circuit
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -47,11 +50,17 @@ swap =
 
 first' :: (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit a b -> Circuit (a, c) (b, c)
 first' c =
-  primitive $ raw $ Circuit (genComp "first'") $ Roar $ \f t ->
-    let v = f t
-        (va, vc) = V.splitAtI v
-        b = runRoar (c_roar c) (const $ reify va) t
-    in embed b V.++ vc
+  primitive $ raw $ Circuit (genComp "first'") $
+    timeInv V.splitAtI >>> Category.first' (timeInv reify >>> c_roar c >>> timeInv embed)
+                       >>> timeInv (uncurry (V.++))
+{-# INLINE first' #-}
+
+(***) :: (OkCircuit a, OkCircuit b, OkCircuit a', OkCircuit b') => Circuit a a' -> Circuit b b' -> Circuit (a, b) (a', b')
+(***) l r =
+  primitive $ raw $ Circuit (genComp "***") $
+    timeInv V.splitAtI >>> (Category.***) (timeInv reify >>> c_roar l >>> timeInv embed)
+                                          (timeInv reify >>> c_roar r >>> timeInv embed)
+                       >>> timeInv (uncurry (V.++))
 
 
 consume :: OkCircuit a => Circuit a ()

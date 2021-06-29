@@ -14,6 +14,8 @@
 {-# LANGUAGE UndecidableInstances    #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 
+{-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}
+
 module Circuitry.Category where
 
 import qualified Control.Arrow as A
