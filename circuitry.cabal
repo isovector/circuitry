@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: af4432906908ce70bac3625d4ea14b567fbdce35069424185a38c7110380ba90
+-- hash: 63bc293778d1c7640a57a61d0fe2d456ca3c8b5ce369d582558363ad7a011af1
 
 name:           circuitry
 version:        0.1.0.0
@@ -15,24 +15,25 @@ license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 
-library
-  exposed-modules:
+executable circuitry
+  main-is: Take2.hs
+  other-modules:
       Circuitry
       Circuitry.Backend
       Circuitry.Catalyst
       Circuitry.Category
       Circuitry.Gates
       Circuitry.GraphViz
-      Circuitry.Machinery
       Circuitry.Misc
       Circuitry.Types
-      Take2
       Take2.Circuit
       Take2.Embed
       Take2.Graph
       Take2.Instances
+      Take2.Machinery
       Take2.Numeric
       Take2.Primitives
+      Paths_circuitry
   hs-source-dirs:
       src
   default-extensions:
@@ -80,6 +81,9 @@ library
       NoStarIsType
       DataKinds
       DefaultSignatures
+      TypeApplications
+      LambdaCase
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -flate-specialise -fspecialise-aggressively
   build-depends:
       MemoTrie
     , QuickCheck
@@ -104,6 +108,7 @@ library
     , lens
     , mtl
     , profunctors
+    , recover-rtti
     , string-conv
     , svg-builder
     , transformers

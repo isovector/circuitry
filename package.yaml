@@ -31,6 +31,7 @@ dependencies:
 - ghc-typelits-knownnat
 - ghc-typelits-extra
 - MemoTrie
+- recover-rtti
 
 default-extensions:
   - EmptyCase
@@ -80,7 +81,19 @@ default-extensions:
   - TypeApplications
   - LambdaCase
 
+executables:
+  circuitry:
+    source-dirs: src
+    main: Take2.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+    - -flate-specialise
+    - -fspecialise-aggressively
 
-library:
-  source-dirs: src
-  other-modules: []
+
+# library:
+#   source-dirs: src
+#   other-modules: []

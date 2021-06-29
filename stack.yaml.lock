@@ -60,6 +60,13 @@ packages:
       sha256: aea6b83dd91703fd130d98ecfed88b8f16841b22990c837c8fde89f9f6cca809
   original:
     hackage: lazysmallcheck-0.6@sha256:dac7a1e4877681f1260309e863e896674dd6efc1159897b7945893e693f2a6bc,1696
+- completed:
+    hackage: recover-rtti-0.3.0.0@sha256:52b8ccd7333489d497a2e25bba8f5d6c7ad4dedecfc0218333f395ae639d92f6,3555
+    pantry-tree:
+      size: 1768
+      sha256: 6362ad27e76d2a2de8e829ef9a848843cf5581ca7c3914b7dba5d59b7931069d
+  original:
+    hackage: recover-rtti-0.3.0.0@sha256:52b8ccd7333489d497a2e25bba8f5d6c7ad4dedecfc0218333f395ae639d92f6,3555
 snapshots:
 - completed:
     size: 534126
