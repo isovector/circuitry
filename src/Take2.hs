@@ -20,7 +20,7 @@ import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Machinery
 import           Take2.Numeric
-import           Take2.Primitives (timeInv)
+import           Take2.Primitives (timeInv, shortcircuit)
 import           Test.QuickCheck
 
 
@@ -155,7 +155,7 @@ main = do
     , prop_circuit (id &&& id) (copy @Circuit @(Either (Vec 10 Bool) Bool))
     , prop_circuit swap (swap @_ @(Either (Vec 10 Bool) Bool) @Bool)
     , prop_circuit swapE (swapE @_ @(Either (Vec 10 Bool) Bool) @Bool)
-    -- , prop_circuit (first' (uncurry (&&))) (first' andGate)
+
     , prop_circuit
         (first' $ V.map not)
         (mapFoldVC @10 $ destroy >>> notGate >>> create)
