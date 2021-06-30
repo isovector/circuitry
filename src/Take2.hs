@@ -88,7 +88,7 @@ rsLatch = fixC False $ reassoc' >>> second' norGate >>> norGate >>> copy
 -- input: S V
 snap :: Circuit (Bool, Bool) Bool
 snap = second' (split >>> swap)
-   >>> distrib
+   >>> distribP
    >>> both andGate
    >>> rsLatch
 
@@ -137,6 +137,20 @@ main = do
                  (create >>> swap >>> second' c >>> swap >>> destroy)
                  c
 
+    , prop_equivalent
+        (injl >>> left snap >>> deject)
+        (snap)
+
+    , prop_equivalent
+        (cloneV @2 >>> mapV snap >>> unsafeReinterpret)
+        (snap >>> copy)
+
+    , prop_equivalent
+        (cloneV @2 >>> mapV (clock @Word8) >>> unsafeReinterpret)
+        (clock @Word8 >>> copy)
+
+    , prop_equivalent (snapN @Bool >>> lower) snap
+
     , prop_equivalent (create >>> first' rsLatch >>> destroy) rsLatch
 
     , prop_embedRoundtrip @()
@@ -163,21 +177,21 @@ main = do
         (\(v, r0) -> foldrV @10 (\(a :: Bool) r -> (a B..&. r, B.xor a r)) r0 v)
         (mapFoldVC $ Circuit undefined $ timeInv $ \(a, r) ->
             (a B..&. r, B.xor a r))
-    , prop_circuit
-        (bool 10 127 . fst)
-        (ifC (constC @Word8 127) (constC 10))
-    , prop_circuit
-        (either (const 127) (const 10))
-        (eitherE (constC @Word8 127) (constC 10))
-    , prop_circuit
-        (uncurry B.xor)
-        (xorGate)
-    , prop_circuit
-        (\(a, (b, c)) -> (a `B.xor` b `B.xor` c, (fromEnum a + fromEnum b + fromEnum c) >= 2))
-        add2
-    , prop_circuit
-        (uncurry (+))
-        (addN @Word8 >>> fst')
+    -- , prop_circuit
+    --     (bool 10 127 . fst)
+        -- (ifC (constC @Word8 127) (constC 10))
+    -- , prop_circuit
+    --     (either (const 127) (const 10))
+    --     (eitherE (constC @Word8 127) (constC 10))
+    -- , prop_circuit
+    --     (uncurry B.xor)
+    --     (xorGate)
+    -- , prop_circuit
+    --     (\(a, (b, c)) -> (a `B.xor` b `B.xor` c, (fromEnum a + fromEnum b + fromEnum c) >= 2))
+    --     add2
+    -- , prop_circuit
+    --     (uncurry (+))
+    --     (addN @Word8 >>> fst')
     ]
   where
     foldrV :: forall n a b r. (a -> r -> (b, r)) -> r -> Vec n a -> (Vec n b, r)

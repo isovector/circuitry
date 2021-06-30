@@ -6,10 +6,12 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
+{-# OPTIONS_GHC -fplugin-opt GHC.TypeLits.Normalise:allow-negated-numbers #-}
 
 module Take2.Primitives where
 
-import           Circuitry.Catalyst (Roar(..), loop)
+import Data.Proxy
+import           Circuitry.Catalyst (Roar(..), loop, Time)
 import           Circuitry.Category (Category(..), (>>>))
 import qualified Circuitry.Category as Category
 import           Clash.Sized.Vector (Vec(..))
@@ -23,6 +25,8 @@ import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Graph
+import Data.Type.Equality
+import Unsafe.Coerce (unsafeCoerce)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -47,13 +51,6 @@ swap =
     let (va, vb) = V.splitAtI @(SizeOf a) v
     in vb V.++ va
 
-
-first' :: (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit a b -> Circuit (a, c) (b, c)
-first' c =
-  primitive $ raw $ Circuit (genComp "first'") $
-    timeInv V.splitAtI >>> Category.first' (timeInv reify >>> c_roar c >>> timeInv embed)
-                       >>> timeInv (uncurry (V.++))
-{-# INLINE first' #-}
 
 (***) :: (OkCircuit a, OkCircuit b, OkCircuit a', OkCircuit b') => Circuit a a' -> Circuit b b' -> Circuit (a, b) (a', b')
 (***) l r =
@@ -91,19 +88,67 @@ nandGate :: Circuit (Bool, Bool) Bool
 nandGate = primitive $ Circuit (genComp "nand") $ timeInv $ not . uncurry (&&)
 
 
+-- induction :: (KnownNat n, OkCircuit a => Circuit (Vec n a) (Either (Vec 0 a) (a, Vec (n - 1) a))
+-- induction = primitive $ Circuit undefined $
+--   timeInv
+--     ( ((\v ->
+--         case v of
+--           Nil -> Left Nil
+--           Cons a v' -> Right $ (a, v')
+--       ) :: (Vec n a) -> Either (Vec n b) (a, Vec (n - 1) a))
+--     )
+
+
 -- TODO(sandy): i think this might not work over time-varying structures
 mapFoldVC
-    :: (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
+    :: forall n a b r
+     . (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
     => Circuit (a, r) (b, r)
     -> Circuit (Vec n a, r) (Vec n b, r)
-mapFoldVC c = primitive $ Circuit undefined $ Roar $ \f t ->
-  let (v, r0) = f t
-   in case v of
-        Nil -> (Nil, r0)
-        Cons a v_cons ->
-          let (b, r') = runRoar (c_roar c) (const (a, r0)) t
-              (v', _) = runRoar (c_roar $ mapFoldVC c) (const (v_cons, r')) t
-           in (Cons b v', r')
+mapFoldVC c = primitive $ Circuit undefined $
+  timeInv
+    ( ((\(v, r) ->
+        case v of
+          Nil -> Left (Nil, r)
+          Cons a v' -> Right $ ((a, r), v')
+      ) :: (Vec n a, r) -> Either (Vec n b, r) ((a, r), Vec (n - 1) a))
+    )
+  >>> Category.right
+        ( Category.first' (c_roar c)
+      >>> Category.reassoc'
+      >>> Category.second'
+          ( Category.swap
+        >>> Category.second' Category.copy
+        >>> Category.reassoc
+        >>> Category.first'
+            ((Roar (\f t ->
+              case unsafeSatisfyGEq1 @(n - 1) of
+                Dict -> runRoar (c_roar $ mapFoldVC c) f t
+              ) :: Roar Time (Vec (n - 1) a, r) (Vec (n - 1) b, r)
+            )
+        >>> Category.fst'
+            )
+          )
+      >>> Category.reassoc
+      >>> Category.first' (timeInv $ uncurry Cons)
+        )
+  >>> Category.unify
+
+data Dict c where
+  Dict :: c => Dict c
+
+unsafeSatisfyGEq1 :: Dict (1 <= n)
+unsafeSatisfyGEq1 = unsafeCoerce $ Dict @(1 <= 2)
+
+--   (v, r0) <- f
+--   case v of
+--     Nil -> pure (Nil, r0)
+--     Cons a v_cons -> do
+--       (b, r') <- runRoar (c_roar c) _
+--       undefined
+--       -- let (b, r') = runRoar (c_roar c) (const (a, r0)) t
+--       --     (v', _) = runRoar (c_roar $ mapFoldVC c) (const (v_cons, r')) t
+--       --   in (Cons b v', r')
 
 
 zipVC :: Circuit (Vec n a, Vec n b) (Vec n (a, b))

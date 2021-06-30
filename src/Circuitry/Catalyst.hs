@@ -21,6 +21,7 @@ import           Prelude hiding (id, (.), sum, zip)
 import           Test.QuickCheck (CoArbitrary, Testable (property), Arbitrary (arbitrary), counterexample, applyFun, Function (function), functionMap, forAllShrink, shrink, (===))
 import           Test.QuickCheck.Arbitrary (CoArbitrary(coarbitrary))
 import           Test.QuickCheck.Checkers
+import Data.Bifunctor (bimap)
 
 
 
@@ -84,6 +85,7 @@ instance SymmetricProduct (Roar r) where
   swap = Roar (\ f r -> swap $ f r)
   {-# INLINE swap #-}
   reassoc = Roar (\ f r -> reassoc $ f r)
+  reassoc' = Roar (\ f r -> reassoc' $ f r)
 
 instance MonoidalProduct (Roar r) where
   first' (Roar f) = Roar $ \rac r ->
@@ -109,8 +111,12 @@ instance SymmetricSum (Roar r) where
   reassocE = Roar (\ f r -> reassocE $ f r)
 
 instance MonoidalSum (Roar r) where
-  left (Roar f) = Roar $ \ rac r ->
-    either (Left . flip f r . const) Right $ rac r
+  -- TODO(sandy): suss
+  (+++) (Roar f) (Roar g) = Roar $ \ rac r ->
+    either
+        (\ar -> Left $ f (const ar) r)
+        (\ar -> Right $ g (const ar) r)
+      $ rac r
 
 instance Cocartesian (Roar r) where
   injectL = Roar (\ fra r -> Left (fra r))

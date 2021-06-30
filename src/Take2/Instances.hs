@@ -1,5 +1,5 @@
-{-# LANGUAGE InstanceSigs         #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE InstanceSigs           #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 {-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -9,10 +9,13 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
 
+{-# OPTIONS_GHC -fplugin-opt GHC.TypeLits.Normalise:allow-negated-numbers #-}
+{-# OPTIONS_GHC -fconstraint-solver-iterations=20 #-}
+
 module Take2.Instances where
 
 import           Circuitry.Catalyst (Roar(..), Time)
-import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum)
+import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum, Distrib (distrib), factor)
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
 import           Circuitry.Category (SymmetricProduct(..))
@@ -25,6 +28,7 @@ import           Take2.Embed
 import qualified Take2.Primitives as Prim
 import Test.QuickCheck
 import qualified Data.Bits as B
+import Unsafe.Coerce (unsafeCoerce)
 
 
 instance Arbitrary (Roar Time a b) => Arbitrary (Circuit a b) where
@@ -33,11 +37,10 @@ instance Arbitrary (Roar Time a b) => Arbitrary (Circuit a b) where
 instance SymmetricProduct Circuit where
   swap = Prim.swap
   reassoc = unsafeReinterpret
+  reassoc' = unsafeReinterpret
 
 instance MonoidalProduct Circuit where
   (***) = (Prim.***)
-  first' = Prim.first'
-  second' c = swap >>> first' c >>> swap
 
 instance Cartesian Circuit where
   consume = Prim.consume
@@ -49,6 +52,10 @@ instance MonoidalSum Circuit where
   (+++) l r = eitherE (l >>> injl) (r >>> injr)
   left = flip (+++) id
   right = (+++) id
+
+instance Distrib Circuit where
+  distrib = distribE
+  factor = undefined
 
 instance SymmetricSum Circuit where
   swapE = serial
@@ -148,13 +155,9 @@ unseparate :: (KnownNat m, KnownNat n, m <= n, OkCircuit a) => Circuit (Vec m a,
 unseparate = unsafeReinterpret
 
 
-reassoc' :: forall a b c. (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit ((a, b), c) (a, (b, c))
-reassoc' = unsafeReinterpret
-
-
 ifC :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit a b -> Circuit (Bool, a) b
 ifC t f = second' (copy >>> (t *** f))
-      >>> distrib
+      >>> distribP
       >>> second' (first' notGate)
       >>> both (swap >>> andAll)
       >>> Prim.zipVC
@@ -166,8 +169,8 @@ andAll :: OkCircuit a => Circuit (a, Bool) (Vec (SizeOf a) Bool)
 andAll = swap >>> second' serial >>> distribV >>> mapV andGate
 
 
-distrib :: (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit (a, (b, c)) ((a, b), (a, c))
-distrib = first' copy
+distribP :: (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit (a, (b, c)) ((a, b), (a, c))
+distribP = first' copy
       >>> reassoc'
       >>> second' ( swap
                 >>> reassoc'
@@ -211,4 +214,43 @@ mapV c = create >>> Prim.mapFoldVC (destroy >>> c >>> create) >>> destroy
 
 distribV :: (OkCircuit a, OkCircuit b, KnownNat n) => Circuit (a, Vec n b) (Vec n (a, b))
 distribV = first' Prim.cloneV >>> Prim.zipVC
+
+deject :: OkCircuit a => Circuit (Either a a) a
+deject = serial >>> unconsC >>> snd' >>> unsafeParse
+
+veryUnsafeCoerce :: forall a b. Circuit a b
+veryUnsafeCoerce = Circuit undefined $ unsafeCoerce $ Roar id
+
+-- mapFoldVC
+--     :: forall n a b r
+--      . (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
+--     => Circuit (a, r) (b, r)
+--     -> Circuit (Vec n a, r) (Vec n b, r)
+-- mapFoldVC c = first' ((
+--                 case Prim.unsafeSatisfyGEq1 @(n - 1) of
+--                   Prim.Dict -> (Prim.induction @n :: Circuit (Vec n a) (Either (Vec 0 a) (a, Vec (n - 1) a)))
+--                      ) )
+--           >>> swap
+--           >>> distrib
+--           >>> (swap >>> veryUnsafeCoerce)
+--           +++ ( reassoc
+--             >>> first' (swap >>> c)
+--             >>> reassoc'
+--             >>> second'
+--                 ( swap
+--               >>> second' copy
+--               >>> reassoc
+--               >>> first' (mapFoldVC c)
+--               >>> fst'
+--                 )
+--             >>> reassoc
+--             >>> first' consC
+--               )
+--           >>> deject
+
+
+distribE
+    :: (OkCircuit a, OkCircuit b, OkCircuit c)
+    => Circuit (a, Either b c) (Either (a, b) (a, c))
+distribE = second' (serial >>> unconsC) >>> reassoc >>> first' swap >>> veryUnsafeCoerce
 

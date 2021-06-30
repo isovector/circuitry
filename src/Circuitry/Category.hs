@@ -93,16 +93,16 @@ instance MonoidalProduct (->) where
   {-# INLINE second' #-}
 
 class SymmetricSum k => MonoidalSum k where
-  {-# MINIMAL left | right #-}
+  {-# MINIMAL (+++) | (left, right) #-}
 
   (+++) :: AllOk k [al, bl, ar, br] => (al `k` bl) -> (ar `k` br) -> ((Either al ar) `k` (Either bl br))
   l +++ r = left l >>> right r
 
   left :: AllOk k [a, b, c] => (a `k` b) -> ((Either a c) `k` (Either b c))
-  left f = swapE >>> right f >>> swapE
+  left = flip (+++) id
 
   right :: AllOk k [a, b, c] => (a `k` b) -> ((Either c a) `k` (Either c b))
-  right f = swapE >>> left f >>> swapE
+  right = (+++) id
 
 
 class Category k => Distrib k where
@@ -124,6 +124,7 @@ instance Distrib (->) where
 class Category k => SymmetricProduct k where
   swap :: AllOk k [l, r] => (l, r) `k` (r, l)
   reassoc :: AllOk k [a, b, c] => (a, (b, c)) `k` ((a, b), c)
+  reassoc' :: AllOk k [a, b, c] => ((a, b), c) `k` (a, (b, c))
 
 {-# RULES
 "swap . swap" forall a. swap (swap a) = a
@@ -137,8 +138,10 @@ class Category k => SymmetricSum k where
 instance SymmetricProduct (->) where
   swap (a, b) = (b, a)
   reassoc (a, (b, c)) = ((a, b), c)
+  reassoc' ((a, b), c) = (a, (b, c))
   {-# INLINE swap #-}
   {-# INLINE reassoc #-}
+  {-# INLINE reassoc' #-}
 
 instance SymmetricSum (->) where
   swapE (Left a) = Right a
