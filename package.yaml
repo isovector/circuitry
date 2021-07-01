@@ -32,6 +32,8 @@ dependencies:
 - ghc-typelits-extra
 - MemoTrie
 - recover-rtti
+- cirtography
+- text
 
 default-extensions:
   - EmptyCase

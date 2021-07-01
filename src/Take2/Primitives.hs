@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs         #-}
+{-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wall #-}
@@ -29,6 +30,7 @@ import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
 import Data.Profunctor (dimap, lmap)
 import Data.Bifunctor (first)
+import qualified Yosys as Y
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -40,38 +42,60 @@ timeInv = primSignal
 {-# INLINE timeInv #-}
 
 
-raw :: (OkCircuit a, OkCircuit b) => Circuit (Vec (SizeOf a) Bool) (Vec (SizeOf b) Bool) -> Circuit a b
-raw c = Circuit (genComp "unravel" >>> c_graph c >>> genComp "ravel") $
+raw
+    :: forall a b
+     . (OkCircuit a, OkCircuit b)
+    => Circuit (Vec (SizeOf a) Bool) (Vec (SizeOf b) Bool)
+    -> Circuit a b
+raw c = Circuit gr $
   Signal $ \a ->
     let (sf, sb) = pumpSignal (c_roar c) $ embed a
      in (dimap embed reify sf, reify sb)
+  where
+    gr :: Graph a b
+    gr = Graph $ unGraph $ c_graph c
 
 
 swap :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
 swap =
-  primitive $ raw $ Circuit (genComp "swap") $ timeInv $ \v ->
+  primitive $ raw $ Circuit undefined $ timeInv $ \v ->
     let (va, vb) = V.splitAtI @(SizeOf a) v
     in vb V.++ va
 
 
-(***) :: (OkCircuit a, OkCircuit b, OkCircuit a', OkCircuit b') => Circuit a a' -> Circuit b b' -> Circuit (a, b) (a', b')
+(***)
+    :: forall a b a' b'
+     . (OkCircuit a, OkCircuit b, OkCircuit a', OkCircuit b')
+    => Circuit a a'
+    -> Circuit b b'
+    -> Circuit (a, b) (a', b')
 (***) l r =
-  primitive $ raw $ Circuit (genComp "***") $
+  primitive $ raw $ Circuit gr $
     timeInv V.splitAtI >>> (Category.***) (timeInv reify >>> c_roar l >>> timeInv embed)
                                           (timeInv reify >>> c_roar r >>> timeInv embed)
                        >>> timeInv (uncurry (V.++))
+  where
+    gr :: Graph (Vec (SizeOf (a, b)) Bool) (Vec (SizeOf (a', b')) Bool)
+    gr = Graph $ \i -> do
+      let (i1, i2) = V.splitAtI i
+      o1 <- unGraph (c_graph l) i1
+      o2 <- unGraph (c_graph r) i2
+      pure $ o1 V.++ o2
 
 
 consume :: OkCircuit a => Circuit a ()
-consume = primitive $ raw $ Circuit (genComp "consume") $ timeInv $ const Nil
+consume = primitive $ raw $ Circuit undefined $ timeInv $ const Nil
 
 
-copy :: OkCircuit a => Circuit a (a, a)
-copy = primitive $ raw $ Circuit (genComp "copy") $ timeInv $ \v -> v V.++ v
+copy :: forall a. OkCircuit a => Circuit a (a, a)
+copy = primitive $ raw $ Circuit gr $ timeInv $ \v -> v V.++ v
+  where
+    gr :: Graph (Vec (SizeOf a) Bool) (Vec (SizeOf (a, a)) Bool)
+    gr = Graph $ \i -> pure $ i V.++ i
 
 
 fst' :: (OkCircuit a, OkCircuit b) => Circuit (a, b) a
-fst' = primitive $ raw $ Circuit (genComp "fst") $ timeInv V.takeI
+fst' = primitive $ raw $ Circuit undefined $ timeInv V.takeI
 
 
 constC :: a -> Circuit () a
@@ -87,7 +111,15 @@ pad a = primitive $ Circuit undefined $ timeInv $ \v -> V.repeat @(n - m) a V.++
 
 
 nandGate :: Circuit (Bool, Bool) Bool
-nandGate = primitive $ Circuit (genComp "nand") $ timeInv $ not . uncurry (&&)
+nandGate = primitive $ Circuit gr $ timeInv $ not . uncurry (&&)
+  where
+    gr :: Graph (Bool, Bool) Bool
+    gr = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
+      o <- freshBit
+      addCell $ Y.mkMonoidalBinaryOp Y.CellNand "A" "B" "Y" [i1] [i2] o
+      pure $ Cons o Nil
+
+
 
 
 mapFoldVC
@@ -160,6 +192,9 @@ fixC s0 = primitive . Circuit undefined . go s0 . c_roar
 foldVC :: Circuit (a, b) b -> Circuit (Vec n a, b) b
 foldVC c = primitive $ Circuit undefined $ foldSig $ c_roar c
 
+-- NOTE(sandy): this thing will pump the first arg for every element in the
+-- vector. seems reasonable, but also that it can't possibly clock --- but
+-- maybe that's to be expected?
 foldSig :: Signal (a, b) b -> Signal (Vec n a, b) b
 foldSig (Signal f) = Signal $ \(v, b) ->
   case v of

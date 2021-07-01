@@ -15,6 +15,7 @@ import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
 import           Data.Word (Word8)
+import           GHC.Generics (Generic)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
@@ -22,6 +23,7 @@ import           Take2.Machinery
 import           Take2.Numeric
 import           Take2.Primitives (timeInv, shortcircuit)
 import           Test.QuickCheck
+import Yosys (renderModule)
 
 
 everyPair
@@ -38,6 +40,19 @@ cout = everyPair
    >>> ((reassoc >>> fst') &&& snd')
    >>> orGate *** orGate
    >>> orGate
+
+
+data RW = R | W
+  deriving stock Generic
+  deriving anyclass Embed
+
+type Addr n = Vec n Bool
+
+-- array :: Circuit a b -> Circuit (Vec n a) (Vec n b)
+-- array f =
+
+-- mem :: Circuit ((RW, Addr n), Maybe a) (Maybe a)
+-- mem =
 
 
 sum :: Circuit (Bool, (Bool, Bool)) Bool

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 63bc293778d1c7640a57a61d0fe2d456ca3c8b5ce369d582558363ad7a011af1
+-- hash: e96328793fa1bf7619212cd5b4e99191d318a483c85d95955e642676e97662c2
 
 name:           circuitry
 version:        0.1.0.0
@@ -92,6 +92,7 @@ executable circuitry
     , bytestring
     , catalyst
     , checkers
+    , cirtography
     , clash-prelude
     , containers
     , diagrams
@@ -111,5 +112,6 @@ executable circuitry
     , recover-rtti
     , string-conv
     , svg-builder
+    , text
     , transformers
   default-language: Haskell2010
