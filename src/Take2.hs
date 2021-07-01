@@ -105,13 +105,14 @@ prop_circuit f c = property $ do
     counterexample ("input: " <> show a) $
       f a === evalCircuit c a t
 
-prop_equivalent :: (Function a, Arbitrary a, Eq b, Show a, Show b) => Circuit a b -> Circuit a b -> Property
-prop_equivalent c1 c2 = property $ do
+prop_equivalent :: (Function a, Arbitrary a, Eq b, Show a, Show b) => String -> Circuit a b -> Circuit a b -> Property
+prop_equivalent n c1 c2 = property $ do
   forAllShrink arbitrary shrink $ \a  -> do
     t <- resize 5 $ arbitrary
     let c1_r = evalCircuitT c1 (applyFun a) t
         c2_r = evalCircuitT c2 (applyFun a) t
     pure $
+      counterexample ("test " <> n) $
       counterexample ("time: " <> show t) $
       counterexample ("c1: " <> show c1_r) $
       counterexample ("c2: " <> show c2_r) $
@@ -129,29 +130,37 @@ main = do
   traverse_ quickCheck
     [ property $ do
         c <- arbitrary @(Circuit Word8 Word8)
-        pure $ prop_equivalent (create >>> first' c >>> destroy) c
+        pure $
+          prop_equivalent "create >>> first' c >>> destroy = c"
+            (create >>> first' c >>> destroy)
+            c
 
     , property $ do
         c <- arbitrary @(Circuit Word8 Word8)
-        pure $ prop_equivalent
-                 (create >>> swap >>> second' c >>> swap >>> destroy)
-                 c
+        pure $
+          prop_equivalent "create >>> second' c >>> destroy = c"
+            (create >>> swap >>> second' c >>> swap >>> destroy)
+            c
 
-    , prop_equivalent
+    , prop_equivalent "inj1 >>> left f >>> deject = f"
         (injl >>> left snap >>> deject)
         (snap)
 
-    , prop_equivalent
+    , prop_equivalent "mapV snap = snap >>> copy"
         (cloneV @2 >>> mapV snap >>> unsafeReinterpret)
         (snap >>> copy)
 
-    , prop_equivalent
+    , prop_equivalent "mapV clock = clock >>> copy"
         (cloneV @2 >>> mapV (clock @Word8) >>> unsafeReinterpret)
         (clock @Word8 >>> copy)
 
-    , prop_equivalent (snapN @Bool >>> lower) snap
+    , prop_equivalent "snapN >>> lower = snap"
+        (snapN @Bool >>> lower)
+        snap
 
-    , prop_equivalent (create >>> first' rsLatch >>> destroy) rsLatch
+    , prop_equivalent "create >>> first' f >>> destroy = f"
+        (create >>> first' rsLatch >>> destroy)
+        rsLatch
 
     , prop_embedRoundtrip @()
     , prop_embedRoundtrip @Bool

@@ -28,6 +28,7 @@ import           Take2.Embed
 import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
 import Data.Profunctor (dimap, lmap)
+import Data.Bifunctor (first)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -89,18 +90,6 @@ nandGate :: Circuit (Bool, Bool) Bool
 nandGate = primitive $ Circuit (genComp "nand") $ timeInv $ not . uncurry (&&)
 
 
----- induction :: (KnownNat n, OkCircuit a => Circuit (Vec n a) (Either (Vec 0 a) (a, Vec (n - 1) a))
----- induction = primitive $ Circuit undefined $
-----   timeInv
-----     ( ((\v ->
-----         case v of
-----           Nil -> Left Nil
-----           Cons a v' -> Right $ (a, v')
-----       ) :: (Vec n a) -> Either (Vec n b) (a, Vec (n - 1) a))
-----     )
-
-
--- TODO(sandy): i think this might not work over time-varying structures
 mapFoldVC
     :: forall n a b r
      . (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
@@ -169,16 +158,16 @@ fixC s0 = primitive . Circuit undefined . go s0 . c_roar
 
 
 foldVC :: Circuit (a, b) b -> Circuit (Vec n a, b) b
-foldVC c = primitive $ Circuit undefined $ undefined -- foldSig $ c_roar c
+foldVC c = primitive $ Circuit undefined $ foldSig $ c_roar c
 
--- foldSig :: Signal (a, b) b -> Signal (Vec n a, b) b
--- foldSig sf@(Signal f) = Signal $ \(v, b) ->
---   case v of
---     Nil -> (foldSig sf, b)
---     Cons a v' ->
---       let (sa, b') = f (a, b)
---           (sv, b'') = pumpSignal (foldSig sf) (v', b')
---        in (_ sa sv, b'')
+foldSig :: Signal (a, b) b -> Signal (Vec n a, b) b
+foldSig (Signal f) = Signal $ \(v, b) ->
+  case v of
+    Nil -> (timeInv snd, b)
+    Cons a v' ->
+      let (sa, b') = f (a, b)
+          (sv, b'') = pumpSignal (foldSig sa) (v', b')
+       in (lmap (first V.dropI) sv, b'')
 
 
 ------------------------------------------------------------------------------

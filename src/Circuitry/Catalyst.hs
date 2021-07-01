@@ -21,9 +21,6 @@ import           Prelude hiding (id, (.), sum, zip)
 import           Test.QuickCheck (CoArbitrary, Testable (property), Arbitrary (arbitrary), counterexample, applyFun, Function (function), functionMap, forAllShrink, shrink, (===))
 import           Test.QuickCheck.Arbitrary (CoArbitrary(coarbitrary))
 import           Test.QuickCheck.Checkers
-import Control.Applicative (liftA2)
-import Data.Bifunctor (bimap)
-
 
 
 instance Arbitrary Natural where
