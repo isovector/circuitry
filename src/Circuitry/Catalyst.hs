@@ -21,6 +21,7 @@ import           Prelude hiding (id, (.), sum, zip)
 import           Test.QuickCheck (CoArbitrary, Testable (property), Arbitrary (arbitrary), counterexample, applyFun, Function (function), functionMap, forAllShrink, shrink, (===))
 import           Test.QuickCheck.Arbitrary (CoArbitrary(coarbitrary))
 import           Test.QuickCheck.Checkers
+import Control.Applicative (liftA2)
 import Data.Bifunctor (bimap)
 
 
@@ -46,6 +47,79 @@ instance (Show a, EqProp b, CoArbitrary r, Arbitrary a, Arbitrary r, Show r, Sho
 
 instance EqProp Word8 where
   (=-=) = (===)
+
+newtype Signal a b = Signal
+  { pumpSignal :: a -> (Signal a b, b)
+  }
+  deriving stock Functor
+
+instance Applicative (Signal a) where
+  pure b = Signal $ const $ (pure b, b)
+  (<*>) (Signal sf) (Signal sb) = Signal $ \a ->
+    let (sf', f) = sf a
+        (sa', b) = sb a
+     in (sf' <*> sa', f b)
+
+
+instance (CoArbitrary a, Arbitrary b) => Arbitrary (Signal a b) where
+  arbitrary = Signal <$> arbitrary
+
+instance Profunctor Signal where
+  dimap f g (Signal h) = Signal $ (dimap f g *** g) . h . f
+
+instance Category Signal where
+  type Ok Signal = TrivialConstraint
+  id = Signal $ \a -> (id, a)
+  Signal g . Signal f = Signal $ \a ->
+    let (sf, b) = f a
+        (sg, c) = g b
+     in (sg . sf, c)
+  {-# INLINE id #-}
+  {-# INLINE (.) #-}
+
+
+primSignal :: (a -> b) -> Signal a b
+primSignal f = fix $ \me -> Signal $ \a -> (me, f a)
+{-# INLINE primSignal #-}
+
+
+instance Distrib Signal where
+  distrib = primSignal distrib
+  factor = primSignal factor
+
+instance SymmetricProduct Signal where
+  swap = primSignal swap
+  reassoc = primSignal reassoc
+  reassoc' = primSignal reassoc'
+
+instance MonoidalProduct Signal where
+  (***) (Signal f) (Signal g) = Signal $ \(al, ar) ->
+    let (sf, bl) = f al
+        (sg, br) = g ar
+     in (sf *** sg, (bl, br))
+  {-# INLINE (***) #-}
+
+instance SymmetricSum Signal where
+  swapE = primSignal swapE
+  reassocE = primSignal reassocE
+
+instance MonoidalSum Signal where
+  (+++) sf sg = Signal $ \case
+     Left  al -> (+++ sg) *** Left  $ pumpSignal sf al
+     Right ar -> (sf +++) *** Right $ pumpSignal sg ar
+  {-# INLINE (+++) #-}
+
+instance Cartesian Signal where
+  consume = primSignal consume
+  copy = primSignal copy
+  fst' = primSignal fst'
+  snd' = primSignal snd'
+
+instance Cocartesian Signal where
+  injectL = primSignal injectL
+  injectR = primSignal injectR
+  unify = primSignal unify
+  tag = primSignal tag
 
 
 newtype Roar r a b = Roar { runRoar :: (r -> a) -> (r -> b) }
@@ -77,8 +151,8 @@ instance Profunctor (Roar r) where
 instance Category (Roar r) where
   type Ok (Roar r) = TrivialConstraint
   id = Roar id
-  {-# INLINE id #-}
   (.) (Roar f) (Roar g) = Roar (f . g)
+  {-# INLINE id #-}
   {-# INLINE (.) #-}
 
 instance SymmetricProduct (Roar r) where
@@ -111,12 +185,12 @@ instance SymmetricSum (Roar r) where
   reassocE = Roar (\ f r -> reassocE $ f r)
 
 instance MonoidalSum (Roar r) where
-  -- TODO(sandy): suss
-  (+++) (Roar f) (Roar g) = Roar $ \ rac r ->
-    either
-        (\ar -> Left $ f (const ar) r)
-        (\ar -> Right $ g (const ar) r)
-      $ rac r
+  left (Roar f) = Roar $ \ rac r ->
+    let getLeft t = either id undefined $ rac t
+     in either (const $ Left $ f getLeft r) Right $ rac r
+  right (Roar f) = Roar $ \ rac r ->
+    let getRight t = either undefined id $ rac t
+     in either Left (const $ Right $ f getRight r) $ rac r
 
 instance Cocartesian (Roar r) where
   injectL = Roar (\ fra r -> Left (fra r))

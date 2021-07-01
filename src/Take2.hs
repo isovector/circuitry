@@ -103,7 +103,7 @@ prop_circuit f c = property $ do
   pure $
     counterexample ("time: " <> show t) $
     counterexample ("input: " <> show a) $
-      f a === evalCircuit c t a
+      f a === evalCircuit c a t
 
 prop_equivalent :: (Function a, Arbitrary a, Eq b, Show a, Show b) => Circuit a b -> Circuit a b -> Property
 prop_equivalent c1 c2 = property $ do
@@ -177,21 +177,24 @@ main = do
         (\(v, r0) -> foldrV @10 (\(a :: Bool) r -> (a B..&. r, B.xor a r)) r0 v)
         (mapFoldVC $ Circuit undefined $ timeInv $ \(a, r) ->
             (a B..&. r, B.xor a r))
-    -- , prop_circuit
-    --     (bool 10 127 . fst)
-        -- (ifC (constC @Word8 127) (constC 10))
-    -- , prop_circuit
-    --     (either (const 127) (const 10))
-    --     (eitherE (constC @Word8 127) (constC 10))
-    -- , prop_circuit
-    --     (uncurry B.xor)
-    --     (xorGate)
-    -- , prop_circuit
-    --     (\(a, (b, c)) -> (a `B.xor` b `B.xor` c, (fromEnum a + fromEnum b + fromEnum c) >= 2))
-    --     add2
-    -- , prop_circuit
-    --     (uncurry (+))
-    --     (addN @Word8 >>> fst')
+    , prop_circuit
+        (bool 10 127 . fst)
+        (ifC (constC @Word8 127) (constC 10))
+    , prop_circuit
+        (either (const 127) (const 10))
+        (eitherE (constC @Word8 127) (constC 10))
+    , prop_circuit
+        (uncurry B.xor)
+        (xorGate)
+    , prop_circuit
+        (\(a, (b, c)) -> (a `B.xor` b `B.xor` c, (fromEnum a + fromEnum b + fromEnum c) >= 2))
+        add2
+    , prop_circuit
+        (uncurry (+))
+        (addN @Word8 >>> fst')
+
+    , evalCircuit (clock @Word8) () 255 === 255
+    , evalCircuit (clock @Word8) () 256 === 0
     ]
   where
     foldrV :: forall n a b r. (a -> r -> (b, r)) -> r -> Vec n a -> (Vec n b, r)

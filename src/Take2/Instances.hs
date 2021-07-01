@@ -14,7 +14,7 @@
 
 module Take2.Instances where
 
-import           Circuitry.Catalyst (Roar(..), Time)
+import           Circuitry.Catalyst (Roar(..), Time, Signal (Signal))
 import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum, Distrib (distrib), factor)
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
@@ -31,7 +31,7 @@ import qualified Data.Bits as B
 import Unsafe.Coerce (unsafeCoerce)
 
 
-instance Arbitrary (Roar Time a b) => Arbitrary (Circuit a b) where
+instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
   arbitrary = Circuit <$> pure (error "yo") <*> arbitrary
 
 instance SymmetricProduct Circuit where
@@ -171,12 +171,12 @@ andAll = swap >>> second' serial >>> distribV >>> mapV andGate
 
 distribP :: (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit (a, (b, c)) ((a, b), (a, c))
 distribP = first' copy
-      >>> reassoc'
-      >>> second' ( swap
-                >>> reassoc'
-                >>> second' swap
-                  )
-      >>> reassoc
+       >>> reassoc'
+       >>> second' ( swap
+                 >>> reassoc'
+                 >>> second' swap
+                   )
+       >>> reassoc
 
 
 notGate :: Circuit Bool Bool
