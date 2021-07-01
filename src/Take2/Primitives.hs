@@ -47,20 +47,22 @@ raw
      . (OkCircuit a, OkCircuit b)
     => Circuit (Vec (SizeOf a) Bool) (Vec (SizeOf b) Bool)
     -> Circuit a b
-raw c = Circuit gr $
+raw c = Circuit (coerceGraph $ c_graph c) $
   Signal $ \a ->
     let (sf, sb) = pumpSignal (c_roar c) $ embed a
      in (dimap embed reify sf, reify sb)
-  where
-    gr :: Graph a b
-    gr = Graph $ unGraph $ c_graph c
 
 
 swap :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
 swap =
-  primitive $ raw $ Circuit undefined $ timeInv $ \v ->
+  primitive $ raw $ Circuit gr $ timeInv $ \v ->
     let (va, vb) = V.splitAtI @(SizeOf a) v
     in vb V.++ va
+  where
+    gr :: Graph (Vec (SizeOf (a, b)) Bool) (Vec (SizeOf (b, a)) Bool)
+    gr = Graph $ \v -> do
+      let (va, vb) = V.splitAtI @(SizeOf a) v
+      pure $ vb V.++ va
 
 
 (***)
@@ -84,7 +86,7 @@ swap =
 
 
 consume :: OkCircuit a => Circuit a ()
-consume = primitive $ raw $ Circuit undefined $ timeInv $ const Nil
+consume = primitive $ raw $ Circuit (Graph $ const $ pure Nil) $ timeInv $ const Nil
 
 
 copy :: forall a. OkCircuit a => Circuit a (a, a)
@@ -95,11 +97,8 @@ copy = primitive $ raw $ Circuit gr $ timeInv $ \v -> v V.++ v
 
 
 fst' :: (OkCircuit a, OkCircuit b) => Circuit (a, b) a
-fst' = primitive $ raw $ Circuit undefined $ timeInv V.takeI
+fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ timeInv V.takeI
 
-
-constC :: a -> Circuit () a
-constC a = primitive $ Circuit undefined $ timeInv $ const a
 
 
 pad

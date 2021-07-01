@@ -111,10 +111,14 @@ eitherE l r = serial
                  (separate >>> first' (unsafeParse >>> l) >>> fst')
 
 
+constC :: forall a. Embed a => a -> Circuit () a
+constC a = unsafeReinterpret @_ @(Vec 0 a) >>> Prim.pad a >>> lower
+
+
 injl :: (OkCircuit a, OkCircuit b) => Circuit a (Either a b)
 injl = create
    >>> swap
-   >>> (Prim.constC False *** (serial >>> Prim.pad False))
+   >>> (constC False *** (serial >>> Prim.pad False))
    >>> consC
    >>> unsafeParse
 

@@ -9,9 +9,6 @@
 
 module Take2.Graph where
 
-import Data.Traversable
-import qualified Data.Map as M
-import Data.Map (Map)
 import           Circuitry.Catalyst (Roar(..), loop, Time)
 import           Circuitry.Category (Category(..), first', swap, (&&&), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum)
 import           Circuitry.Category (MonoidalProduct(..))
@@ -26,6 +23,11 @@ import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
 import           Data.Generics.Wrapped ( _Unwrapped )
+import           Data.Map (Map)
+import qualified Data.Map as M
+import           Data.Profunctor
+import qualified Data.Text as T
+import           Data.Traversable
 import           Data.Typeable
 import           Data.Word (Word8, Word16, Word32, Word64)
 import           GHC.Generics
@@ -35,9 +37,7 @@ import           Prelude hiding ((.), id, sum)
 import           Take2.Embed
 import           Test.QuickCheck
 import           Unsafe.Coerce (unsafeCoerce)
-import Yosys (Bit, Module (Module), Cell (Cell), CellName (..), getBit)
-import qualified Data.Text as T
-import Data.Profunctor
+import           Yosys (Bit, Module (Module), Cell (Cell), CellName (..), getBit)
 
 
 
@@ -50,6 +50,14 @@ instance Category Graph where
   type Ok Graph = Embed
   id = Graph pure
   Graph g . Graph f = Graph (g <=< f)
+
+
+coerceGraph
+    :: (SizeOf a ~ SizeOf a', SizeOf b ~ SizeOf b')
+    => Graph a b
+    -> Graph a' b'
+coerceGraph = Graph . unGraph
+
 
 
 freshBit :: GraphM Bit
