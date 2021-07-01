@@ -29,6 +29,8 @@ import qualified Take2.Primitives as Prim
 import Test.QuickCheck
 import qualified Data.Bits as B
 import Unsafe.Coerce (unsafeCoerce)
+import qualified Yosys as Y
+import Take2.Graph (Graph(Graph), freshBit, addCell)
 
 
 instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
@@ -188,21 +190,29 @@ notGate = copy >>> Prim.nandGate
 
 
 andGate :: Circuit (Bool, Bool) Bool
-andGate = Prim.shortcircuit (uncurry (&&))
-         $ Prim.nandGate >>> notGate
+andGate
+  = Prim.shortcircuit (uncurry (&&))
+  $ Prim.diagrammed (Prim.binaryGateDiagram Y.CellAnd)
+  $ Prim.nandGate >>> notGate
 
 
 orGate :: Circuit (Bool, Bool) Bool
-orGate = Prim.shortcircuit (uncurry (||))
-       $ both notGate >>> Prim.nandGate
+orGate
+  = Prim.shortcircuit (uncurry (||))
+  $ Prim.diagrammed (Prim.binaryGateDiagram Y.CellOr)
+  $ both notGate >>> Prim.nandGate
 
 norGate :: Circuit (Bool, Bool) Bool
-norGate = orGate >>> notGate
+norGate
+  = Prim.diagrammed (Prim.binaryGateDiagram Y.CellNor)
+  $ orGate >>> notGate
 
 
 xorGate :: Circuit (Bool, Bool) Bool
-xorGate = Prim.shortcircuit (uncurry B.xor)
-        $ copy >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
+xorGate
+  = Prim.shortcircuit (uncurry B.xor)
+  $ Prim.diagrammed (Prim.binaryGateDiagram Y.CellXor)
+  $ copy >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
 
 
 both :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit (a, a) (b, b)

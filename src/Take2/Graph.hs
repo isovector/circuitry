@@ -38,6 +38,7 @@ import           Take2.Embed
 import           Test.QuickCheck
 import           Unsafe.Coerce (unsafeCoerce)
 import           Yosys (Bit, Module (Module), Cell (Cell), CellName (..), getBit)
+import Generics.SYB hiding (Generic)
 
 
 
@@ -58,6 +59,14 @@ coerceGraph
     -> Graph a' b'
 coerceGraph = Graph . unGraph
 
+
+unifyBits :: Bit -> Bit -> GraphM ()
+unifyBits b1 b2 =
+  modify $ #gs_module %~ everywhere (mkT $
+    \case
+      b | b == b1   -> b2
+        | otherwise -> b
+    )
 
 
 freshBit :: GraphM Bit
@@ -86,6 +95,6 @@ data GraphState = GraphState
   deriving stock (Generic)
 
 newtype GraphM a = GraphM { unGraphM :: State GraphState a }
-  deriving newtype (Functor, Applicative, Monad, MonadState GraphState)
+  deriving newtype (Functor, Applicative, Monad, MonadState GraphState, MonadFix)
 
 

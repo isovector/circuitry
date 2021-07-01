@@ -16,6 +16,7 @@ import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
+import           GHC.TypeLits (type (<=))
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
@@ -23,7 +24,7 @@ import           Take2.Machinery
 import           Take2.Numeric
 import           Take2.Primitives (timeInv, shortcircuit)
 import           Test.QuickCheck
-import Yosys (renderModule)
+import           Yosys (renderModule)
 
 
 everyPair
@@ -87,7 +88,7 @@ tickTock :: Circuit () Bool
 tickTock = fixC False $ snd' >>> copy >>> second' notGate
 
 
-clock :: forall a. (OkCircuit a, Numeric a) => Circuit () a
+clock :: forall a. (1 <= SizeOf a, Embed a, OkCircuit a, Numeric a) => Circuit () a
 clock = fixC (zero @a) $ first' (constC one)
                      >>> swap
                      >>> first' copy

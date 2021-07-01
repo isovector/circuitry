@@ -11,6 +11,7 @@
 
 module Take2.Primitives where
 
+import Data.Foldable
 import           Circuitry.Catalyst (loop, Time, Signal (..), primSignal)
 import           Circuitry.Category (Category(..), (>>>))
 import qualified Circuitry.Category as Category
@@ -176,16 +177,33 @@ zipVC :: Circuit (Vec n a, Vec n b) (Vec n (a, b))
 zipVC = primitive $ Circuit undefined $ timeInv $ uncurry V.zip
 
 
-cloneV :: KnownNat n => Circuit r (Vec n r)
-cloneV = primitive $ Circuit undefined $ timeInv V.repeat
+cloneV :: forall n r. KnownNat n => Circuit r (Vec n r)
+cloneV = primitive $ Circuit gr $ timeInv V.repeat
+  where
+    gr :: Graph r (Vec n r)
+    gr = Graph $ \i -> pure $ V.concatMap V.repeat i
 
 
-fixC :: s -> Circuit (a, s) (b, s) -> Circuit a b
-fixC s0 = primitive . Circuit undefined . go s0 . c_roar
+fixC
+    :: forall s a b
+     . (1 <= SizeOf s, Embed s, Embed a, Embed b)
+    => s
+    -> Circuit (a, s) (b, s)
+    -> Circuit a b
+fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
   where
     go s k = Signal $ \a ->
       let (k', (b, s')) = pumpSignal k (a, s)
       in (go s' k', b)
+
+    gr :: Graph a b
+    gr = Graph $ \v -> do
+      s <- synthesizeBits @s
+      o <- unGraph (c_graph k0) (v V.++ s)
+      let (b, s') = V.splitAtI o
+      for_ (V.toList $ V.zip s s') $ uncurry unifyBits
+      pure b
+
 
 
 foldVC :: Circuit (a, b) b -> Circuit (Vec n a, b) b
@@ -208,4 +226,14 @@ foldSig (Signal f) = Signal $ \(v, b) ->
 -- | Too slow to run real world physics? JET STREAM IT, BABY.
 shortcircuit :: (a -> b) -> Circuit a b -> Circuit a b
 shortcircuit f c = Circuit (c_graph c) $ timeInv f
+
+diagrammed :: Graph a b -> Circuit a b -> Circuit a b
+diagrammed g c = c { c_graph = g }
+
+
+binaryGateDiagram :: Y.CellType -> Graph (Bool, Bool) Bool
+binaryGateDiagram ty = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
+  o <- freshBit
+  addCell $ Y.mkMonoidalBinaryOp ty "A" "B" "Y" [i1] [i2] o
+  pure $ Cons o Nil
 
