@@ -57,10 +57,10 @@ evalCircuitT :: Circuit a b -> (Time -> a) -> Time -> b
 evalCircuitT c = reallyPumpSignal (c_roar c)
 
 
-getGraph :: forall a b. (SeparatePorts a, SeparatePorts b) => Int -> Circuit a b -> Module
-getGraph depth c
+getGraph :: forall a b. (SeparatePorts a, SeparatePorts b) => RenderOptions -> Circuit a b -> Module
+getGraph ro c
   = flip evalState (GraphState 0 mempty)
-  $ flip runReaderT depth
+  $ flip runReaderT ro
   $ unGraphM
   $ do
     (input, ips) <- separatePorts @a

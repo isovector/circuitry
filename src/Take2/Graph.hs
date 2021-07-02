@@ -101,12 +101,19 @@ data GraphState = GraphState
   }
   deriving stock (Generic)
 
-newtype GraphM a = GraphM { unGraphM :: ReaderT Int (State GraphState) a }
+data RenderOptions = RenderOptions
+  { ro_unpack_gates :: Bool
+  , ro_unpack_constants :: Bool
+  , ro_depth :: Int
+  }
+  deriving stock (Eq, Ord, Show, Generic)
+
+newtype GraphM a = GraphM { unGraphM :: ReaderT RenderOptions (State GraphState) a }
   deriving newtype ( Functor
                    , Applicative
                    , Monad
                    , MonadState GraphState
-                   , MonadReader Int
+                   , MonadReader RenderOptions
                    , MonadFix
                    )
 

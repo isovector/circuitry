@@ -11,30 +11,26 @@
 
 module Main where
 
-import qualified Data.Map as M
-import Data.List.NonEmpty (NonEmpty (..))
-import qualified Data.List.NonEmpty as NE
-import Data.Map (Map)
 import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
 import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
+import           Data.Typeable
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
+import           GHC.TypeLits (type (-), type (<=), KnownNat)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Machinery
 import           Take2.Numeric
-import           Take2.Primitives (timeInv, shortcircuit)
+import           Take2.Primitives (timeInv, shortcircuit, gateDiagram, constantName)
+import           Take2.Graph (RenderOptions(..))
+import           Take2.Word (Word4)
 import           Test.QuickCheck
 import           Yosys (renderModule)
 import qualified Yosys as Y
-import Data.Typeable
-import GHC.TypeLits (type (-), type (<=), KnownNat)
-import Take2.Graph (Graph(Graph), freshBit, addCell)
-import Take2.Word (Word4)
 
 
 everyPair
@@ -106,25 +102,34 @@ cut :: Embed a => Circuit a ()
 cut = create >>> snd'
 
 ifOrEmpty :: (Embed a, Embed b) => Circuit a b -> Circuit (Bool, a) (Vec (SizeOf b) Bool)
-ifOrEmpty c = second' (c >>> serial) >>> distribV >>> mapV andGate
+ifOrEmpty c = second' (c >>> serial) >>> andV
+
+andV :: KnownNat n => Circuit (Bool, Vec n Bool) (Vec n Bool)
+andV = blackbox "andV" $ distribV >>> mapV andGate
+
 
 when
     :: (1 <= SizeOf k, Embed k, Embed v, Embed r, Show k)
     => k
     -> Circuit v r
     -> Circuit (k, v) (Vec (SizeOf r) Bool)
-when k c = blackbox ("case " <> show k)
-         $ first' (intro k >>> eq) >>> ifOrEmpty c
+when k c = blackbox' (fmap (mappend "case ") $ constantName k) (first' (intro k >>> eq))
+       >>> ifOrEmpty c
 
 
 alu
-    :: (1 <= SizeOf a, SeparatePorts a, Embed a, Numeric a)
+    :: (2 <= SizeOf a, SeparatePorts a, Embed a, Numeric a)
     => Circuit (AluOpCode, (a, a)) (Vec (SizeOf a) Bool)
 alu =
   branch
     $ Cons (AluOpAdd, addN >>> fst' >>> serial)
     $ Cons (AluOpAnd, both serial >>> pointwise andGate)
     $ Cons (AluOpOr, both serial >>> pointwise orGate)
+    $ Cons (AluOpXor, both serial >>> pointwise xorGate)
+    $ Cons (AluOpNot, fst' >>> serial >>> mapV notGate)
+    $ Cons (AluOpShiftL, fst' >>> shiftL >>> serial)
+    $ Cons (AluOpShiftR, fst' >>> shiftR >>> serial)
+    $ Cons (AluOpAShiftR, fst' >>> ashiftR >>> serial)
     $ Nil
 
 
@@ -197,24 +202,24 @@ ashiftR = serial
 
 data AluOpCode
   = AluOpAdd
-  | AluOpSub
-  | AluOpDec
-  | AluOpInc
-  | AluOpNot
   | AluOpAnd
   | AluOpOr
   | AluOpXor
+  | AluOpNot
+  | AluOpShiftL
+  | AluOpShiftR
+  | AluOpAShiftR
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass Embed
 
 bigAndGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
 bigAndGate
-  = diagrammed (unaryGateDiagram Y.CellAnd)
+  = gateDiagram (unaryGateDiagram Y.CellAnd)
   $ create >>> second' (constC True) >>> foldVC andGate
 
 bigOrGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
 bigOrGate
-  = diagrammed (unaryGateDiagram Y.CellOr)
+  = gateDiagram (unaryGateDiagram Y.CellOr)
   $ create >>> second' (constC False) >>> foldVC orGate
 
 eq :: (Embed a, 1 <= SizeOf a) => Circuit (a, a) Bool

@@ -30,7 +30,7 @@ import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
-import           Take2.Graph (Graph(Graph), freshBit, addCell, synthesizeBits)
+import           Take2.Graph (Graph(Graph), freshBit, addCell, synthesizeBits, GraphM (GraphM))
 import qualified Take2.Primitives as Prim
 import           Test.QuickCheck
 import           Unsafe.Coerce (unsafeCoerce)
@@ -195,40 +195,40 @@ distribP = first' copy
 
 notGate :: Circuit Bool Bool
 notGate
-  = Prim.diagrammed (Prim.unaryGateDiagram Y.CellNot)
+  = Prim.gateDiagram (Prim.unaryGateDiagram Y.CellNot)
   $ copy >>> Prim.nandGate
 
 
 andGate :: Circuit (Bool, Bool) Bool
 andGate
   = Prim.shortcircuit (uncurry (&&))
-  $ Prim.diagrammed (Prim.binaryGateDiagram Y.CellAnd)
+  $ Prim.gateDiagram (Prim.binaryGateDiagram Y.CellAnd)
   $ Prim.nandGate >>> notGate
 
 
 orGate :: Circuit (Bool, Bool) Bool
 orGate
   = Prim.shortcircuit (uncurry (||))
-  $ Prim.diagrammed (Prim.binaryGateDiagram Y.CellOr)
+  $ Prim.gateDiagram (Prim.binaryGateDiagram Y.CellOr)
   $ both notGate >>> Prim.nandGate
 
 norGate :: Circuit (Bool, Bool) Bool
 norGate
-  = Prim.diagrammed (Prim.binaryGateDiagram Y.CellNor)
+  = Prim.gateDiagram (Prim.binaryGateDiagram Y.CellNor)
   $ orGate >>> notGate
 
 
 xorGate :: Circuit (Bool, Bool) Bool
 xorGate
   = Prim.shortcircuit (uncurry B.xor)
-  $ Prim.diagrammed (Prim.binaryGateDiagram Y.CellXor)
+  $ Prim.gateDiagram (Prim.binaryGateDiagram Y.CellXor)
   $ copy >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
 
 
 nxorGate :: Circuit (Bool, Bool) Bool
 nxorGate
   = Prim.shortcircuit (uncurry B.xor)
-  $ Prim.diagrammed (Prim.binaryGateDiagram Y.CellXnor)
+  $ Prim.gateDiagram (Prim.binaryGateDiagram Y.CellXnor)
   $ copy >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
 
 
@@ -258,22 +258,30 @@ distribE
     => Circuit (a, Either b c) (Either (a, b) (a, c))
 distribE = second' (serial >>> unconsC) >>> reassoc >>> first' swap >>> veryUnsafeCoerce
 
-
 blackbox
     :: forall a b
      . (KnownNat (SizeOf a), Embed b)
     => String
     -> Circuit a b
     -> Circuit a b
-blackbox t = Prim.diagrammed $ Graph $ \a -> do
+blackbox c = blackbox' (pure c)
+
+blackbox'
+    :: forall a b
+     . (KnownNat (SizeOf a), Embed b)
+    => GraphM String
+    -> Circuit a b
+    -> Circuit a b
+blackbox' get_name = Prim.diagrammed $ Graph $ \a -> do
   o <- synthesizeBits @b
+  name <- get_name
   addCell $
-    Y.Cell (Y.CellGeneric $ T.pack t)
+    Y.Cell (Y.CellGeneric $ T.pack name)
       (M.fromList
         [ (Y.Width "A", V.length a)
         , (Y.Width "Y", V.length o)
         ])
-      (M.singleton "name" $ A.String $ T.pack t)
+      (M.singleton "name" $ A.String $ T.pack name)
       (M.fromList
         [ ("A", Y.Input)
         , ("Y", Y.Output)

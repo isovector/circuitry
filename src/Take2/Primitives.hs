@@ -1,5 +1,6 @@
 {-# LANGUAGE InstanceSigs         #-}
 {-# LANGUAGE MagicHash            #-}
+{-# LANGUAGE OverloadedLabels     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -32,7 +33,9 @@ import           Take2.Embed
 import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
-import Control.Monad.Reader (ask, local)
+import Control.Monad.Reader (ask, local, asks)
+import Control.Lens ((-~))
+import Data.Bool (bool)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -109,6 +112,12 @@ fst' :: (OkCircuit a, OkCircuit b) => Circuit (a, b) a
 fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ timeInv V.takeI
 
 
+constantName :: (Show a, Embed a) => a -> GraphM String
+constantName a = do
+  asks ro_unpack_constants >>= pure . \case
+    False -> show a
+    True -> fmap (bool '0' '1') $ V.toList $ embed a
+
 
 pad
     :: forall m n a
@@ -120,10 +129,11 @@ pad a = primitive $ Circuit gr $ timeInv $ \v -> v V.++ V.repeat @(n - m) a
     gr :: Graph (Vec m a) (Vec n a)
     gr = Graph $ \v -> do
       v2 <- synthesizeBits @(Vec (n - m) a)
-      addNamedCell (Y.CellName $ T.pack $ show a) $
+      name <- constantName a
+      addNamedCell (Y.CellName $ T.pack name) $
         Y.Cell Y.CellConstant
           (M.singleton (Y.Width "Y") $ V.length v2)
-          (M.singleton "value" $ A.String $ T.pack $ show a)
+          (M.singleton "value" $ A.String $ T.pack name)
           (M.singleton "Y" Y.Output)
           (M.singleton "Y" $ V.toList v2)
       pure $ v V.++ v2
@@ -289,9 +299,18 @@ shortcircuit f c = Circuit (c_graph c) $ timeInv f
 diagrammed :: Graph a b -> Circuit a b -> Circuit a b
 diagrammed g c = c
   { c_graph = Graph $ \v -> do
-      depth <- ask
+      depth <- asks ro_depth
       case depth > 0 of
-        True -> local (subtract 1) $ unGraph (c_graph c) v
+        True -> local (#ro_depth -~ 1) $ unGraph (c_graph c) v
+        False -> unGraph g v
+  }
+
+gateDiagram :: Graph a b -> Circuit a b -> Circuit a b
+gateDiagram g c = c
+  { c_graph = Graph $ \v -> do
+      unpack <- asks ro_unpack_gates
+      case unpack of
+        True -> unGraph (c_graph c) v
         False -> unGraph g v
   }
 
