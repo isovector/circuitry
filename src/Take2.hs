@@ -147,7 +147,8 @@ bigAndGate
   $ create >>> second' (constC True) >>> foldVC andGate
 
 eq :: (Embed a, 1 <= SizeOf a) => Circuit (a, a) Bool
-eq = both serial >>> zipVC >>> mapV nxorGate >>> bigAndGate
+eq = diagrammed (binaryGateDiagram Y.CellEq)
+   $ both serial >>> zipVC >>> mapV nxorGate >>> bigAndGate
 
 
 -- input: R S
