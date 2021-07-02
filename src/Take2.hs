@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE MagicHash           #-}
 {-# LANGUAGE OverloadedStrings   #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
@@ -11,6 +12,8 @@
 module Main where
 
 import qualified Data.Map as M
+import Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.List.NonEmpty as NE
 import Data.Map (Map)
 import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
@@ -95,6 +98,68 @@ tickTock :: Circuit () Bool
 tickTock = fixC False $ snd' >>> copy >>> second' notGate
 
 
+intro :: (Embed a, Embed b, Show b) => b -> Circuit a (a, b)
+intro b = create >>> second' (constC b)
+
+cut :: Embed a => Circuit a ()
+cut = create >>> snd'
+
+ifOrEmpty :: (Embed a, Embed b) => Circuit a b -> Circuit (Bool, a) (Vec (SizeOf b) Bool)
+ifOrEmpty c = second' (c >>> serial) >>> distribV >>> mapV andGate
+
+when
+    :: (1 <= SizeOf k, Embed k, Embed v, Embed r, Show k)
+    => k
+    -> Circuit v r
+    -> Circuit (k, v) (Vec (SizeOf r) Bool)
+when k c = blackbox ("case " <> show k)
+         $ first' (intro k >>> eq) >>> ifOrEmpty c
+
+
+alu
+    :: (1 <= SizeOf a, SeparatePorts a, Embed a, Numeric a)
+    => Circuit (AluOpCode, (a, a)) (Vec (SizeOf a) Bool)
+alu =
+  branch
+    $ Cons (AluOpAdd, addN >>> fst' >>> serial)
+    $ Cons (AluOpAnd, both serial >>> pointwise andGate)
+    $ Cons (AluOpOr, both serial >>> pointwise orGate)
+    $ Nil
+
+
+pointwise :: (Embed a, Embed b, Embed c, KnownNat n) => Circuit (a, b) c -> Circuit (Vec n a, Vec n b) (Vec n c)
+pointwise c = zipVC >>> mapV c
+
+
+branch
+    :: forall k v n cases
+     . (1 <= cases, 1 <= SizeOf k, Embed k, Embed v, KnownNat n, Show k, KnownNat cases)
+    => Vec cases (k, Circuit v (Vec n Bool))
+    -> Circuit (k, v) (Vec n Bool)
+branch vs = sequenceMetaV (fmap (uncurry when) vs) >>> pointwiseOr @cases
+
+onEach :: (Embed a, Embed b, KnownNat cases) => (v -> Circuit a b) -> Vec cases v -> Circuit a (Vec cases b)
+onEach f v = sequenceMetaV $ fmap f v
+
+sequenceMetaV
+    :: (Embed a, Embed b, KnownNat cases)
+    => Vec cases (Circuit a b)
+    -> Circuit a (Vec cases b)
+sequenceMetaV Nil = create >>> snd' >>> unsafeReinterpret
+sequenceMetaV (Cons c v) = copy >>> first' c >>> second' (sequenceMetaV v) >>> consC
+
+
+pointwiseOr
+    :: (1 <= m, KnownNat n, KnownNat m)
+    => Circuit (Vec m (Vec n Bool)) (Vec n Bool)
+pointwiseOr = transposeV >>> mapV bigOrGate
+
+pointwiseAnd
+    :: (1 <= m, KnownNat n, KnownNat m)
+    => Circuit (Vec m (Vec n Bool)) (Vec n Bool)
+pointwiseAnd = transposeV >>> mapV bigAndGate
+
+
 clock
     :: forall a. (Show a, SeparatePorts a, Embed a, OkCircuit a, Numeric a)
     => Circuit () a
@@ -138,13 +203,18 @@ data AluOpCode
   | AluOpAnd
   | AluOpOr
   | AluOpXor
-  deriving stock Generic
+  deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass Embed
 
 bigAndGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
 bigAndGate
   = diagrammed (unaryGateDiagram Y.CellAnd)
   $ create >>> second' (constC True) >>> foldVC andGate
+
+bigOrGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
+bigOrGate
+  = diagrammed (unaryGateDiagram Y.CellOr)
+  $ create >>> second' (constC False) >>> foldVC orGate
 
 eq :: (Embed a, 1 <= SizeOf a) => Circuit (a, a) Bool
 eq = diagrammed (binaryGateDiagram Y.CellEq)

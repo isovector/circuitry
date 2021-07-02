@@ -241,6 +241,17 @@ fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
       pure $ unifyBitsImpl subst b
 
 
+transposeV
+    :: forall m n a
+     . (KnownNat n, KnownNat m, KnownNat (SizeOf a))
+    => Circuit (Vec m (Vec n a)) (Vec n (Vec m a))
+transposeV = primitive $ Circuit gr $ timeInv V.transpose
+  where
+    gr :: Graph (Vec m (Vec n a)) (Vec n (Vec m a))
+    gr = Graph $ \i -> do
+      let v' = fmap (V.unconcatI @n) $ V.unconcatI @m i
+      pure $ V.concat $ V.concat $ V.transpose v'
+
 
 foldVC :: forall n a b. (KnownNat n, Embed a, Embed b) => Circuit (a, b) b -> Circuit (Vec n a, b) b
 foldVC c = primitive $ Circuit gr $ foldSig $ c_roar c

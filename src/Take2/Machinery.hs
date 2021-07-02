@@ -8,6 +8,6 @@ import Circuitry.Catalyst (Roar(Roar))
 import Circuitry.Category as X
 import Take2.Circuit as X
 import Take2.Instances as X
-import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, coerceCircuit, diagrammed, binaryGateDiagram, unaryGateDiagram)
+import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, coerceCircuit, diagrammed, binaryGateDiagram, unaryGateDiagram, transposeV)
 import Clash.Sized.Vector (Vec (..))
 

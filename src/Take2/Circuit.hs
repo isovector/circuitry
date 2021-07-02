@@ -122,5 +122,3 @@ instance {-# OVERLAPPING #-} (SeparatePorts a, SeparatePorts b) => SeparatePorts
     (vb, b) <- separatePorts @b
     pure (va V.++ vb,  a <> b)
 
-
-
