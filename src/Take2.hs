@@ -1,4 +1,5 @@
-{-# LANGUAGE AllowAmbiguousTypes  #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
@@ -9,6 +10,8 @@
 
 module Main where
 
+import qualified Data.Map as M
+import Data.Map (Map)
 import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
 import           Data.Bool (bool)
@@ -26,7 +29,8 @@ import           Test.QuickCheck
 import           Yosys (renderModule)
 import qualified Yosys as Y
 import Data.Typeable
-import GHC.TypeLits (type (-), type (<=))
+import GHC.TypeLits (type (-), type (<=), KnownNat)
+import Take2.Graph (Graph(Graph), freshBit, addCell)
 
 
 everyPair
@@ -124,6 +128,41 @@ ashiftR = serial
      >>> unsafeReinterpret @_ @(Vec (SizeOf a - 2) Bool, Bool)
      >>> second' copy
      >>> unsafeReinterpret
+
+data AluOpCode
+  = AluOpAdd
+  | AluOpSub
+  | AluOpDec
+  | AluOpInc
+  | AluOpNot
+  | AluOpAnd
+  | AluOpOr
+  | AluOpXor
+  deriving stock Generic
+  deriving anyclass Embed
+
+bigAndGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
+bigAndGate = diagrammed ( Graph $ \v -> do
+               x <- freshBit
+               addCell $
+                Y.Cell
+                  Y.CellAnd
+                  (M.singleton (Y.Width "A") $ V.length v)
+                  mempty
+                  (M.fromList
+                    [ ("A", Y.Input)
+                    , ("Y", Y.Output)
+                    ])
+                  (M.fromList
+                    [ ("A", V.toList v)
+                    , ("Y", [x])
+                    ])
+               pure $ Cons x Nil
+             )
+           $ create >>> second' (constC True) >>> foldVC andGate
+
+eq :: (Embed a, 1 <= SizeOf a) => Circuit (a, a) Bool
+eq = both serial >>> zipVC >>> mapV nxorGate >>> bigAndGate
 
 
 -- input: R S

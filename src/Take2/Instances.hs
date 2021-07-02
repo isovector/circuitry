@@ -243,6 +243,13 @@ xorGate
   $ copy >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
 
 
+nxorGate :: Circuit (Bool, Bool) Bool
+nxorGate
+  = Prim.shortcircuit (uncurry B.xor)
+  $ Prim.diagrammed (Prim.binaryGateDiagram Y.CellXnor)
+  $ copy >>> (second' notGate >>> andGate) *** (first' notGate >>> andGate) >>> orGate
+
+
 both :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit (a, a) (b, b)
 both f = f *** f
 

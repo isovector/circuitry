@@ -17,7 +17,7 @@ import           Circuitry.Category (Category(..), (>>>))
 import qualified Circuitry.Category as Category
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
-import           Control.Monad.State (StateT(..), get, lift, MonadState (put), runStateT)
+import           Control.Monad.State (StateT(..), get, lift, MonadState (put), runStateT, execStateT)
 import qualified Data.Aeson as A
 import           Data.Bifunctor (first)
 import           Data.Coerce (Coercible, coerce)
@@ -155,7 +155,7 @@ mapFoldVC c = primitive $ Circuit gr $
           Cons a v' -> Right $ ((a, r), v')
       ) :: (Vec n a, r) -> Either (Vec n b, r) ((a, r), Vec (n - 1) a))
     )
-  >>> undefined {-Category.right
+  >>> Category.right
         ( Category.first' (c_roar c)
       >>> Category.reassoc'
       >>> Category.second'
@@ -174,7 +174,7 @@ mapFoldVC c = primitive $ Circuit gr $
       >>> Category.reassoc
       >>> Category.first' (timeInv $ uncurry Cons)
         )
-  >>> Category.unify-}
+  >>> Category.unify
   where
     gr :: Graph (Vec n a, r) (Vec n b, r)
     gr = Graph $ \i -> do
@@ -242,8 +242,20 @@ fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
 
 
 
-foldVC :: Circuit (a, b) b -> Circuit (Vec n a, b) b
-foldVC c = primitive $ Circuit undefined $ foldSig $ c_roar c
+foldVC :: forall n a b. (KnownNat n, Embed a, Embed b) => Circuit (a, b) b -> Circuit (Vec n a, b) b
+foldVC c = primitive $ Circuit gr $ foldSig $ c_roar c
+  where
+    gr :: Graph (Vec n a, b) b
+    gr = Graph $ \i -> do
+      let (va, r0) = V.splitAtI @(n * SizeOf a) i
+          vs = V.unconcatI @n va
+      r'
+        <- flip execStateT r0 $ flip V.traverse# vs $ \a ->
+            do
+              r <- get
+              r' <- lift $ unGraph (c_graph c) $ a V.++ r
+              put r'
+      pure r'
 
 -- NOTE(sandy): this thing will pump the first arg for every element in the
 -- vector. seems reasonable, but also that it can't possibly clock --- but
