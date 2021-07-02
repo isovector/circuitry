@@ -40,6 +40,8 @@ import           Test.QuickCheck
 import           Unsafe.Coerce (unsafeCoerce)
 import           Yosys (Bit, Module (Module), Cell (Cell), CellName (..), getBit)
 import Generics.SYB hiding (Generic)
+import Debug.Trace (traceM, trace)
+import qualified Yosys as Y
 
 
 
@@ -60,14 +62,13 @@ coerceGraph
     -> Graph a' b'
 coerceGraph = Graph . unGraph
 
+unifyBitsImpl :: Data a => Map Bit Bit -> a -> a
+unifyBitsImpl rep  = everywhere $ mkT $ \case
+  b | Just b' <- M.lookup b rep -> b'
+    | otherwise -> b
 
-unifyBits :: Bit -> Bit -> GraphM ()
-unifyBits b1 b2 =
-  modify $ #gs_module %~ everywhere (mkT $
-    \case
-      b | b == b1   -> b2
-        | otherwise -> b
-    )
+unifyBits :: Map Bit Bit -> GraphM ()
+unifyBits rep = modify' $ #gs_module %~ unifyBitsImpl rep
 
 
 freshBit :: GraphM Bit

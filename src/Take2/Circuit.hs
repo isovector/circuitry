@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs         #-}
+{-# LANGUAGE OverloadedLabels     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -16,9 +17,9 @@ module Take2.Circuit where
 import           Circuitry.Catalyst (Signal, Time, pumpSignal)
 import           Circuitry.Category (Category(..))
 import qualified Clash.Sized.Vector as V
+import           Control.Lens ((<>~))
 import           Control.Monad (join)
-import           Control.Monad.State (evalState, gets)
-import           Data.Foldable (for_)
+import           Control.Monad.State (evalState, gets, modify')
 import           Data.Generics.Labels ()
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -59,9 +60,6 @@ getGraph :: forall a b. (SeparatePorts a, SeparatePorts b) => Circuit a b -> Mod
 getGraph c = flip evalState (GraphState 0 mempty) $ unGraphM $ do
   (input, ips) <- separatePorts @a
   (output, ops) <- separatePorts @b
-  output' <- unGraph (c_graph c) input
-  for_ (V.toList $ V.zip output' output) $ uncurry unifyBits
-  m <- gets gs_module
 
   let mkPort :: Direction -> String -> Int -> (PortName, [Y.Bit]) -> (PortName, Port)
       mkPort dir pre ix (PortName pn, bits) =
@@ -69,11 +67,16 @@ getGraph c = flip evalState (GraphState 0 mempty) $ unGraphM $ do
         , Port dir bits
         )
 
-  pure $ m <> mempty
-    { modulePorts =
-        M.fromList $ fmap (uncurry $ mkPort Input "in") (zip [0..] ips)
-                  <> fmap (uncurry $ mkPort Output "out") (zip [0..] ops)
-    }
+  modify' $ #gs_module <>~
+    mempty
+      { modulePorts =
+          M.fromList $ fmap (uncurry $ mkPort Input "in") (zip [0..] ips)
+                    <> fmap (uncurry $ mkPort Output "out") (zip [0..] ops)
+      }
+
+  output' <- unGraph (c_graph c) input
+  unifyBits $ M.fromList $ V.toList $ V.zip output output'
+  gets gs_module
 
 
 newtype Named (n :: Symbol) a = Named a
@@ -88,6 +91,9 @@ instance Embed a => OkCircuit a
 
 class SeparatePorts a where
   separatePorts :: GraphM (V.Vec (SizeOf a) Y.Bit, [(PortName, [Y.Bit])])
+
+instance SeparatePorts () where
+  separatePorts = pure (V.Nil, mempty)
 
 instance {-# OVERLAPPABLE #-} (Typeable a, Embed a) => SeparatePorts a where
   separatePorts = do

@@ -34,6 +34,7 @@ import qualified Yosys as Y
 import Data.Coerce (Coercible, coerce)
 import qualified Data.Text as T
 import qualified Data.Aeson as A
+import Debug.Trace (traceM)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -237,8 +238,9 @@ fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
       s <- synthesizeBits @s
       o <- unGraph (c_graph k0) (v V.++ s)
       let (b, s') = V.splitAtI o
-      for_ (V.toList $ V.zip s s') $ uncurry unifyBits
-      pure b
+          subst = M.fromList $ V.toList $ V.zip s s'
+      unifyBits subst
+      pure $ unifyBitsImpl subst b
 
 
 
