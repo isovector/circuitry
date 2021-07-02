@@ -25,6 +25,8 @@ import           Take2.Primitives (timeInv, shortcircuit)
 import           Test.QuickCheck
 import           Yosys (renderModule)
 import qualified Yosys as Y
+import Data.Typeable
+import GHC.TypeLits (type (-), type (<=))
 
 
 everyPair
@@ -99,6 +101,30 @@ clock = fixC (zero @a)
     >>> reassoc'
     >>> second' (addN >>> fst')
 
+shiftL :: forall a. (1 <= SizeOf a, Embed a, Numeric a) => Circuit a a
+shiftL = unsafeReinterpret @_ @(Vec (SizeOf a - 1) Bool, Bool)
+     >>> fst'
+     >>> create
+     >>> swap
+     >>> first' (constC $ zero @Bool)
+     >>> unsafeReinterpret
+
+shiftR :: forall a. (1 <= SizeOf a, Embed a, Numeric a) => Circuit a a
+shiftR = serial
+     >>> unconsC @(SizeOf a - 1)
+     >>> snd'
+     >>> create
+     >>> second' (constC $ zero @Bool)
+     >>> unsafeReinterpret
+
+ashiftR :: forall a. (2 <= SizeOf a, Embed a, Numeric a) => Circuit a a
+ashiftR = serial
+     >>> unconsC @(SizeOf a - 1)
+     >>> snd'
+     >>> unsafeReinterpret @_ @(Vec (SizeOf a - 2) Bool, Bool)
+     >>> second' copy
+     >>> unsafeReinterpret
+
 
 -- input: R S
 rsLatch :: Circuit (Bool, Bool) Bool
@@ -121,8 +147,8 @@ snap = blackbox "snap"
    >>> both andGate
    >>> rsLatch
 
-snapN :: OkCircuit a => Circuit (Bool, a) (Vec (SizeOf a) Bool)
-snapN = second' serial >>> distribV >>> mapV snap
+snapN :: forall a. (Typeable a, OkCircuit a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
+snapN = blackbox ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> distribV >>> mapV snap
 
 
 prop_circuit :: (Arbitrary a, Eq b, Show a, Show b) => (a -> b) -> Circuit a b -> Property

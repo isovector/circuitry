@@ -38,6 +38,7 @@ import qualified Yosys as Y
 import Data.Foldable (toList)
 import qualified Clash.Sized.Vector as V
 import qualified Data.Text as T
+import qualified Data.Aeson as A
 
 
 instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
@@ -283,7 +284,7 @@ blackbox t = Prim.diagrammed $ Graph $ \a -> do
         [ (Y.Width "A", V.length a)
         , (Y.Width "Y", V.length o)
         ])
-      mempty
+      (M.singleton "name" $ A.String $ T.pack t)
       (M.fromList
         [ ("A", Y.Input)
         , ("Y", Y.Output)

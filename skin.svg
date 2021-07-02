@@ -347,7 +347,7 @@ line {
   <g s:type="generic" transform="translate(550,250)" s:width="30" s:height="40">
     <s:alias val="generic-bus"/>
 
-    <text x="15" y="-4" class="nodelabel $cell_id" s:attribute="ref">generic</text>
+    <text x="15" y="-4" class="nodelabel $cell_id" s:attribute="name">generic</text>
     <rect width="30" height="40" s:generic="body" class="$cell_id"/>
 
     <g transform="translate(30, 10)" s:x="30" s:y="10" s:pid="out0">
