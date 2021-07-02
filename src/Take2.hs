@@ -102,7 +102,12 @@ clock = fixC (zero @a)
 
 -- input: R S
 rsLatch :: Circuit (Bool, Bool) Bool
-rsLatch = fixC False $ reassoc' >>> second' norGate >>> norGate >>> copy
+rsLatch = blackbox "rs"
+         $ fixC False
+         $ reassoc'
+      >>> second' norGate
+      >>> norGate
+      >>> copy
 
 rsLatch_named :: Circuit (Named "R" Bool, Named "S" Bool) Bool
 rsLatch_named = coerceCircuit rsLatch

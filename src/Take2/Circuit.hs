@@ -30,6 +30,7 @@ import           Take2.Embed
 import           Take2.Graph
 import           Yosys (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
 import qualified Yosys as Y
+import Control.Monad.Reader (runReaderT)
 
 
 data Circuit a b = Circuit
@@ -56,27 +57,31 @@ evalCircuitT :: Circuit a b -> (Time -> a) -> Time -> b
 evalCircuitT c = reallyPumpSignal (c_roar c)
 
 
-getGraph :: forall a b. (SeparatePorts a, SeparatePorts b) => Circuit a b -> Module
-getGraph c = flip evalState (GraphState 0 mempty) $ unGraphM $ do
-  (input, ips) <- separatePorts @a
-  (output, ops) <- separatePorts @b
+getGraph :: forall a b. (SeparatePorts a, SeparatePorts b) => Int -> Circuit a b -> Module
+getGraph depth c
+  = flip evalState (GraphState 0 mempty)
+  $ flip runReaderT depth
+  $ unGraphM
+  $ do
+    (input, ips) <- separatePorts @a
+    (output, ops) <- separatePorts @b
 
-  let mkPort :: Direction -> String -> Int -> (PortName, [Y.Bit]) -> (PortName, Port)
-      mkPort dir pre ix (PortName pn, bits) =
-        ( PortName (T.pack (pre <> show ix <> " : ") <> pn)
-        , Port dir bits
-        )
+    let mkPort :: Direction -> String -> Int -> (PortName, [Y.Bit]) -> (PortName, Port)
+        mkPort dir pre ix (PortName pn, bits) =
+          ( PortName (T.pack (pre <> show ix <> " : ") <> pn)
+          , Port dir bits
+          )
 
-  modify' $ #gs_module <>~
-    mempty
-      { modulePorts =
-          M.fromList $ fmap (uncurry $ mkPort Input "in") (zip [0..] ips)
-                    <> fmap (uncurry $ mkPort Output "out") (zip [0..] ops)
-      }
+    modify' $ #gs_module <>~
+      mempty
+        { modulePorts =
+            M.fromList $ fmap (uncurry $ mkPort Input "in") (zip [0..] ips)
+                      <> fmap (uncurry $ mkPort Output "out") (zip [0..] ops)
+        }
 
-  output' <- unGraph (c_graph c) input
-  unifyBits $ M.fromList $ V.toList $ V.zip output output'
-  gets gs_module
+    output' <- unGraph (c_graph c) input
+    unifyBits $ M.fromList $ V.toList $ V.zip output output'
+    gets gs_module
 
 
 newtype Named (n :: Symbol) a = Named a

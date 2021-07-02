@@ -275,7 +275,7 @@ blackbox
     => String
     -> Circuit a b
     -> Circuit a b
-blackbox t c = flip Circuit (c_roar c) $ Graph $ \a -> do
+blackbox t = Prim.diagrammed $ Graph $ \a -> do
   o <- synthesizeBits @b
   addCell $
     Y.Cell (Y.CellGeneric $ T.pack t)

@@ -42,6 +42,7 @@ import           Yosys (Bit, Module (Module), Cell (Cell), CellName (..), getBit
 import Generics.SYB hiding (Generic)
 import Debug.Trace (traceM, trace)
 import qualified Yosys as Y
+import Control.Monad.Reader (ReaderT, MonadReader)
 
 
 
@@ -100,7 +101,12 @@ data GraphState = GraphState
   }
   deriving stock (Generic)
 
-newtype GraphM a = GraphM { unGraphM :: State GraphState a }
-  deriving newtype (Functor, Applicative, Monad, MonadState GraphState, MonadFix)
-
+newtype GraphM a = GraphM { unGraphM :: ReaderT Int (State GraphState) a }
+  deriving newtype ( Functor
+                   , Applicative
+                   , Monad
+                   , MonadState GraphState
+                   , MonadReader Int
+                   , MonadFix
+                   )
 

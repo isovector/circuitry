@@ -32,6 +32,7 @@ import           Take2.Embed
 import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
+import Control.Monad.Reader (ask, local)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -263,7 +264,13 @@ shortcircuit :: (a -> b) -> Circuit a b -> Circuit a b
 shortcircuit f c = Circuit (c_graph c) $ timeInv f
 
 diagrammed :: Graph a b -> Circuit a b -> Circuit a b
-diagrammed g c = c { c_graph = g }
+diagrammed g c = c
+  { c_graph = Graph $ \v -> do
+      depth <- ask
+      case depth > 0 of
+        True -> local (subtract 1) $ unGraph (c_graph c) v
+        False -> unGraph g v
+  }
 
 
 binaryGateDiagram
