@@ -88,7 +88,7 @@ tickTock :: Circuit () Bool
 tickTock = fixC False $ snd' >>> copy >>> second' notGate
 
 
-clock :: forall a. (1 <= SizeOf a, Embed a, OkCircuit a, Numeric a) => Circuit () a
+clock :: forall a. (1 <= SizeOf a, Show a, Embed a, OkCircuit a, Numeric a) => Circuit () a
 clock = fixC (zero @a)
       $ first' (constC one)
     >>> swap
@@ -99,8 +99,7 @@ clock = fixC (zero @a)
 
 -- input: R S
 rsLatch :: Circuit (Bool, Bool) Bool
-rsLatch = blackbox "rs"
-        $ fixC False $ reassoc' >>> second' norGate >>> norGate >>> copy
+rsLatch = fixC False $ reassoc' >>> second' norGate >>> norGate >>> copy
 
 rsLatch_named :: Circuit (Named "R" Bool, Named "S" Bool) Bool
 rsLatch_named = coerceCircuit rsLatch
@@ -108,7 +107,8 @@ rsLatch_named = coerceCircuit rsLatch
 
 -- input: S V
 snap :: Circuit (Bool, Bool) Bool
-snap = second' (split >>> swap)
+snap = blackbox "snap"
+     $ second' (split >>> swap)
    >>> distribP
    >>> both andGate
    >>> rsLatch

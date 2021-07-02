@@ -77,13 +77,17 @@ freshBit = do
   pure p
 
 
-addCell :: Cell -> GraphM ()
-addCell c = do
-  name <- freshBit
+addNamedCell :: CellName -> Cell -> GraphM ()
+addNamedCell name c = do
   modify $
     #gs_module <>~
       Module mempty
-        (M.singleton (CellName $ T.pack $ show $ getBit name) c)
+        (M.singleton name c)
+
+addCell :: Cell -> GraphM ()
+addCell c = do
+  name <- freshBit
+  addNamedCell (CellName $ T.pack $ show $ getBit name) c
 
 synthesizeBits :: (Embed a) => GraphM (Vec (SizeOf a) Bit)
 synthesizeBits = flip V.traverse# (V.repeat ()) $ const freshBit

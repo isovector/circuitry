@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5d23e9c2d7fcc1405f4f24cdee6c8b9e3657d6426cb9bb69614e048649d6c9a0
+-- hash: c99ea0df2687b29a92b358cf69e4049544c2132f59f18ccecde31ce59a70ab83
 
 name:           circuitry
 version:        0.1.0.0
@@ -87,6 +87,7 @@ executable circuitry
   build-depends:
       MemoTrie
     , QuickCheck
+    , aeson
     , base
     , base64-bytestring
     , bytestring

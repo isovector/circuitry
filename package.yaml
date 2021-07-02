@@ -35,6 +35,7 @@ dependencies:
 - cirtography
 - text
 - syb
+- aeson
 
 default-extensions:
   - EmptyCase

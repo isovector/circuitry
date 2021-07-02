@@ -12,6 +12,8 @@
 
 module Take2.Primitives where
 
+import qualified Data.Map as M
+import Data.Map (Map)
 import           Circuitry.Catalyst (Signal (..), primSignal)
 import           Circuitry.Category (Category(..), (>>>))
 import qualified Circuitry.Category as Category
@@ -30,6 +32,8 @@ import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
 import Data.Coerce (Coercible, coerce)
+import qualified Data.Text as T
+import qualified Data.Aeson as A
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -109,15 +113,20 @@ fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ timeInv V.takeI
 
 pad
     :: forall m n a
-     . (Embed a, KnownNat m, KnownNat n, m <= n)
+     . (Show a, Embed a, KnownNat m, KnownNat n, m <= n)
     => a
     -> Circuit (Vec m a) (Vec n a)
 pad a = primitive $ Circuit gr $ timeInv $ \v -> v V.++ V.repeat @(n - m) a
--- TODO(sandy): give this a more reasonable impl
   where
     gr :: Graph (Vec m a) (Vec n a)
     gr = Graph $ \v -> do
       v2 <- synthesizeBits @(Vec (n - m) a)
+      addNamedCell (Y.CellName $ T.pack $ show a) $
+        Y.Cell Y.CellConstant
+          (M.singleton (Y.Width "Y") $ V.length v2)
+          (M.singleton "value" $ A.String $ T.pack $ show a)
+          (M.singleton "Y" Y.Output)
+          (M.singleton "Y" $ V.toList v2)
       pure $ v V.++ v2
 
 

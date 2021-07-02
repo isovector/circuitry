@@ -120,7 +120,7 @@ eitherE l r = serial
                  (separate >>> first' (unsafeParse >>> l) >>> fst')
 
 
-constC :: forall a. Embed a => a -> Circuit () a
+constC :: forall a. (Show a, Embed a) => a -> Circuit () a
 constC a = unsafeReinterpret @_ @(Vec 0 a) >>> Prim.pad a >>> lower
 
 
