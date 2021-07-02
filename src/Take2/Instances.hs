@@ -30,7 +30,7 @@ import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
-import           Take2.Graph (Graph(Graph), freshBit, addCell, synthesizeBits, GraphM (GraphM))
+import           Take2.Graph (Graph(Graph), freshBit, addCell, synthesizeBits, GraphM (GraphM), unifyBits, unifyBitsImpl)
 import qualified Take2.Primitives as Prim
 import           Test.QuickCheck
 import           Unsafe.Coerce (unsafeCoerce)
@@ -260,7 +260,7 @@ distribE = second' (serial >>> unconsC) >>> reassoc >>> first' swap >>> veryUnsa
 
 blackbox
     :: forall a b
-     . (KnownNat (SizeOf a), Embed b)
+     . (KnownNat (SizeOf a), SeparatePorts a, SeparatePorts b, KnownNat (SizeOf b))
     => String
     -> Circuit a b
     -> Circuit a b
@@ -268,27 +268,32 @@ blackbox c = blackbox' (pure c)
 
 blackbox'
     :: forall a b
-     . (KnownNat (SizeOf a), Embed b)
+     . (KnownNat (SizeOf a), SeparatePorts a, SeparatePorts b, KnownNat (SizeOf b))
     => GraphM String
     -> Circuit a b
     -> Circuit a b
 blackbox' get_name = Prim.diagrammed $ Graph $ \a -> do
-  o <- synthesizeBits @b
+  let mkPort :: String -> Int -> Y.PortName -> Y.PortName
+      mkPort pre ix (Y.PortName pn) =
+        Y.PortName (T.pack (pre <> show ix <> " : ") <> pn)
+
+
+  (ab, ip0) <- separatePorts @a
+  (o, op0) <- separatePorts @b
+
+  let ip = zipWith (\ix -> first' $ mkPort "i" ix ) [0..] ip0
+      op = zipWith (\ix -> first' $ mkPort "o" ix ) [0..] op0
+
   name <- get_name
   addCell $
     Y.Cell (Y.CellGeneric $ T.pack name)
-      (M.fromList
-        [ (Y.Width "A", V.length a)
-        , (Y.Width "Y", V.length o)
-        ])
+      (M.fromList $ fmap (Y.Width *** length) $ ip <> op)
       (M.singleton "name" $ A.String $ T.pack name)
-      (M.fromList
-        [ ("A", Y.Input)
-        , ("Y", Y.Output)
-        ])
-      (M.fromList
-        [ ("A", V.toList a)
-        , ("Y", V.toList o)
-        ])
-  pure o
+      (M.fromList $ fmap ((, Y.Input) . fst) ip
+                 <> fmap ((, Y.Output) . fst) op
+      )
+      (M.fromList $ ip <> op)
+  let subst = M.fromList $ V.toList $ V.zip ab a
+  unifyBits subst
+  pure $ unifyBitsImpl subst o
 

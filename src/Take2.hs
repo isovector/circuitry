@@ -109,7 +109,7 @@ andV = blackbox "andV" $ distribV >>> mapV andGate
 
 
 when
-    :: (1 <= SizeOf k, Embed k, Embed v, Embed r, Show k)
+    :: (1 <= SizeOf k, Embed k, Embed v, Embed r, Show k, SeparatePorts k, SeparatePorts v)
     => k
     -> Circuit v r
     -> Circuit (k, v) (Vec (SizeOf r) Bool)
@@ -139,7 +139,16 @@ pointwise c = zipVC >>> mapV c
 
 branch
     :: forall k v n cases
-     . (1 <= cases, 1 <= SizeOf k, Embed k, Embed v, KnownNat n, Show k, KnownNat cases)
+     . ( 1 <= cases
+       , 1 <= SizeOf k
+       , Embed k
+       , Embed v
+       , KnownNat n
+       , Show k
+       , KnownNat cases
+       , SeparatePorts k
+       , SeparatePorts v
+       )
     => Vec cases (k, Circuit v (Vec n Bool))
     -> Circuit (k, v) (Vec n Bool)
 branch vs = sequenceMetaV (fmap (uncurry when) vs) >>> pointwiseOr @cases
@@ -248,7 +257,7 @@ snap = blackbox "snap"
    >>> both andGate
    >>> rsLatch
 
-snapN :: forall a. (Typeable a, OkCircuit a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
+snapN :: forall a. (Typeable a, OkCircuit a, SeparatePorts a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
 snapN = blackbox ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> distribV >>> mapV snap
 
 
