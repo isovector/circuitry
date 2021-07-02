@@ -23,6 +23,7 @@ import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra
 import           Prelude hiding ((.), id, sum)
+import           Take2.Word
 
 
 class KnownNat (SizeOf a) => Embed a where
@@ -99,6 +100,18 @@ instance (GEmbed f, GEmbed g) => GEmbed (f :+: g) where
 
 instance Embed ()
 instance Embed a => Embed (Maybe a)
+
+instance Embed Word4 where
+  type SizeOf Word4 = 4
+  embed w8 =
+    let t = B.testBit w8
+     in t 0 :> t 1 :> t 2 :> t 3 :> Nil
+  reify (b0 :> b1 :> b2 :> b3 :> Nil) =
+    let s b = B.shiftL (bool 0 1 b)
+     in foldr @[] (B..|.) 0 $ zipWith s [b0, b1, b2, b3 ] [0..]
+  reify _ = error "impossible"
+  {-# INLINE[~2] embed #-}
+  {-# INLINE[~2] reify #-}
 
 instance Embed Word8 where
   type SizeOf Word8 = 8

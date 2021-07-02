@@ -7,6 +7,7 @@ import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
 import           Data.Word
 import           Take2.Embed
+import Take2.Word (Word4)
 
 class Numeric a where
   zero :: a
@@ -26,6 +27,7 @@ instance Numeric Bool where
   one = True
   addNumeric a b = (B.xor a b, a && b)
 
+instance Numeric Word4
 instance Numeric Word8
 instance Numeric Word16
 instance Numeric Word32

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c99ea0df2687b29a92b358cf69e4049544c2132f59f18ccecde31ce59a70ab83
+-- hash: 368e72d6086fd6b39a54ecd6049ca325a9e4600d1be31b07efe6f27eeb5aa04d
 
 name:           circuitry
 version:        0.1.0.0
@@ -33,6 +33,7 @@ executable circuitry
       Take2.Machinery
       Take2.Numeric
       Take2.Primitives
+      Take2.Word
       Paths_circuitry
   hs-source-dirs:
       src

@@ -34,6 +34,7 @@ import qualified Yosys as Y
 import Data.Typeable
 import GHC.TypeLits (type (-), type (<=), KnownNat)
 import Take2.Graph (Graph(Graph), freshBit, addCell)
+import Take2.Word (Word4)
 
 
 everyPair
@@ -320,6 +321,7 @@ main = do
         (create >>> first' rsLatch >>> destroy)
         rsLatch
 
+    , prop_embedRoundtrip @Word4
     , prop_embedRoundtrip @()
     , prop_embedRoundtrip @Bool
     , prop_embedRoundtrip @Word8
