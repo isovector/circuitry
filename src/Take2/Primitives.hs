@@ -29,6 +29,7 @@ import           Take2.Embed
 import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
+import Data.Coerce (Coercible, coerce)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -38,6 +39,13 @@ primitive = id
 timeInv :: (a -> b) -> Signal a b
 timeInv = primSignal
 {-# INLINE timeInv #-}
+
+coerceCircuit
+    :: (Coercible a a', Coercible b b', SizeOf a ~ SizeOf a', SizeOf b ~ SizeOf b')
+    => Circuit a b
+    -> Circuit a' b'
+coerceCircuit (Circuit gr c) =
+  Circuit (coerceGraph gr) (timeInv coerce >>> c >>> timeInv coerce)
 
 
 raw

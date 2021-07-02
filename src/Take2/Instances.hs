@@ -193,7 +193,27 @@ distribP = first' copy
 
 
 notGate :: Circuit Bool Bool
-notGate = copy >>> Prim.nandGate
+notGate
+  = Prim.diagrammed (Graph $ \(Cons i Nil) -> do
+      o <- freshBit
+      addCell $
+        Y.Cell (Y.CellNot)
+          (M.fromList
+            [ (Y.Width "A", 1)
+            , (Y.Width "Y", 1)
+            ])
+          mempty
+          (M.fromList
+            [ ("A", Y.Input)
+            , ("Y", Y.Output)
+            ])
+          (M.fromList
+            [ ("A", [i])
+            , ("Y", [o])
+            ])
+      pure $ Cons o Nil
+      )
+  $ copy >>> Prim.nandGate
 
 
 andGate :: Circuit (Bool, Bool) Bool
@@ -249,13 +269,13 @@ distribE
 distribE = second' (serial >>> unconsC) >>> reassoc >>> first' swap >>> veryUnsafeCoerce
 
 
-blackBox
+blackbox
     :: forall a b
      . (KnownNat (SizeOf a), Embed b)
     => String
     -> Circuit a b
     -> Circuit a b
-blackBox t c = flip Circuit (c_roar c) $ Graph $ \a -> do
+blackbox t c = flip Circuit (c_roar c) $ Graph $ \a -> do
   o <- synthesizeBits @b
   addCell $
     Y.Cell (Y.CellGeneric $ T.pack t)

@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RoleAnnotations #-}
 
 {-# OPTIONS_GHC -Wall                               #-}
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
@@ -49,6 +50,8 @@ newtype Signal a b = Signal
   { pumpSignal :: a -> (Signal a b, b)
   }
   deriving stock Functor
+
+type role Signal representational representational
 
 instance Applicative (Signal a) where
   pure b = Signal $ const $ (pure b, b)

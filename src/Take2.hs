@@ -89,16 +89,21 @@ tickTock = fixC False $ snd' >>> copy >>> second' notGate
 
 
 clock :: forall a. (1 <= SizeOf a, Embed a, OkCircuit a, Numeric a) => Circuit () a
-clock = fixC (zero @a) $ first' (constC one)
-                     >>> swap
-                     >>> first' copy
-                     >>> reassoc'
-                     >>> second' (addN >>> fst')
+clock = fixC (zero @a)
+      $ first' (constC one)
+    >>> swap
+    >>> first' copy
+    >>> reassoc'
+    >>> second' (addN >>> fst')
 
 
 -- input: R S
 rsLatch :: Circuit (Bool, Bool) Bool
-rsLatch = fixC False $ reassoc' >>> second' norGate >>> norGate >>> copy
+rsLatch = blackbox "rs"
+        $ fixC False $ reassoc' >>> second' norGate >>> norGate >>> copy
+
+rsLatch_named :: Circuit (Named "R" Bool, Named "S" Bool) Bool
+rsLatch_named = coerceCircuit rsLatch
 
 
 -- input: S V
@@ -134,6 +139,11 @@ prop_equivalent n c1 c2 = property $ do
       counterexample ("c2: " <> show c2_r) $
         c1_r === c2_r
 
+add2_named
+    :: Circuit (Named "A" Bool, (Named "B" Bool, Named "Cin" Bool))
+               (Named "Sum" Bool, Named "Cout" Bool)
+add2_named = coerceCircuit add2
+
 
 prop_embedRoundtrip :: forall a. (Show a, Eq a, Embed a, Arbitrary a) => Property
 prop_embedRoundtrip = property $ do
@@ -141,7 +151,7 @@ prop_embedRoundtrip = property $ do
     a === reify (embed a)
 
 example_map :: Circuit (Vec 4 Bool) (Vec 4 Bool)
-example_map = mapV (blackBox "" id)
+example_map = mapV (blackbox "" id)
 
 
 main :: IO ()
