@@ -25,6 +25,7 @@ import           Take2.Numeric
 import           Take2.Primitives (timeInv, shortcircuit)
 import           Test.QuickCheck
 import           Yosys (renderModule)
+import qualified Yosys as Y
 
 
 everyPair
@@ -66,8 +67,9 @@ add2 :: Circuit (Bool, (Bool, Bool)) (Bool, Bool)
 add2 = copy >>> sum *** cout
 
 
-addN :: (Numeric a, OkCircuit a) => Circuit (a, a) (a, Bool)
-addN = shortcircuit (uncurry addNumeric)
+addN :: (SeparatePorts a, Numeric a, OkCircuit a) => Circuit (a, a) (a, Bool)
+addN = diagrammed (binaryGateDiagram Y.CellAdd)
+     $ shortcircuit (uncurry addNumeric)
      $ serial *** serial
    >>> zipVC
    >>> create
@@ -88,7 +90,7 @@ tickTock :: Circuit () Bool
 tickTock = fixC False $ snd' >>> copy >>> second' notGate
 
 
-clock :: forall a. (1 <= SizeOf a, Show a, Embed a, OkCircuit a, Numeric a) => Circuit () a
+clock :: forall a. (1 <= SizeOf a, Show a, SeparatePorts a, Embed a, OkCircuit a, Numeric a) => Circuit () a
 clock = fixC (zero @a)
       $ first' (constC one)
     >>> swap

@@ -138,7 +138,7 @@ nandGate = primitive $ Circuit gr $ timeInv $ not . uncurry (&&)
     gr :: Graph (Bool, Bool) Bool
     gr = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
       o <- freshBit
-      addCell $ Y.mkMonoidalBinaryOp Y.CellNand "A" "B" "Y" [i1] [i2] o
+      addCell $ Y.mkMonoidalBinaryOp Y.CellNand "A" "B" "Y" [i1] [i2] [o]
       pure $ Cons o Nil
 
 
@@ -269,9 +269,14 @@ diagrammed :: Graph a b -> Circuit a b -> Circuit a b
 diagrammed g c = c { c_graph = g }
 
 
-binaryGateDiagram :: Y.CellType -> Graph (Bool, Bool) Bool
-binaryGateDiagram ty = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
-  o <- freshBit
-  addCell $ Y.mkMonoidalBinaryOp ty "A" "B" "Y" [i1] [i2] o
-  pure $ Cons o Nil
+binaryGateDiagram
+    :: forall a b c
+     . (Embed a, Embed b, SeparatePorts c)
+    => Y.CellType
+    -> Graph (a, b) c
+binaryGateDiagram ty = Graph $ \i -> do
+  let (a, b) = V.splitAtI @(SizeOf a) i
+  c <- fst <$> separatePorts @c
+  addCell $ Y.mkMonoidalBinaryOp ty "A" "B" "Y" (V.toList a) (V.toList b) (V.toList c)
+  pure c
 
