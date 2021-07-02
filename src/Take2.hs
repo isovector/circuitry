@@ -140,6 +140,9 @@ prop_embedRoundtrip = property $ do
   forAllShrink arbitrary shrink $ \(a :: a)  ->
     a === reify (embed a)
 
+example_map :: Circuit (Vec 4 Bool) (Vec 4 Bool)
+example_map = mapV (blackBox "" id)
+
 
 main :: IO ()
 main = do

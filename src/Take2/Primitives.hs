@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs         #-}
+{-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -11,26 +12,22 @@
 
 module Take2.Primitives where
 
-import Data.Foldable
-import           Circuitry.Catalyst (loop, Time, Signal (..), primSignal)
+import           Circuitry.Catalyst (Signal (..), primSignal)
 import           Circuitry.Category (Category(..), (>>>))
 import qualified Circuitry.Category as Category
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
-import           Control.Monad.State
+import           Control.Monad.State (StateT(..), get, lift, MonadState (put), runStateT)
+import           Data.Bifunctor (first)
+import           Data.Foldable
 import           Data.Generics.Labels ()
-import           Data.Proxy
-import           Data.Type.Equality
-import           Debug.RecoverRTTI (anythingToString)
-import           Debug.Trace (trace)
+import           Data.Profunctor (dimap, lmap)
 import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
-import Data.Profunctor (dimap, lmap)
-import Data.Bifunctor (first)
 import qualified Yosys as Y
 
 
@@ -104,10 +101,17 @@ fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ timeInv V.takeI
 
 pad
     :: forall m n a
-     . (KnownNat m, KnownNat n, m <= n)
+     . (Embed a, KnownNat m, KnownNat n, m <= n)
     => a
     -> Circuit (Vec m a) (Vec n a)
-pad a = primitive $ Circuit undefined $ timeInv $ \v -> V.repeat @(n - m) a V.++ v
+pad a = primitive $ Circuit gr $ timeInv $ \v -> v V.++ V.repeat @(n - m) a
+-- TODO(sandy): give this a more reasonable impl
+  where
+    gr :: Graph (Vec m a) (Vec n a)
+    gr = Graph $ \v -> do
+      v2 <- synthesizeBits @(Vec (n - m) a)
+      pure $ v V.++ v2
+
 
 
 nandGate :: Circuit (Bool, Bool) Bool
@@ -127,7 +131,7 @@ mapFoldVC
      . (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
     => Circuit (a, r) (b, r)
     -> Circuit (Vec n a, r) (Vec n b, r)
-mapFoldVC c = primitive $ Circuit undefined $
+mapFoldVC c = primitive $ Circuit gr $
   timeInv
     ( ((\(v, r) ->
         case v of
@@ -135,7 +139,7 @@ mapFoldVC c = primitive $ Circuit undefined $
           Cons a v' -> Right $ ((a, r), v')
       ) :: (Vec n a, r) -> Either (Vec n b, r) ((a, r), Vec (n - 1) a))
     )
-  >>> Category.right
+  >>> undefined {-Category.right
         ( Category.first' (c_roar c)
       >>> Category.reassoc'
       >>> Category.second'
@@ -154,7 +158,22 @@ mapFoldVC c = primitive $ Circuit undefined $
       >>> Category.reassoc
       >>> Category.first' (timeInv $ uncurry Cons)
         )
-  >>> Category.unify
+  >>> Category.unify-}
+  where
+    gr :: Graph (Vec n a, r) (Vec n b, r)
+    gr = Graph $ \i -> do
+      let (va, r0) = V.splitAtI @(n * SizeOf a) i
+          vs = V.unconcatI @n va
+      (bs :: Vec n (Vec (SizeOf b) Y.Bit) , r')
+        <- flip runStateT r0 $ flip V.traverse# vs $ \a ->
+            do
+              r <- get
+              out <- lift $ unGraph (c_graph c) $ a V.++ r
+              let (b, r') = V.splitAtI out
+              put r'
+              pure b
+      pure $ V.concat bs V.++ r'
+
 
 data Dict c where
   Dict :: c => Dict c
@@ -162,19 +181,19 @@ data Dict c where
 unsafeSatisfyGEq1 :: Dict (1 <= n)
 unsafeSatisfyGEq1 = unsafeCoerce $ Dict @(1 <= 2)
 
-----   (v, r0) <- f
-----   case v of
-----     Nil -> pure (Nil, r0)
-----     Cons a v_cons -> do
-----       (b, r') <- runRoar (c_roar c) _
-----       undefined
-----       -- let (b, r') = runRoar (c_roar c) (const (a, r0)) t
-----       --     (v', _) = runRoar (c_roar $ mapFoldVC c) (const (v_cons, r')) t
-----       --   in (Cons b v', r')
 
-
-zipVC :: Circuit (Vec n a, Vec n b) (Vec n (a, b))
-zipVC = primitive $ Circuit undefined $ timeInv $ uncurry V.zip
+zipVC
+    :: forall n a b
+     . (KnownNat n, KnownNat (SizeOf a), KnownNat (SizeOf b))
+    => Circuit (Vec n a, Vec n b) (Vec n (a, b))
+zipVC = primitive $ Circuit gr $ timeInv $ uncurry V.zip
+  where
+    gr :: Graph (Vec n a, Vec n b) (Vec n (a, b))
+    gr = Graph $ \i -> do
+      let (a, b) = V.splitAtI @(n * SizeOf a) i
+          as = V.unconcatI @n a
+          bs = V.unconcatI @n b
+      pure $ V.concatMap (\(v1, v2) -> v1 V.++ v2) $ V.zip as bs
 
 
 cloneV :: forall n r. KnownNat n => Circuit r (Vec n r)

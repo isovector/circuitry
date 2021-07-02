@@ -11,18 +11,19 @@
 module Take2.Circuit where
 
 
-import qualified Data.Map as M
-import Data.Map (Map)
-import Circuitry.Catalyst (Signal, Time, pumpSignal)
-import Circuitry.Category (Category(..))
-import Data.Generics.Labels ()
-import Prelude hiding ((.), id)
-import Take2.Embed
-import Take2.Graph
-import Yosys (Module, modulePorts, Port (Port), Direction (Input, Output))
-import Control.Monad.State (evalState, gets)
-import GHC.TypeLits (type (<=))
+import           Circuitry.Catalyst (Signal, Time, pumpSignal)
+import           Circuitry.Category (Category(..))
 import qualified Clash.Sized.Vector as V
+import           Control.Monad.State (evalState, gets)
+import           Data.Generics.Labels ()
+import qualified Data.Map as M
+import           Prelude hiding ((.), id)
+import           Take2.Embed
+import           Take2.Graph
+import           Yosys (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
+import Data.Typeable
+import qualified Data.Text as T
+import Debug.Trace (traceM)
 
 
 data Circuit a b = Circuit
@@ -49,17 +50,17 @@ evalCircuitT :: Circuit a b -> (Time -> a) -> Time -> b
 evalCircuitT c = reallyPumpSignal (c_roar c)
 
 
-getGraph :: forall a b. (1 <= SizeOf a, Embed a, Embed b) => Circuit a b -> Module
+getGraph :: forall a b. (Typeable a, Typeable b, Embed a, Embed b) => Circuit a b -> Module
 getGraph c = flip evalState (GraphState 0 mempty) $ unGraphM $ do
   input <- synthesizeBits @a
   output <- unGraph (c_graph c) input
   m <- gets gs_module
   pure $ m <> mempty
     { modulePorts = M.fromList
-        [ ( "input"
+        [ ( PortName $ mappend "in: " $ T.pack $ show $ typeRep $ Proxy @a
           , Port Input $ V.toList input
           )
-        , ( "output"
+        , ( PortName $ mappend "out: " $ T.pack $ show $ typeRep $ Proxy @b
           , Port Output $ V.toList output
           )
         ]

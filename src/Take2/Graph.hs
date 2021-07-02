@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes  #-}
 {-# LANGUAGE MagicHash            #-}
+{-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedLabels     #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -84,8 +85,8 @@ addCell c = do
       Module mempty
         (M.singleton (CellName $ T.pack $ show $ getBit name) c)
 
-synthesizeBits :: (1 <= SizeOf a, Embed a) => GraphM (Vec (SizeOf a) Bit)
-synthesizeBits = for (V.repeat ()) $ const freshBit
+synthesizeBits :: (Embed a) => GraphM (Vec (SizeOf a) Bit)
+synthesizeBits = flip V.traverse# (V.repeat ()) $ const freshBit
 
 
 data GraphState = GraphState

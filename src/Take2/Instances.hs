@@ -1,5 +1,6 @@
-{-# LANGUAGE InstanceSigs           #-}
-{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE InstanceSigs         #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -20,17 +21,23 @@ import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
 import           Circuitry.Category (SymmetricProduct(..))
 import           Clash.Sized.Vector (Vec(..))
+import qualified Data.Bits as B
 import           Data.Generics.Labels ()
+import           Data.Map (Map)
+import qualified Data.Map as M
+import           Data.Text (Text)
 import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
+import           Take2.Graph (Graph(Graph), freshBit, addCell, synthesizeBits)
 import qualified Take2.Primitives as Prim
-import Test.QuickCheck
-import qualified Data.Bits as B
-import Unsafe.Coerce (unsafeCoerce)
+import           Test.QuickCheck
+import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
-import Take2.Graph (Graph(Graph), freshBit, addCell)
+import Data.Foldable (toList)
+import qualified Clash.Sized.Vector as V
+import qualified Data.Text as T
 
 
 instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
@@ -235,36 +242,35 @@ deject = serial >>> unconsC >>> snd' >>> unsafeParse
 veryUnsafeCoerce :: forall a b. Circuit a b
 veryUnsafeCoerce = Circuit undefined $ unsafeCoerce $ Roar id
 
--- mapFoldVC
---     :: forall n a b r
---      . (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
---     => Circuit (a, r) (b, r)
---     -> Circuit (Vec n a, r) (Vec n b, r)
--- mapFoldVC c = first' ((
---                 case Prim.unsafeSatisfyGEq1 @(n - 1) of
---                   Prim.Dict -> (Prim.induction @n :: Circuit (Vec n a) (Either (Vec 0 a) (a, Vec (n - 1) a)))
---                      ) )
---           >>> swap
---           >>> distrib
---           >>> (swap >>> veryUnsafeCoerce)
---           +++ ( reassoc
---             >>> first' (swap >>> c)
---             >>> reassoc'
---             >>> second'
---                 ( swap
---               >>> second' copy
---               >>> reassoc
---               >>> first' (mapFoldVC c)
---               >>> fst'
---                 )
---             >>> reassoc
---             >>> first' consC
---               )
---           >>> deject
-
 
 distribE
     :: (OkCircuit a, OkCircuit b, OkCircuit c)
     => Circuit (a, Either b c) (Either (a, b) (a, c))
 distribE = second' (serial >>> unconsC) >>> reassoc >>> first' swap >>> veryUnsafeCoerce
+
+
+blackBox
+    :: forall a b
+     . (KnownNat (SizeOf a), Embed b)
+    => String
+    -> Circuit a b
+    -> Circuit a b
+blackBox t c = flip Circuit (c_roar c) $ Graph $ \a -> do
+  o <- synthesizeBits @b
+  addCell $
+    Y.Cell (Y.CellGeneric $ T.pack t)
+      (M.fromList
+        [ (Y.Width "A", V.length a)
+        , (Y.Width "Y", V.length o)
+        ])
+      mempty
+      (M.fromList
+        [ ("A", Y.Input)
+        , ("Y", Y.Output)
+        ])
+      (M.fromList
+        [ ("A", V.toList a)
+        , ("Y", V.toList o)
+        ])
+  pure o
 
