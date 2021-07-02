@@ -285,6 +285,28 @@ diagrammed g c = c
   }
 
 
+unaryGateDiagram
+    :: forall a c
+     . (Embed a, SeparatePorts c)
+    => Y.CellType
+    -> Graph a c
+unaryGateDiagram ty = Graph $ \a -> do
+  c <- fst <$> separatePorts @c
+  addCell $
+    Y.Cell
+      ty
+      (M.singleton (Y.Width "A") $ V.length a)
+      mempty
+      (M.fromList
+        [ ("A", Y.Input)
+        , ("Y", Y.Output)
+        ])
+      (M.fromList
+        [ ("A", V.toList a)
+        , ("Y", V.toList c)
+        ])
+  pure c
+
 binaryGateDiagram
     :: forall a b c
      . (Embed a, Embed b, SeparatePorts c)

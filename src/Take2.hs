@@ -142,24 +142,9 @@ data AluOpCode
   deriving anyclass Embed
 
 bigAndGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
-bigAndGate = diagrammed ( Graph $ \v -> do
-               x <- freshBit
-               addCell $
-                Y.Cell
-                  Y.CellAnd
-                  (M.singleton (Y.Width "A") $ V.length v)
-                  mempty
-                  (M.fromList
-                    [ ("A", Y.Input)
-                    , ("Y", Y.Output)
-                    ])
-                  (M.fromList
-                    [ ("A", V.toList v)
-                    , ("Y", [x])
-                    ])
-               pure $ Cons x Nil
-             )
-           $ create >>> second' (constC True) >>> foldVC andGate
+bigAndGate
+  = diagrammed (unaryGateDiagram Y.CellAnd)
+  $ create >>> second' (constC True) >>> foldVC andGate
 
 eq :: (Embed a, 1 <= SizeOf a) => Circuit (a, a) Bool
 eq = both serial >>> zipVC >>> mapV nxorGate >>> bigAndGate

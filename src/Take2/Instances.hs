@@ -195,25 +195,7 @@ distribP = first' copy
 
 notGate :: Circuit Bool Bool
 notGate
-  = Prim.diagrammed (Graph $ \(Cons i Nil) -> do
-      o <- freshBit
-      addCell $
-        Y.Cell (Y.CellNot)
-          (M.fromList
-            [ (Y.Width "A", 1)
-            , (Y.Width "Y", 1)
-            ])
-          mempty
-          (M.fromList
-            [ ("A", Y.Input)
-            , ("Y", Y.Output)
-            ])
-          (M.fromList
-            [ ("A", [i])
-            , ("Y", [o])
-            ])
-      pure $ Cons o Nil
-      )
+  = Prim.diagrammed (Prim.unaryGateDiagram Y.CellNot)
   $ copy >>> Prim.nandGate
 
 
