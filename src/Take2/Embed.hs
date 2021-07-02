@@ -23,7 +23,6 @@ import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra
 import           Prelude hiding ((.), id, sum)
-import           Unsafe.Coerce (unsafeCoerce)
 
 
 class KnownNat (SizeOf a) => Embed a where

@@ -16,7 +16,6 @@ import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
 import           Data.Word (Word8)
 import           GHC.Generics (Generic)
-import           GHC.TypeLits (type (<=))
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
@@ -90,7 +89,9 @@ tickTock :: Circuit () Bool
 tickTock = fixC False $ snd' >>> copy >>> second' notGate
 
 
-clock :: forall a. (1 <= SizeOf a, Show a, SeparatePorts a, Embed a, OkCircuit a, Numeric a) => Circuit () a
+clock
+    :: forall a. (Show a, SeparatePorts a, Embed a, OkCircuit a, Numeric a)
+    => Circuit () a
 clock = fixC (zero @a)
       $ first' (constC one)
     >>> swap

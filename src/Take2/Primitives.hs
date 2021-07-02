@@ -12,18 +12,19 @@
 
 module Take2.Primitives where
 
-import qualified Data.Map as M
-import Data.Map (Map)
 import           Circuitry.Catalyst (Signal (..), primSignal)
 import           Circuitry.Category (Category(..), (>>>))
 import qualified Circuitry.Category as Category
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import           Control.Monad.State (StateT(..), get, lift, MonadState (put), runStateT)
+import qualified Data.Aeson as A
 import           Data.Bifunctor (first)
-import           Data.Foldable
+import           Data.Coerce (Coercible, coerce)
 import           Data.Generics.Labels ()
+import qualified Data.Map as M
 import           Data.Profunctor (dimap, lmap)
+import qualified Data.Text as T
 import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
@@ -31,10 +32,6 @@ import           Take2.Embed
 import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
-import Data.Coerce (Coercible, coerce)
-import qualified Data.Text as T
-import qualified Data.Aeson as A
-import Debug.Trace (traceM)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -223,7 +220,7 @@ cloneV = primitive $ Circuit gr $ timeInv V.repeat
 
 fixC
     :: forall s a b
-     . (1 <= SizeOf s, Embed s, Embed a, Embed b)
+     . (Embed s, Embed a, Embed b)
     => s
     -> Circuit (a, s) (b, s)
     -> Circuit a b
