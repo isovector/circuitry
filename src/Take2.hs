@@ -25,7 +25,7 @@ import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Machinery
 import           Take2.Numeric
-import           Take2.Primitives (timeInv, shortcircuit, gateDiagram, constantName)
+import           Take2.Primitives (timeInv, shortcircuit, gateDiagram, constantName, untribuf)
 import           Take2.Graph (RenderOptions(..))
 import           Take2.Word
 import           Test.QuickCheck
@@ -230,11 +230,6 @@ bigAndGate
   $ gateDiagram (unaryGateDiagram Y.CellAnd)
   $ create >>> second' (constC True) >>> foldVC andGate
 
-bigOrGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
-bigOrGate
-  = gateDiagram (unaryGateDiagram Y.CellOr)
-  $ create >>> second' (constC False) >>> foldVC orGate
-
 eq :: (Embed a, 1 <= SizeOf a) => Circuit (a, a) Bool
 eq = diagrammed (binaryGateDiagram Y.CellEq)
    $ both serial >>> zipVC >>> mapV nxorGate >>> bigAndGate
@@ -271,13 +266,24 @@ snapN = blackbox ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> dis
 addressed :: forall n a b. (Embed a, Embed b, KnownNat n) => Circuit a b -> Circuit (Addr n, a) b
 addressed c = decode *** cloneV
           >>> zipVC
-          >>> mapV (swap >>> andAll >>> unsafeParse >>> c >>> serial)
+          >>> mapV ( swap
+                 >>> second' copy
+                 >>> reassoc
+                 >>> first' ( first' serial
+                          >>> tribufAll
+                          >>> mapV untribuf
+                          >>> unsafeParse
+                          >>> c
+                          >>> serial
+                            )
+                 >>> tribufAll
+                   )
           >>> transposeV
-          >>> mapV bigOrGate
+          >>> mapV untribufAll
           >>> unsafeParse
 
 decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
-decode = blackbox "decode" $ mapV (copy >>> first' notGate) >>> crossV andGate
+decode = mapV (copy >>> first' notGate) >>> crossV andGate
 
 
 prop_circuit :: (Arbitrary a, Eq b, Show a, Show b) => (a -> b) -> Circuit a b -> Property

@@ -150,6 +150,25 @@ nandGate = primitive $ Circuit gr $ timeInv $ not . uncurry (&&)
       pure $ Cons o Nil
 
 
+tribuf :: Circuit (Bool, Bool) ZBool
+tribuf = primitive $ Circuit gr $ timeInv $ \(a, en) -> bool Z (Bool a) en
+  where
+    gr :: Graph (Bool, Bool) ZBool
+    gr = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
+      -- NOTE(sandy): we must be careful to not use en_out anywhere in the graph
+      en_out <- freshBit
+      out <- freshBit
+      addCell $ Y.mkMonoidalBinaryOp Y.CellTribuf "A" "EN" "Y" [i1] [i2] [out]
+      pure $ Cons en_out $ Cons out Nil
+
+untribuf :: Circuit ZBool Bool
+untribuf = primitive $ Circuit gr $ timeInv $ \case
+    Bool b -> b
+    -- TODO(sandy): don't error here; change the model so we can represent this
+    Z -> error "you untribuffed a Z!"
+  where
+    gr :: Graph ZBool Bool
+    gr = Graph $ \(Cons _ a) -> pure a
 
 
 mapFoldVC
@@ -300,6 +319,11 @@ foldVC c = primitive $ Circuit gr $
 -- | Too slow to run real world physics? JET STREAM IT, BABY.
 shortcircuit :: (a -> b) -> Circuit a b -> Circuit a b
 shortcircuit f c = Circuit (c_graph c) $ timeInv f
+
+
+unobservable :: Graph a b -> Circuit a b -> Circuit a b
+unobservable g c = c { c_graph = g }
+
 
 diagrammed :: Graph a b -> Circuit a b -> Circuit a b
 diagrammed g c = c

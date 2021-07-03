@@ -183,6 +183,24 @@ ifC t f = second' (copy >>> (t *** f))
 andAll :: OkCircuit a => Circuit (a, Bool) (Vec (SizeOf a) Bool)
 andAll = swap >>> second' serial >>> distribV >>> mapV andGate
 
+tribufAll :: KnownNat n => Circuit (Vec n Bool, Bool) (Vec n ZBool)
+tribufAll = swap >>> distribV >>> mapV (swap >>> Prim.tribuf)
+
+-- TODO(sandy): terrible terrible implementation
+untribufAll :: forall n. (1 <= n, KnownNat n) => Circuit (Vec n ZBool) Bool
+untribufAll = mapV Prim.untribuf >>> Prim.unobservable gr bigOrGate
+  where
+    gr :: Graph (Vec n Bool) Bool
+    gr = Graph $ \v -> do
+      o <- freshBit
+      unifyBits $ M.fromList $ zip (V.toList v) $ repeat o
+      pure $ Cons o Nil
+
+bigOrGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
+bigOrGate
+  = Prim.gateDiagram (Prim.unaryGateDiagram Y.CellOr)
+  $ create >>> second' (constC False) >>> Prim.foldVC orGate
+
 
 distribP :: (OkCircuit a, OkCircuit b, OkCircuit c) => Circuit (a, (b, c)) ((a, b), (a, c))
 distribP = first' copy
