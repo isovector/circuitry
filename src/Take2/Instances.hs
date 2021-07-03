@@ -296,3 +296,10 @@ blackbox' get_name = Prim.diagrammed $ Graph $ \a -> do
   unifyBits subst
   pure $ unifyBitsImpl subst o
 
+sequenceMetaV
+    :: (Embed a, Embed b, KnownNat cases)
+    => Vec cases (Circuit a b)
+    -> Circuit a (Vec cases b)
+sequenceMetaV Nil = create >>> snd' >>> unsafeReinterpret
+sequenceMetaV (Cons c v) = copy >>> first' c >>> second' (sequenceMetaV v) >>> consC
+

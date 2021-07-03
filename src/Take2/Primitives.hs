@@ -264,7 +264,24 @@ transposeV = primitive $ Circuit gr $ timeInv V.transpose
 
 
 foldVC :: forall n a b. (KnownNat n, Embed a, Embed b) => Circuit (a, b) b -> Circuit (Vec n a, b) b
-foldVC c = primitive $ Circuit gr $ foldSig $ c_roar c
+foldVC c = primitive $ Circuit gr $
+  timeInv
+    ( ((\(v, r) ->
+        case v of
+          Nil -> Left r
+          Cons a v' -> Right $ ((a, r), v')
+      ) :: (Vec n a, b) -> Either b ((a, b), Vec (n - 1) a))
+    )
+  >>> Category.right
+        ( Category.first' (c_roar c)
+      >>> Category.swap
+      >>> (Signal (\a ->
+              case unsafeSatisfyGEq1 @(n - 1) of
+                Dict -> pumpSignal (c_roar $ foldVC c) a
+              ) :: Signal (Vec (n - 1) a, b) b
+            )
+        )
+  >>> Category.unify
   where
     gr :: Graph (Vec n a, b) b
     gr = Graph $ \i -> do
@@ -277,20 +294,6 @@ foldVC c = primitive $ Circuit gr $ foldSig $ c_roar c
               r' <- lift $ unGraph (c_graph c) $ a V.++ r
               put r'
       pure r'
-
--- NOTE(sandy): this thing will pump the first arg for every element in the
--- vector. seems reasonable, but also that it can't possibly clock --- but
--- maybe that's to be expected?
---
--- turns out this is actually an issue
-foldSig :: Signal (a, b) b -> Signal (Vec n a, b) b
-foldSig (Signal f) = Signal $ \(v, b) ->
-  case v of
-    Nil -> (timeInv snd, b)
-    Cons a v' ->
-      let (sa, b') = f (a, b)
-          (sv, b'') = pumpSignal (foldSig sa) (v', b')
-       in (lmap (first V.dropI) sv, b'')
 
 
 ------------------------------------------------------------------------------

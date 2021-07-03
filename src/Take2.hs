@@ -157,13 +157,6 @@ branch vs = sequenceMetaV (fmap (uncurry when) vs) >>> pointwiseOr @cases
 onEach :: (Embed a, Embed b, KnownNat cases) => (v -> Circuit a b) -> Vec cases v -> Circuit a (Vec cases b)
 onEach f v = sequenceMetaV $ fmap f v
 
-sequenceMetaV
-    :: (Embed a, Embed b, KnownNat cases)
-    => Vec cases (Circuit a b)
-    -> Circuit a (Vec cases b)
-sequenceMetaV Nil = create >>> snd' >>> unsafeReinterpret
-sequenceMetaV (Cons c v) = copy >>> first' c >>> second' (sequenceMetaV v) >>> consC
-
 
 pointwiseOr
     :: (1 <= m, KnownNat n, KnownNat m)
