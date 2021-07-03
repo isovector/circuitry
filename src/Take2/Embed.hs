@@ -6,6 +6,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
 
 {-# OPTIONS_GHC -Wall                   #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
 {-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}
 
 module Take2.Embed where
@@ -17,8 +18,9 @@ import qualified Data.Bits as B
 import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
+import           Data.Maybe (fromMaybe)
 import           Data.Typeable
-import           Data.Word (Word8)
+import           Data.Word (Word8, Word64, Word32, Word16)
 import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra
@@ -101,29 +103,44 @@ instance (GEmbed f, GEmbed g) => GEmbed (f :+: g) where
 instance Embed ()
 instance Embed a => Embed (Maybe a)
 
+
+embedWord :: (B.Bits a, KnownNat m) => a -> Vec m Bool
+embedWord w =
+  fromMaybe (error "embedWord: faulty Bits instance") $ V.fromList $
+    fmap (B.testBit w) [0 .. B.bitSize w - 1]
+{-# INLINE[~2] embedWord #-}
+
+reifyWord :: (B.Bits a, KnownNat m, Num a) => Vec m Bool -> a
+reifyWord w =
+  let s b = B.shiftL (bool 0 1 b)
+   in foldr @[] (B..|.) 0 $ zipWith s (V.toList w) [0..]
+{-# INLINE[~2] reifyWord #-}
+
+
 instance Embed Word4 where
   type SizeOf Word4 = 4
-  embed w8 =
-    let t = B.testBit w8
-     in t 0 :> t 1 :> t 2 :> t 3 :> Nil
-  reify (b0 :> b1 :> b2 :> b3 :> Nil) =
-    let s b = B.shiftL (bool 0 1 b)
-     in foldr @[] (B..|.) 0 $ zipWith s [b0, b1, b2, b3 ] [0..]
-  reify _ = error "impossible"
-  {-# INLINE[~2] embed #-}
-  {-# INLINE[~2] reify #-}
+  embed = embedWord
+  reify = reifyWord
 
 instance Embed Word8 where
   type SizeOf Word8 = 8
-  embed w8 =
-    let t = B.testBit w8
-     in t 0 :> t 1 :> t 2 :> t 3 :> t 4 :> t 5 :> t 6 :> t 7 :> Nil
-  reify (b0 :> b1 :> b2 :> b3 :> b4 :> b5 :> b6 :> b7 :> Nil) =
-    let s b = B.shiftL (bool 0 1 b)
-     in foldr @[] (B..|.) 0 $ zipWith s [b0, b1, b2, b3, b4, b5, b6, b7] [0..]
-  reify _ = error "impossible"
-  {-# INLINE[~2] embed #-}
-  {-# INLINE[~2] reify #-}
+  embed = embedWord
+  reify = reifyWord
+
+instance Embed Word16 where
+  type SizeOf Word16 = 16
+  embed = embedWord
+  reify = reifyWord
+
+instance Embed Word32 where
+  type SizeOf Word32 = 32
+  embed = embedWord
+  reify = reifyWord
+
+instance Embed Word64 where
+  type SizeOf Word64 = 64
+  embed = embedWord
+  reify = reifyWord
 
 instance Embed Bool
 
@@ -133,8 +150,6 @@ instance (Embed a, KnownNat n) => Embed (Vec n a) where
   type SizeOf (Vec n a) = n * SizeOf a
   embed = V.concatMap embed
   reify = V.map reify . V.unconcatI
-  {-# INLINE[~2] embed #-}
-  {-# INLINE[~2] reify #-}
 
 instance (Embed a, Embed b) => Embed (Either a b)
 
