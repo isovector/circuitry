@@ -286,16 +286,16 @@ decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
 decode = mapV (copy >>> first' notGate) >>> crossV andGate
 
 
-prop_circuit :: (Arbitrary a, Eq b, Show a, Show b) => (a -> b) -> Circuit a b -> Property
+prop_circuit :: (Arbitrary a, Eq b, Show a, Show b, Embed b, Embed a) => (a -> b) -> Circuit a b -> Property
 prop_circuit f c = property $ do
   a <- arbitrary
   t <- arbitrary
   pure $
     counterexample ("time: " <> show t) $
     counterexample ("input: " <> show a) $
-      f a === evalCircuit c a t
+      Just (f a) === evalCircuit c a t
 
-prop_equivalent :: (Function a, Arbitrary a, Eq b, Show a, Show b) => String -> Circuit a b -> Circuit a b -> Property
+prop_equivalent :: (Function a, Arbitrary a, Eq b, Show a, Show b, Embed b, Embed a) => String -> Circuit a b -> Circuit a b -> Property
 prop_equivalent n c1 c2 = property $ do
   forAllShrink arbitrary shrink $ \a  -> do
     t <- resize 5 $ arbitrary
@@ -323,7 +323,7 @@ prop_eq :: forall a. (1 <= SizeOf a, Show a, Eq a, Embed a, Arbitrary a) => Prop
 prop_eq = property $ do
   forAllShrink arbitrary shrink $ \(a :: a) -> do
     t <- arbitrary
-    pure $ evalCircuit (eq @a) (a, a) t === True
+    pure $ evalCircuit (eq @a) (a, a) t === Just True
 
 example_map :: Circuit (Vec 4 Bool) (Vec 4 Bool)
 example_map = mapV (blackbox "" id)
@@ -350,7 +350,7 @@ main = do
         w <- arbitrary @Word8
         t <- arbitrary
         pure $
-          evalCircuit (intro w >>> eq) w t === True
+          evalCircuit (intro w >>> eq) w t === Just True
 
     , property $ do
         w <- arbitrary @Word8
@@ -440,8 +440,8 @@ main = do
         (uncurry (+))
         (addN @Word8 >>> fst')
 
-    , evalCircuit (clock @Word8) () 255 === 255
-    , evalCircuit (clock @Word8) () 256 === 0
+    , evalCircuit (clock @Word8) () 255 === Just 255
+    , evalCircuit (clock @Word8) () 256 === Just 0
     ]
   where
     foldrV :: forall n a b r. (a -> r -> (b, r)) -> r -> Vec n a -> (Vec n b, r)

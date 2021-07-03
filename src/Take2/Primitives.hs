@@ -182,12 +182,29 @@ mapFoldVC
     -> Circuit (Vec n a, r) (Vec n b, r)
 mapFoldVC c = Circuit gr $ go
   where
+    {-# INLINE combine #-}
+    {-# INLINE go #-}
+
     go :: forall n'. KnownNat n' => Signal (Vec n' a, r) (Vec n' b, r)
     go = Signal $ \i ->
       let (vna, r) = V.splitAtI @(SizeOf (Vec n' a)) i
       in case V.unconcatI @n' vna of
             Nil -> (go, r)
             Cons _ _ -> pumpSignal (combine (c_roar c) go) i
+
+    combine
+        :: forall n'
+        .  KnownNat n'
+        => Signal (a, r) (b, r)
+        -> Signal (Vec n' a, r) (Vec n' b, r)
+        -> Signal (Vec (n' + 1) a, r) (Vec (n' + 1) b, r)
+    combine s1 s2 = Signal $ \i ->
+      let (vas, r) = V.splitAtI @(SizeOf (Vec (n' + 1) a)) i
+          (V.head -> a, va) = V.splitAtI @1 $ V.unconcatI @(n' + 1) vas
+          (sbr, vbr) = pumpSignal s1 (a V.++ r)
+          (b, r') = V.splitAtI @(SizeOf b) vbr
+          (svs, bsr) = pumpSignal s2 $ V.concat va V.++ r'
+       in (combine sbr svs, b V.++ V.takeI bsr V.++ r')
 
     gr :: Graph (Vec n a, r) (Vec n b, r)
     gr = Graph $ \i -> do
@@ -202,20 +219,6 @@ mapFoldVC c = Circuit gr $ go
               put r'
               pure b
       pure $ V.concat bs V.++ r'
-
-    combine
-        :: forall n'
-        .  KnownNat n'
-        => Signal (a, r) (b, r)
-        -> Signal (Vec n' a, r) (Vec n' b, r)
-        -> Signal (Vec (n' + 1) a, r) (Vec (n' + 1) b, r)
-    combine s1 s2 = Signal $ \i ->
-      let (vas, r) = V.splitAtI @(SizeOf (Vec (n' + 1) a)) i
-          (V.head -> a, va) = V.splitAtI @1 $ V.unconcatI @(n' + 1) vas
-          (sbr, vbr) = pumpSignal s1 (a V.++ r)
-          (b, r') = V.splitAtI @(SizeOf b) vbr
-          (svs, bsr) = pumpSignal s2 $ V.concat va V.++ r'
-       in (combine sbr svs, b V.++ bsr)
 
 
 data Dict c where
@@ -284,37 +287,42 @@ transposeV = primitive $ Circuit gr $ timeInv V.transpose
 
 
 foldVC :: forall n a b. (KnownNat n, Embed a, Embed b) => Circuit (a, b) b -> Circuit (Vec n a, b) b
-foldVC c = undefined
-  -- primitive $ Circuit gr $
-  -- timeInv
-  --   ( ((\(v, r) ->
-  --       case v of
-  --         Nil -> Left r
-  --         Cons a v' -> Right $ ((a, r), v')
-  --     ) :: (Vec n a, b) -> Either b ((a, b), Vec (n - 1) a))
-  --   )
-  -- >>> Category.right
-  --       ( Category.first' (c_roar c)
-  --     >>> Category.swap
-  --     >>> (Signal (\a ->
-  --             case unsafeSatisfyGEq1 @(n - 1) of
-  --               Dict -> pumpSignal (c_roar $ foldVC c) a
-  --             ) :: Signal (Vec (n - 1) a, b) b
-  --           )
-  --       )
-  -- >>> Category.unify
-  -- where
-  --   gr :: Graph (Vec n a, b) b
-  --   gr = Graph $ \i -> do
-  --     let (va, r0) = V.splitAtI @(n * SizeOf a) i
-  --         vs = V.unconcatI @n va
-  --     r'
-  --       <- flip execStateT r0 $ flip V.traverse# vs $ \a ->
-  --           do
-  --             r <- get
-  --             r' <- lift $ unGraph (c_graph c) $ a V.++ r
-  --             put r'
-  --     pure r'
+foldVC c = Circuit gr $ go
+  where
+    {-# INLINE combine #-}
+    {-# INLINE go #-}
+
+    go :: forall n'. KnownNat n' => Signal (Vec n' a, b) b
+    go = Signal $ \i ->
+      let (vna, r) = V.splitAtI @(SizeOf (Vec n' a)) i
+      in case V.unconcatI @n' vna of
+            Nil -> (go, r)
+            Cons _ _ -> pumpSignal (combine (c_roar c) go) i
+
+    combine
+        :: forall n'
+        .  KnownNat n'
+        => Signal (a, b) b
+        -> Signal (Vec n' a, b) b
+        -> Signal (Vec (n' + 1) a, b) b
+    combine s1 s2 = Signal $ \i ->
+      let (vas, r) = V.splitAtI @(SizeOf (Vec (n' + 1) a)) i
+          (V.head -> a, va) = V.splitAtI @1 $ V.unconcatI @(n' + 1) vas
+          (sbr, b) = pumpSignal s1 (a V.++ r)
+          (svs, b') = pumpSignal s2 $ V.concat va V.++ b
+       in (combine sbr svs, b')
+
+    gr :: Graph (Vec n a, b) b
+    gr = Graph $ \i -> do
+      let (va, r0) = V.splitAtI @(n * SizeOf a) i
+          vs = V.unconcatI @n va
+      r'
+        <- flip execStateT r0 $ flip V.traverse# vs $ \a ->
+            do
+              r <- get
+              r' <- lift $ unGraph (c_graph c) $ a V.++ r
+              put r'
+      pure r'
 
 
 ------------------------------------------------------------------------------

@@ -263,7 +263,7 @@ crossV
      . KnownNat n
     => Circuit (Bool, Bool) Bool
     -> Circuit (Vec n (Bool, Bool)) (Vec (2 ^ n) Bool)
-crossV c = Prim.primitive $ Circuit gr $
+crossV c = undefined {-Prim.primitive $ Circuit gr $
   Prim.timeInv
     ( ((\case
           Nil -> Left $ Cons True Nil
@@ -304,6 +304,7 @@ crossV c = Prim.primitive $ Circuit gr $
           v2 <- unGraph (c_graph c) $ Cons b2 $ Cons vb Nil
           pure $ v1 V.++ v2
       _ -> error "impossible"
+      -}
 
 
 
