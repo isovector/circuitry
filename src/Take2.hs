@@ -17,7 +17,7 @@ import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
 import           Data.Typeable
-import           Data.Word (Word8)
+import           Data.Word (Word8, Word64)
 import           GHC.Generics (Generic)
 import           GHC.TypeLits (type (-), type (<=), KnownNat)
 import           Prelude hiding ((.), id, sum)
@@ -113,7 +113,8 @@ when
     => k
     -> Circuit v r
     -> Circuit (k, v) (Vec (SizeOf r) Bool)
-when k c = blackbox' (fmap (mappend "case ") $ constantName k) (first' (intro k >>> eq))
+when k c = blackbox' (fmap (mappend "case ") $ constantName k)
+           (first' (intro k >>> eq))
        >>> ifOrEmpty c
 
 
@@ -221,9 +222,19 @@ data AluOpCode
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass Embed
 
+instance Arbitrary AluOpCode where
+  arbitrary
+    = let
+        terminal
+          = [pure AluOpAdd, pure AluOpAnd, pure AluOpOr, pure AluOpXor,
+             pure AluOpNot, pure AluOpShiftL, pure AluOpShiftR,
+             pure AluOpAShiftR]
+       in oneof terminal
+
 bigAndGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
 bigAndGate
-  = gateDiagram (unaryGateDiagram Y.CellAnd)
+  = shortcircuit (V.foldr (&&) True)
+  $ gateDiagram (unaryGateDiagram Y.CellAnd)
   $ create >>> second' (constC True) >>> foldVC andGate
 
 bigOrGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
@@ -256,6 +267,7 @@ snap = blackbox "snap"
    >>> distribP
    >>> both andGate
    >>> rsLatch
+
 
 snapN :: forall a. (Typeable a, OkCircuit a, SeparatePorts a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
 snapN = blackbox ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> distribV >>> mapV snap
@@ -294,6 +306,12 @@ prop_embedRoundtrip = property $ do
   forAllShrink arbitrary shrink $ \(a :: a)  ->
     a === reify (embed a)
 
+prop_eq :: forall a. (1 <= SizeOf a, Show a, Eq a, Embed a, Arbitrary a) => Property
+prop_eq = property $ do
+  forAllShrink arbitrary shrink $ \(a :: a) -> do
+    t <- arbitrary
+    pure $ evalCircuit (eq @a) (a, a) t === True
+
 example_map :: Circuit (Vec 4 Bool) (Vec 4 Bool)
 example_map = mapV (blackbox "" id)
 
@@ -305,6 +323,34 @@ main = do
       prop_equivalent "andV"
         (serial >>> intro True >>> swap >>> andV >>> unsafeParse @Word8)
         id
+
+    , property $ do
+        prop_equivalent "when"
+                (when True id)
+                (ifOrEmpty $ id @_ @Bool)
+
+    , prop_circuit (uncurry (==)) $ eq @Bool
+    , prop_circuit (uncurry (==)) $ eq @Word8
+    , prop_circuit (uncurry (==)) $ eq @(Vec 20 (Bool, Maybe Bool))
+
+    , property $ do
+        w <- arbitrary @Word8
+        t <- arbitrary
+        pure $
+          evalCircuit (intro w >>> eq) w t === True
+
+    , property $ do
+        w <- arbitrary @Word8
+        pure $ prop_equivalent "constC"
+                (constC w)
+                (intro w >>> snd')
+
+    , property $ do
+        k <- arbitrary @Word4
+        pure $
+          prop_equivalent "first' >>> intro"
+              (create >>> first' (intro k >>> eq) >>> fst')
+              (intro k >>> eq)
 
     , property $ do
         c <- arbitrary @(Circuit Word8 Word8)

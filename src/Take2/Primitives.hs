@@ -281,6 +281,8 @@ foldVC c = primitive $ Circuit gr $ foldSig $ c_roar c
 -- NOTE(sandy): this thing will pump the first arg for every element in the
 -- vector. seems reasonable, but also that it can't possibly clock --- but
 -- maybe that's to be expected?
+--
+-- turns out this is actually an issue
 foldSig :: Signal (a, b) b -> Signal (Vec n a, b) b
 foldSig (Signal f) = Signal $ \(v, b) ->
   case v of

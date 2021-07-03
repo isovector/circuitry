@@ -4,11 +4,16 @@ import Data.Bits
 import Data.Typeable
 import Data.Ratio
 import Test.QuickCheck (Arbitrary, arbitrary)
+import Test.QuickCheck.Function
 
 newtype Word4 = Word4 { unWord4 :: Int } deriving (Eq, Ord)
 
 instance Arbitrary Word4 where
   arbitrary = word4 <$> arbitrary
+
+instance Function Word4 where
+  function = functionIntegral
+
 
 word4 :: Int -> Word4;  word4 = Word4 . narrowU 4
 oWord4 ::(Int->Int->Int)->(Word4->Word4->Word4); oWord4 = oNewtype word4 unWord4
