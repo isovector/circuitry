@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE MagicHash       #-}
 {-# LANGUAGE RoleAnnotations #-}
 
 {-# OPTIONS_GHC -Wall                               #-}
@@ -21,6 +22,11 @@ import           Prelude hiding (id, (.), sum, zip)
 import           Test.QuickCheck (CoArbitrary, Arbitrary (arbitrary), Function (function), functionMap, (===))
 import           Test.QuickCheck.Arbitrary (CoArbitrary(coarbitrary))
 import           Test.QuickCheck.Checkers
+import Clash.Sized.Vector (Vec)
+import Take2.Embed
+import qualified Clash.Sized.Vector as V
+import GHC.TypeLits.Extra (Max)
+import GHC.TypeLits (KnownNat, type (+))
 
 
 instance Arbitrary Natural where
@@ -37,28 +43,15 @@ instance EqProp Word8 where
   (=-=) = (===)
 
 newtype Signal a b = Signal
-  { pumpSignal :: a -> (Signal a b, b)
+  { pumpSignal :: Vec (SizeOf a) (Maybe Bool) -> (Signal a b, Vec (SizeOf b) (Maybe Bool))
   }
-  deriving stock Functor
-
-type role Signal representational representational
-
-instance Applicative (Signal a) where
-  pure b = Signal $ const $ (pure b, b)
-  (<*>) (Signal sf) (Signal sb) = Signal $ \a ->
-    let (sf', f) = sf a
-        (sa', b) = sb a
-     in (sf' <*> sa', f b)
 
 
-instance (CoArbitrary a, Arbitrary b) => Arbitrary (Signal a b) where
+instance (CoArbitrary a, Arbitrary b, Embed b) => Arbitrary (Signal a b) where
   arbitrary = Signal <$> arbitrary
 
-instance Profunctor Signal where
-  dimap f g (Signal h) = Signal $ (dimap f g *** g) . h . f
-
 instance Category Signal where
-  type Ok Signal = TrivialConstraint
+  type Ok Signal = Embed
   id = Signal $ \a -> (id, a)
   Signal g . Signal f = Signal $ \a ->
     let (sf, b) = f a
@@ -68,8 +61,11 @@ instance Category Signal where
   {-# INLINE (.) #-}
 
 
-primSignal :: (a -> b) -> Signal a b
-primSignal f = fix $ \me -> Signal $ \a -> (me, f a)
+primSignal :: (Embed a, Embed b) => (a -> b) -> Signal a b
+primSignal f = fix $ \me -> Signal $ \ma ->
+  (me, ) $ case V.traverse# id ma of
+    Just a  -> fmap Just $ embed $ f $ reify a
+    Nothing -> V.repeat Nothing
 {-# INLINE primSignal #-}
 
 
@@ -83,10 +79,11 @@ instance SymmetricProduct Signal where
   reassoc' = primSignal reassoc'
 
 instance MonoidalProduct Signal where
-  (***) (Signal f) (Signal g) = Signal $ \(al, ar) ->
-    let (sf, bl) = f al
+  (***) (Signal f) (Signal g) = Signal $ \v ->
+    let (al, ar) = V.splitAtI v
+        (sf, bl) = f al
         (sg, br) = g ar
-     in (sf *** sg, (bl, br))
+     in (sf *** sg, bl V.++ br)
   {-# INLINE (***) #-}
 
 instance SymmetricSum Signal where
@@ -94,10 +91,24 @@ instance SymmetricSum Signal where
   reassocE = primSignal reassocE
 
 instance MonoidalSum Signal where
-  (+++) sf sg = Signal $ \case
-     Left  al -> (+++ sg) *** Left  $ pumpSignal sf al
-     Right ar -> (sf +++) *** Right $ pumpSignal sg ar
-  {-# INLINE (+++) #-}
+  (+++)
+      :: forall al bl ar br
+       . Signal al bl
+      -> Signal ar br
+      -> Signal (Either al ar) (Either bl br)
+  (+++) = undefined {- sf sg = Signal $ \v -> do
+    let (tag, v') = V.splitAtI @1 v
+    _
+    case V.head tag of
+      Nothing -> (sf +++ sg, V.repeat Nothing)
+      Just False ->
+        let (sf', l) = pumpSignal sf $ V.takeI v'
+         in (sf' +++ sg, l V.++ V.repeat (Just False))
+      Just True -> undefined-}
+--      in case tag of
+--      Left  al -> (+++ sg) *** Left  $ pumpSignal sf al
+--      Right ar -> (sf +++) *** Right $ pumpSignal sg ar
+--   {-# INLINE (+++) #-}
 
 instance Cartesian Signal where
   consume = primSignal consume

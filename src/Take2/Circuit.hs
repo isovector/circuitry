@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs         #-}
+{-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedLabels     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -19,6 +20,7 @@ import           Circuitry.Category (Category(..))
 import qualified Clash.Sized.Vector as V
 import           Control.Lens ((<>~))
 import           Control.Monad (join)
+import           Control.Monad.Reader (runReaderT)
 import           Control.Monad.State (evalState, gets, modify')
 import           Data.Generics.Labels ()
 import qualified Data.Map as M
@@ -30,7 +32,6 @@ import           Take2.Embed
 import           Take2.Graph
 import           Yosys (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
 import qualified Yosys as Y
-import Control.Monad.Reader (runReaderT)
 
 
 data Circuit a b = Circuit
@@ -44,16 +45,18 @@ instance Category Circuit where
   Circuit gg gr . Circuit fg fr = Circuit (gg . fg) (gr . fr)
 
 
-reallyPumpSignal :: Signal a b -> (Time -> a) -> Time -> b
-reallyPumpSignal sig f 0 = snd $ pumpSignal sig (f 0)
-reallyPumpSignal sig f n = reallyPumpSignal (fst $ pumpSignal sig (f 0)) (f . (+ 1)) (n - 1)
+reallyPumpSignal :: (Embed b, Embed a) => Signal a b -> (Time -> a) -> Time -> Maybe b
+reallyPumpSignal sig f 0
+  = fmap reify $ V.traverse# id $ snd $ pumpSignal sig (fmap Just $ embed $ f 0)
+reallyPumpSignal sig f n
+  = reallyPumpSignal (fst $ pumpSignal sig (fmap Just $ embed $ f 0)) (f . (+ 1)) (n - 1)
 
 
-evalCircuit :: Circuit a b -> a -> Time -> b
+evalCircuit :: (Embed b, Embed a) => Circuit a b -> a -> Time -> Maybe b
 evalCircuit c a t = evalCircuitT c (const a) t
 
 
-evalCircuitT :: Circuit a b -> (Time -> a) -> Time -> b
+evalCircuitT :: (Embed b, Embed a) => Circuit a b -> (Time -> a) -> Time -> Maybe b
 evalCircuitT c = reallyPumpSignal (c_roar c)
 
 

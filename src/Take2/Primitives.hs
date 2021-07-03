@@ -36,18 +36,19 @@ import qualified Yosys as Y
 import Control.Monad.Reader (ask, local, asks)
 import Control.Lens ((-~))
 import Data.Bool (bool)
+import Data.Function (fix)
 
 
 primitive :: Circuit a b -> Circuit a b
 primitive = id
 
 
-timeInv :: (a -> b) -> Signal a b
+timeInv :: (Embed a, Embed b) => (a -> b) -> Signal a b
 timeInv = primSignal
 {-# INLINE timeInv #-}
 
 coerceCircuit
-    :: (Coercible a a', Coercible b b', SizeOf a ~ SizeOf a', SizeOf b ~ SizeOf b')
+    :: (Coercible a a', Coercible b b', SizeOf a ~ SizeOf a', SizeOf b ~ SizeOf b', Embed a', Embed a, Embed b', Embed b)
     => Circuit a b
     -> Circuit a' b'
 coerceCircuit (Circuit gr c) =
@@ -59,10 +60,13 @@ raw
      . (OkCircuit a, OkCircuit b)
     => Circuit (Vec (SizeOf a) Bool) (Vec (SizeOf b) Bool)
     -> Circuit a b
-raw c = Circuit (coerceGraph $ c_graph c) $
-  Signal $ \a ->
-    let (sf, sb) = pumpSignal (c_roar c) $ embed a
-     in (dimap embed reify sf, reify sb)
+raw c = Circuit (coerceGraph $ c_graph c) $ go (c_roar c)
+  where
+    go k =
+      Signal $ \a ->
+        let (sf, sb) = pumpSignal k a
+         in (go $ sf, sb)
+{-# INLINE raw #-}
 
 
 swap :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
@@ -176,35 +180,15 @@ mapFoldVC
      . (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
     => Circuit (a, r) (b, r)
     -> Circuit (Vec n a, r) (Vec n b, r)
-mapFoldVC c = primitive $ Circuit gr $
-  timeInv
-    ( ((\(v, r) ->
-        case v of
-          Nil -> Left (Nil, r)
-          Cons a v' -> Right $ ((a, r), v')
-      ) :: (Vec n a, r) -> Either (Vec n b, r) ((a, r), Vec (n - 1) a))
-    )
-  >>> Category.right
-        ( Category.first' (c_roar c)
-      >>> Category.reassoc'
-      >>> Category.second'
-          ( Category.swap
-        >>> Category.second' Category.copy
-        >>> Category.reassoc
-        >>> Category.first'
-            ((Signal (\a ->
-              case unsafeSatisfyGEq1 @(n - 1) of
-                Dict -> pumpSignal (c_roar $ mapFoldVC c) a
-              ) :: Signal (Vec (n - 1) a, r) (Vec (n - 1) b, r)
-            )
-        >>> Category.fst'
-            )
-          )
-      >>> Category.reassoc
-      >>> Category.first' (timeInv $ uncurry Cons)
-        )
-  >>> Category.unify
+mapFoldVC c = Circuit gr $ go
   where
+    go :: forall n'. KnownNat n' => Signal (Vec n' a, r) (Vec n' b, r)
+    go = Signal $ \i ->
+      let (vna, r) = V.splitAtI @(SizeOf (Vec n' a)) i
+      in case V.unconcatI @n' vna of
+            Nil -> (go, r)
+            Cons _ _ -> pumpSignal (combine (c_roar c) go) i
+
     gr :: Graph (Vec n a, r) (Vec n b, r)
     gr = Graph $ \i -> do
       let (va, r0) = V.splitAtI @(n * SizeOf a) i
@@ -219,6 +203,20 @@ mapFoldVC c = primitive $ Circuit gr $
               pure b
       pure $ V.concat bs V.++ r'
 
+    combine
+        :: forall n'
+        .  KnownNat n'
+        => Signal (a, r) (b, r)
+        -> Signal (Vec n' a, r) (Vec n' b, r)
+        -> Signal (Vec (n' + 1) a, r) (Vec (n' + 1) b, r)
+    combine s1 s2 = Signal $ \i ->
+      let (vas, r) = V.splitAtI @(SizeOf (Vec (n' + 1) a)) i
+          (V.head -> a, va) = V.splitAtI @1 $ V.unconcatI @(n' + 1) vas
+          (sbr, vbr) = pumpSignal s1 (a V.++ r)
+          (b, r') = V.splitAtI @(SizeOf b) vbr
+          (svs, bsr) = pumpSignal s2 $ V.concat va V.++ r'
+       in (combine sbr svs, b V.++ bsr)
+
 
 data Dict c where
   Dict :: c => Dict c
@@ -229,7 +227,7 @@ unsafeSatisfyGEq1 = unsafeCoerce $ Dict @(1 <= 2)
 
 zipVC
     :: forall n a b
-     . (KnownNat n, KnownNat (SizeOf a), KnownNat (SizeOf b))
+     . (KnownNat n, KnownNat (SizeOf a), KnownNat (SizeOf b), Embed a, Embed b)
     => Circuit (Vec n a, Vec n b) (Vec n (a, b))
 zipVC = primitive $ Circuit gr $ timeInv $ uncurry V.zip
   where
@@ -241,7 +239,7 @@ zipVC = primitive $ Circuit gr $ timeInv $ uncurry V.zip
       pure $ V.concatMap (\(v1, v2) -> v1 V.++ v2) $ V.zip as bs
 
 
-cloneV :: forall n r. KnownNat n => Circuit r (Vec n r)
+cloneV :: forall n r. (KnownNat n, Embed r) => Circuit r (Vec n r)
 cloneV = primitive $ Circuit gr $ timeInv V.repeat
   where
     gr :: Graph r (Vec n r)
@@ -256,9 +254,12 @@ fixC
     -> Circuit a b
 fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
   where
-    go s k = Signal $ \a ->
-      let (k', (b, s')) = pumpSignal k (a, s)
-      in (go s' k', b)
+    go s k = Signal $ \v ->
+      let (k', v') = pumpSignal k (v V.++ fmap Just (embed s))
+          (b, ms') = V.splitAtI v'
+      in case V.traverse# id ms' of
+           Just s' -> (go (reify s') k', b)
+           Nothing -> (go s k', b)
 
     gr :: Graph a b
     gr = Graph $ \v -> do
@@ -272,7 +273,7 @@ fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
 
 transposeV
     :: forall m n a
-     . (KnownNat n, KnownNat m, KnownNat (SizeOf a))
+     . (KnownNat n, KnownNat m, KnownNat (SizeOf a), Embed a)
     => Circuit (Vec m (Vec n a)) (Vec n (Vec m a))
 transposeV = primitive $ Circuit gr $ timeInv V.transpose
   where
@@ -283,41 +284,42 @@ transposeV = primitive $ Circuit gr $ timeInv V.transpose
 
 
 foldVC :: forall n a b. (KnownNat n, Embed a, Embed b) => Circuit (a, b) b -> Circuit (Vec n a, b) b
-foldVC c = primitive $ Circuit gr $
-  timeInv
-    ( ((\(v, r) ->
-        case v of
-          Nil -> Left r
-          Cons a v' -> Right $ ((a, r), v')
-      ) :: (Vec n a, b) -> Either b ((a, b), Vec (n - 1) a))
-    )
-  >>> Category.right
-        ( Category.first' (c_roar c)
-      >>> Category.swap
-      >>> (Signal (\a ->
-              case unsafeSatisfyGEq1 @(n - 1) of
-                Dict -> pumpSignal (c_roar $ foldVC c) a
-              ) :: Signal (Vec (n - 1) a, b) b
-            )
-        )
-  >>> Category.unify
-  where
-    gr :: Graph (Vec n a, b) b
-    gr = Graph $ \i -> do
-      let (va, r0) = V.splitAtI @(n * SizeOf a) i
-          vs = V.unconcatI @n va
-      r'
-        <- flip execStateT r0 $ flip V.traverse# vs $ \a ->
-            do
-              r <- get
-              r' <- lift $ unGraph (c_graph c) $ a V.++ r
-              put r'
-      pure r'
+foldVC c = undefined
+  -- primitive $ Circuit gr $
+  -- timeInv
+  --   ( ((\(v, r) ->
+  --       case v of
+  --         Nil -> Left r
+  --         Cons a v' -> Right $ ((a, r), v')
+  --     ) :: (Vec n a, b) -> Either b ((a, b), Vec (n - 1) a))
+  --   )
+  -- >>> Category.right
+  --       ( Category.first' (c_roar c)
+  --     >>> Category.swap
+  --     >>> (Signal (\a ->
+  --             case unsafeSatisfyGEq1 @(n - 1) of
+  --               Dict -> pumpSignal (c_roar $ foldVC c) a
+  --             ) :: Signal (Vec (n - 1) a, b) b
+  --           )
+  --       )
+  -- >>> Category.unify
+  -- where
+  --   gr :: Graph (Vec n a, b) b
+  --   gr = Graph $ \i -> do
+  --     let (va, r0) = V.splitAtI @(n * SizeOf a) i
+  --         vs = V.unconcatI @n va
+  --     r'
+  --       <- flip execStateT r0 $ flip V.traverse# vs $ \a ->
+  --           do
+  --             r <- get
+  --             r' <- lift $ unGraph (c_graph c) $ a V.++ r
+  --             put r'
+  --     pure r'
 
 
 ------------------------------------------------------------------------------
 -- | Too slow to run real world physics? JET STREAM IT, BABY.
-shortcircuit :: (a -> b) -> Circuit a b -> Circuit a b
+shortcircuit :: (Embed a, Embed b) => (a -> b) -> Circuit a b -> Circuit a b
 shortcircuit f c = Circuit (c_graph c) $ timeInv f
 
 
