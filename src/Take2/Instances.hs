@@ -16,7 +16,7 @@
 
 module Take2.Instances where
 
-import           Circuitry.Catalyst (Roar(..), Time, Signal (Signal), pumpSignal)
+import           Circuitry.Catalyst (Time, Signal (Signal), pumpSignal)
 import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum, Distrib (distrib), factor, unify)
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
@@ -64,9 +64,9 @@ instance MonoidalSum Circuit where
   left = flip (+++) id
   right = (+++) id
 
-instance Distrib Circuit where
-  distrib = distribE
-  factor = undefined
+-- instance Distrib Circuit where
+--   distrib = distribE
+--   factor = undefined
 
 instance SymmetricSum Circuit where
   swapE = serial
@@ -320,14 +320,14 @@ distribV = first' Prim.cloneV >>> Prim.zipVC
 deject :: OkCircuit a => Circuit (Either a a) a
 deject = serial >>> unconsC >>> snd' >>> unsafeParse
 
-veryUnsafeCoerce :: forall a b. Circuit a b
-veryUnsafeCoerce = Circuit undefined $ unsafeCoerce $ Roar id
+-- veryUnsafeCoerce :: forall a b. Circuit a b
+-- veryUnsafeCoerce = Circuit undefined $ unsafeCoerce $ Roar id
 
 
-distribE
-    :: (OkCircuit a, OkCircuit b, OkCircuit c)
-    => Circuit (a, Either b c) (Either (a, b) (a, c))
-distribE = second' (serial >>> unconsC) >>> reassoc >>> first' swap >>> veryUnsafeCoerce
+-- distribE
+--     :: (OkCircuit a, OkCircuit b, OkCircuit c)
+--     => Circuit (a, Either b c) (Either (a, b) (a, c))
+-- distribE = second' (serial >>> unconsC) >>> reassoc >>> first' swap >>> veryUnsafeCoerce
 
 blackbox
     :: forall a b

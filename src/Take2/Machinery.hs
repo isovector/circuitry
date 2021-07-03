@@ -4,7 +4,6 @@ module Take2.Machinery
   , Vec (..)
   ) where
 
-import Circuitry.Catalyst (Roar(Roar))
 import Circuitry.Category as X
 import Take2.Circuit as X
 import Take2.Instances as X

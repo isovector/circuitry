@@ -10,7 +10,7 @@
 
 module Take2.Graph where
 
-import           Circuitry.Catalyst (Roar(..), loop, Time)
+import           Circuitry.Catalyst (Time)
 import           Circuitry.Category (Category(..), first', swap, (&&&), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum)
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
@@ -18,6 +18,7 @@ import           Circuitry.Category (SymmetricProduct(..))
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import           Control.Lens ((%~), (+~), (<>~))
+import           Control.Monad.Reader (ReaderT, MonadReader)
 import           Control.Monad.State
 import qualified Data.Bits as B
 import           Data.Bool (bool)
@@ -34,15 +35,13 @@ import           Data.Word (Word8, Word16, Word32, Word64)
 import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra
+import           Generics.SYB hiding (Generic)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Embed
 import           Test.QuickCheck
 import           Unsafe.Coerce (unsafeCoerce)
 import           Yosys (Bit, Module (Module), Cell (Cell), CellName (..), getBit)
-import Generics.SYB hiding (Generic)
-import Debug.Trace (traceM, trace)
 import qualified Yosys as Y
-import Control.Monad.Reader (ReaderT, MonadReader)
 
 
 
