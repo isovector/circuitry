@@ -122,14 +122,14 @@ alu
     => Circuit (AluOpCode, (a, a)) (Vec (SizeOf a) Bool)
 alu =
   branch
-    $ Cons (AluOpAdd, addN >>> fst' >>> serial)
-    $ Cons (AluOpAnd, both serial >>> pointwise andGate)
-    $ Cons (AluOpOr, both serial >>> pointwise orGate)
-    $ Cons (AluOpXor, both serial >>> pointwise xorGate)
-    $ Cons (AluOpNot, fst' >>> serial >>> mapV notGate)
-    $ Cons (AluOpShiftL, fst' >>> shiftL >>> serial)
-    $ Cons (AluOpShiftR, fst' >>> shiftR >>> serial)
-    $ Cons (AluOpAShiftR, fst' >>> ashiftR >>> serial)
+    $ Cons (AluOpAdd,     addN >>> fst' >>> serial)
+    -- $ Cons (AluOpAnd,     both serial >>> pointwise andGate)
+    -- $ Cons (AluOpOr,      both serial >>> pointwise orGate)
+    -- $ Cons (AluOpXor,     both serial >>> pointwise xorGate)
+    -- $ Cons (AluOpNot,     fst' >>> serial >>> mapV notGate)
+    -- $ Cons (AluOpShiftL,  fst' >>> shiftL >>> serial)
+    -- $ Cons (AluOpShiftR,  fst' >>> shiftR >>> serial)
+    -- $ Cons (AluOpAShiftR, fst' >>> ashiftR >>> serial)
     $ Nil
 
 
@@ -301,7 +301,12 @@ example_map = mapV (blackbox "" id)
 main :: IO ()
 main = do
   traverse_ quickCheck
-    [ property $ do
+    [
+      prop_equivalent "andV"
+        (serial >>> intro True >>> swap >>> andV >>> unsafeParse @Word8)
+        id
+
+    , property $ do
         c <- arbitrary @(Circuit Word8 Word8)
         pure $
           prop_equivalent "create >>> first' c >>> destroy = c"
