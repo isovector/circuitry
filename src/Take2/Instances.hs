@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs         #-}
+{-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -15,8 +16,8 @@
 
 module Take2.Instances where
 
-import           Circuitry.Catalyst (Roar(..), Time, Signal (Signal))
-import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum, Distrib (distrib), factor)
+import           Circuitry.Catalyst (Roar(..), Time, Signal (Signal), pumpSignal)
+import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum, Distrib (distrib), factor, unify)
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
 import           Circuitry.Category (SymmetricProduct(..))
@@ -30,7 +31,7 @@ import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
-import           Take2.Graph (Graph(Graph), freshBit, addCell, synthesizeBits, GraphM (GraphM), unifyBits, unifyBitsImpl)
+import           Take2.Graph (Graph(Graph), freshBit, addCell, synthesizeBits, GraphM (GraphM), unifyBits, unifyBitsImpl, unGraph)
 import qualified Take2.Primitives as Prim
 import           Test.QuickCheck
 import           Unsafe.Coerce (unsafeCoerce)
@@ -234,6 +235,59 @@ nxorGate
 both :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit (a, a) (b, b)
 both f = f *** f
 
+foil :: Circuit ((a, b), (c, d)) ((a, c), (b, d))
+foil = undefined
+
+
+-- TODO(sandy):  This thing is hella primitive and should live in Prim
+crossV
+    :: forall n
+     . KnownNat n
+    => Circuit (Bool, Bool) Bool
+    -> Circuit (Vec n (Bool, Bool)) (Vec (2 ^ n) Bool)
+crossV c = Prim.primitive $ Circuit gr $
+  Prim.timeInv
+    ( ((\case
+          Nil -> Left $ Cons True Nil
+          Cons a v' -> Right $ (a, v')
+      ) :: ( Vec n (Bool, Bool)
+          -> Either (Vec (2 ^ n) Bool)
+                    ((Bool, Bool), (Vec (n - 1) (Bool, Bool)))))
+    )
+  >>> right
+        (
+      (Signal (\a ->
+              case Prim.unsafeSatisfyGEq1 @n of
+                Prim.Dict ->
+                  pumpSignal
+                    (c_roar
+                      ( second' (crossV c >>> copy)
+                    >>> foil
+                    >>> both (distribV >>> mapV c)
+                    >>> unsafeReinterpret
+                      )
+                    ) a
+              )
+            )
+        )
+  >>> unify
+  where
+    gr :: forall m. KnownNat m => Graph (Vec m (Bool, Bool)) (Vec (2 ^ m) Bool)
+    gr = Graph $ \case
+      Nil -> do
+        o <- freshBit
+        pure $ Cons o Nil
+      Cons b1 (Cons b2 Nil) -> do
+        pure $ Cons b1 $ Cons b2 Nil
+      Cons b1 (Cons b2 vin) -> do
+        (vout :: Vec (2 ^ (m - 1)) Y.Bit) <- unGraph gr vin
+        fmap V.concat $ flip V.traverse# vout $ \vb -> do
+          v1 <- unGraph (c_graph c) $ Cons b1 $ Cons vb Nil
+          v2 <- unGraph (c_graph c) $ Cons b2 $ Cons vb Nil
+          pure $ v1 V.++ v2
+      _ -> error "impossible"
+
+
 
 mapV
     :: (KnownNat n, OkCircuit a, OkCircuit b)
@@ -241,9 +295,9 @@ mapV
     -> Circuit (Vec n a) (Vec n b)
 mapV c = create >>> Prim.mapFoldVC (destroy >>> c >>> create) >>> destroy
 
-
 distribV :: (OkCircuit a, OkCircuit b, KnownNat n) => Circuit (a, Vec n b) (Vec n (a, b))
 distribV = first' Prim.cloneV >>> Prim.zipVC
+
 
 deject :: OkCircuit a => Circuit (Either a a) a
 deject = serial >>> unconsC >>> snd' >>> unsafeParse

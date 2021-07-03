@@ -117,6 +117,16 @@ reifyWord w =
 {-# INLINE[~2] reifyWord #-}
 
 
+instance Embed Word2 where
+  type SizeOf Word2 = 2
+  embed = embedWord
+  reify = reifyWord
+
+instance Embed Word3 where
+  type SizeOf Word3 = 3
+  embed = embedWord
+  reify = reifyWord
+
 instance Embed Word4 where
   type SizeOf Word4 = 4
   embed = embedWord

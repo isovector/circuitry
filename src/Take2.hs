@@ -19,7 +19,7 @@ import           Data.Generics.Labels ()
 import           Data.Typeable
 import           Data.Word (Word8, Word64)
 import           GHC.Generics (Generic)
-import           GHC.TypeLits (type (-), type (<=), KnownNat)
+import           GHC.TypeLits (type (-), type (<=), KnownNat, type (^))
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
@@ -27,7 +27,7 @@ import           Take2.Machinery
 import           Take2.Numeric
 import           Take2.Primitives (timeInv, shortcircuit, gateDiagram, constantName)
 import           Take2.Graph (RenderOptions(..))
-import           Take2.Word (Word4)
+import           Take2.Word
 import           Test.QuickCheck
 import           Yosys (renderModule)
 import qualified Yosys as Y
@@ -124,13 +124,13 @@ alu
 alu =
   branch
     $ Cons (AluOpAdd,     addN >>> fst' >>> serial)
-    -- $ Cons (AluOpAnd,     both serial >>> pointwise andGate)
-    -- $ Cons (AluOpOr,      both serial >>> pointwise orGate)
-    -- $ Cons (AluOpXor,     both serial >>> pointwise xorGate)
-    -- $ Cons (AluOpNot,     fst' >>> serial >>> mapV notGate)
-    -- $ Cons (AluOpShiftL,  fst' >>> shiftL >>> serial)
-    -- $ Cons (AluOpShiftR,  fst' >>> shiftR >>> serial)
-    -- $ Cons (AluOpAShiftR, fst' >>> ashiftR >>> serial)
+    $ Cons (AluOpAnd,     both serial >>> pointwise andGate)
+    $ Cons (AluOpOr,      both serial >>> pointwise orGate)
+    $ Cons (AluOpXor,     both serial >>> pointwise xorGate)
+    $ Cons (AluOpNot,     fst' >>> serial >>> mapV notGate)
+    $ Cons (AluOpShiftL,  fst' >>> shiftL >>> serial)
+    $ Cons (AluOpShiftR,  fst' >>> shiftR >>> serial)
+    $ Cons (AluOpAShiftR, fst' >>> ashiftR >>> serial)
     $ Nil
 
 
@@ -264,6 +264,20 @@ snap = blackbox "snap"
 
 snapN :: forall a. (Typeable a, OkCircuit a, SeparatePorts a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
 snapN = blackbox ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> distribV >>> mapV snap
+
+
+-- TODO(sandy): this should have a tristate buffer to prevent unwanted updates
+-- on the line
+addressed :: forall n a b. (Embed a, Embed b, KnownNat n) => Circuit a b -> Circuit (Addr n, a) b
+addressed c = decode *** cloneV
+          >>> zipVC
+          >>> mapV (swap >>> andAll >>> unsafeParse >>> c >>> serial)
+          >>> transposeV
+          >>> mapV bigOrGate
+          >>> unsafeParse
+
+decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
+decode = blackbox "decode" $ mapV (copy >>> first' notGate) >>> crossV andGate
 
 
 prop_circuit :: (Arbitrary a, Eq b, Show a, Show b) => (a -> b) -> Circuit a b -> Property

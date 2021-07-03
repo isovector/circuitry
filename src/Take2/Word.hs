@@ -1,10 +1,92 @@
-module Take2.Word (Word4 (..)) where
+module Take2.Word (Word2 (..), Word3(..), Word4 (..)) where
 
 import Data.Bits
 import Data.Typeable
 import Data.Ratio
 import Test.QuickCheck (Arbitrary, arbitrary)
 import Test.QuickCheck.Function
+
+newtype Word2 = Word2 { unWord2 :: Int } deriving (Eq, Ord)
+
+instance Arbitrary Word2 where
+  arbitrary = word2 <$> arbitrary
+
+instance Function Word2 where
+  function = functionIntegral
+
+
+word2 :: Int -> Word2;  word2 = Word2 . narrowU 2
+oWord2 ::(Int->Int->Int)->(Word2->Word2->Word2); oWord2 = oNewtype word2 unWord2
+
+fWord2 :: (Int->Int) -> (Word2->Word2) ; fWord2 = fNewtype word2 unWord2
+
+instance Show Word2 where show = show . unWord2
+instance Read Word2 where readsPrec = readsPrecNewtype word2
+instance Num Word2 where (+) = oWord2 (+);  abs    = fWord2 abs
+                         (-) = oWord2 (-);  signum = fWord2 signum
+                         (*) = oWord2 (*);  fromInteger = word2 . fromInteger
+instance Real Word2 where toRational (Word2 x) = fromIntegral x % 1
+instance Integral Word2 where quotRem = otNewtype word2 unWord2 quotRem
+                              toInteger = toInteger . unWord2
+instance Bounded Word2 where maxBound = Word2 3; minBound = Word2 0
+instance Enum Word2 where toEnum   = word2;   enumFrom     = boundedEnumFrom
+                          fromEnum = unWord2; enumFromThen = boundedEnumFromThen
+deriving instance Typeable Word2
+
+instance Bits Word2 where
+  (.&.) = oWord2 (.&.)
+  (.|.) = oWord2 (.|.)
+  xor = oWord2 xor
+  complement = fWord2 complement
+  shift x n = fWord2 (flip shift n) x
+  rotate x n = fWord2 (flip rotate n) x
+  bitSize _ = 2
+  bitSizeMaybe _ = Just 2
+  isSigned _ = False
+  testBit = testBit . unWord2
+  bit = word2 . bit
+  popCount = popCount . unWord2
+
+newtype Word3 = Word3 { unWord3 :: Int } deriving (Eq, Ord)
+
+instance Arbitrary Word3 where
+  arbitrary = word3 <$> arbitrary
+
+instance Function Word3 where
+  function = functionIntegral
+
+
+word3 :: Int -> Word3;  word3 = Word3 . narrowU 3
+oWord3 ::(Int->Int->Int)->(Word3->Word3->Word3); oWord3 = oNewtype word3 unWord3
+
+fWord3 :: (Int->Int) -> (Word3->Word3) ; fWord3 = fNewtype word3 unWord3
+
+instance Show Word3 where show = show . unWord3
+instance Read Word3 where readsPrec = readsPrecNewtype word3
+instance Num Word3 where (+) = oWord3 (+);  abs    = fWord3 abs
+                         (-) = oWord3 (-);  signum = fWord3 signum
+                         (*) = oWord3 (*);  fromInteger = word3 . fromInteger
+instance Real Word3 where toRational (Word3 x) = fromIntegral x % 1
+instance Integral Word3 where quotRem = otNewtype word3 unWord3 quotRem
+                              toInteger = toInteger . unWord3
+instance Bounded Word3 where maxBound = Word3 7; minBound = Word3 0
+instance Enum Word3 where toEnum   = word3;   enumFrom     = boundedEnumFrom
+                          fromEnum = unWord3; enumFromThen = boundedEnumFromThen
+deriving instance Typeable Word3
+
+instance Bits Word3 where
+  (.&.) = oWord3 (.&.)
+  (.|.) = oWord3 (.|.)
+  xor = oWord3 xor
+  complement = fWord3 complement
+  shift x n = fWord3 (flip shift n) x
+  rotate x n = fWord3 (flip rotate n) x
+  bitSize _ = 3
+  bitSizeMaybe _ = Just 3
+  isSigned _ = False
+  testBit = testBit . unWord3
+  bit = word3 . bit
+  popCount = popCount . unWord3
 
 newtype Word4 = Word4 { unWord4 :: Int } deriving (Eq, Ord)
 
@@ -31,8 +113,6 @@ instance Integral Word4 where quotRem = otNewtype word4 unWord4 quotRem
 instance Bounded Word4 where maxBound = Word4 15; minBound = Word4 0
 instance Enum Word4 where toEnum   = word4;   enumFrom     = boundedEnumFrom
                           fromEnum = unWord4; enumFromThen = boundedEnumFromThen
--- | Deprecated.  Use 'Word4'.
-type UInt4 = Word4
 deriving instance Typeable Word4
 
 instance Bits Word4 where
@@ -48,6 +128,7 @@ instance Bits Word4 where
   testBit = testBit . unWord4
   bit = word4 . bit
   popCount = popCount . unWord4
+
 
 boundedEnumFrom :: (Ord a,Bounded a,Enum a) => a -> [a]
 boundedEnumFrom x = [x..maxBound]
