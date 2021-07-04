@@ -50,10 +50,9 @@ cout = everyPair
 
 
 data RW = R | W
-  deriving stock Generic
+  deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass Embed
 
-type Addr n = Vec n Bool
 
 -- array :: Circuit a b -> Circuit (Vec n a) (Vec n b)
 -- array f =
@@ -283,7 +282,7 @@ addressed c = decode *** cloneV
           >>> unsafeParse
 
 decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
-decode = mapV (copy >>> first' notGate) >>> crossV andGate
+decode = blackbox "decode" $ unsafeReinterpret >>> crossV andGate
 
 
 prop_circuit :: (Arbitrary a, Eq b, Show a, Show b, Embed b, Embed a) => (a -> b) -> Circuit a b -> Property

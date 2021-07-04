@@ -180,7 +180,7 @@ mapFoldVC
      . (KnownNat n, OkCircuit a, OkCircuit b, OkCircuit r)
     => Circuit (a, r) (b, r)
     -> Circuit (Vec n a, r) (Vec n b, r)
-mapFoldVC c = Circuit gr $ go
+mapFoldVC c = Circuit gr go
   where
     {-# INLINE combine #-}
     {-# INLINE go #-}
@@ -323,6 +323,54 @@ foldVC c = Circuit gr $ go
               r' <- lift $ unGraph (c_graph c) $ a V.++ r
               put r'
       pure r'
+
+
+crossV
+    :: forall n
+     . KnownNat n
+    => Circuit (Bool, Bool) Bool
+    -> Circuit (Vec n Bool) (Vec (2 ^ n) Bool)
+crossV c = Circuit gr go
+  where
+    go :: forall n'. KnownNat n' => Signal (Vec n' Bool) (Vec (2 ^ n') Bool)
+    go = Signal $ \case
+        Nil -> (go, Cons (Just True) Nil)
+        vin@(Cons _ _) ->
+          pumpSignal (update go $ V.repeat $ c_roar c) vin
+
+    update
+        :: forall n'
+         . Signal (Vec n' Bool) (Vec (2 ^ n') Bool)
+        -> Vec (2 ^ (n' + 1)) (Signal (Bool, Bool) Bool)
+        -> Signal (Vec (n' + 1) Bool) (Vec (2 ^ (n' + 1)) Bool)
+    update sind vsig = Signal $ \i ->
+      let (b, vin) = V.splitAtI i
+          b_not = fmap (fmap not) b
+          (sres, vres) = pumpSignal sind vin
+          vl = fmap ((b V.++) . flip Cons Nil) vres
+          vr = fmap ((b_not V.++) . flip Cons Nil) vres
+          (sout, vout) = V.unzip $ V.zipWith pumpSignal vsig  $ vl V.++ vr
+       in (update sres sout, V.concat vout)
+
+
+    gr :: forall m. KnownNat m => Graph (Vec m Bool) (Vec (2 ^ m) Bool)
+    gr = Graph $ \case
+        Nil -> do
+          o <- freshBit
+          pure $ Cons o Nil
+        Cons b vin -> do
+          bnot <- fmap V.head $ unGraph (c_graph notGate) $ Cons b Nil
+          (vout :: Vec (2 ^ (m - 1)) Y.Bit) <- unGraph gr $ vin
+          fmap V.concat $ flip V.traverse# vout $ \vb -> do
+            v1 <- unGraph (c_graph c) $ Cons b $ Cons vb Nil
+            v2 <- unGraph (c_graph c) $ Cons bnot $ Cons vb Nil
+            pure $ v1 V.++ v2
+
+
+notGate :: Circuit Bool Bool
+notGate
+  = gateDiagram (unaryGateDiagram Y.CellNot)
+  $ copy >>> nandGate
 
 
 ------------------------------------------------------------------------------

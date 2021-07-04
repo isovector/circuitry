@@ -26,12 +26,15 @@ import           Data.Generics.Labels ()
 import qualified Data.Map as M
 import qualified Data.Text as T
 import           Data.Typeable
-import           GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
+import           GHC.TypeLits (Symbol, KnownSymbol, symbolVal, natVal)
 import           Prelude hiding ((.), id)
 import           Take2.Embed
 import           Take2.Graph
 import           Yosys (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
 import qualified Yosys as Y
+import GHC.TypeNats (KnownNat)
+import Clash.Sized.Vector (Vec)
+import GHC.Generics (Generic)
 
 
 data Circuit a b = Circuit
@@ -96,6 +99,18 @@ newtype Named (n :: Symbol) a = Named a
 class Embed a => OkCircuit a
 instance Embed a => OkCircuit a
 
+class Nameable a where
+  nameOf :: String
+
+instance {-# OVERLAPPABLE #-} Typeable a => Nameable a where
+  nameOf = show $ typeRep $ Proxy @a
+
+instance (Nameable a, KnownNat n) => Nameable (Vec n a) where
+  nameOf = nameOf @a <> "[" <> show (natVal $ Proxy @n) <> "]"
+
+newtype Addr n = Addr { getAddr :: Vec n Bool }
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass Embed
 
 class SeparatePorts a where
   separatePorts :: GraphM (V.Vec (SizeOf a) Y.Bit, [(PortName, [Y.Bit])])
@@ -103,12 +118,12 @@ class SeparatePorts a where
 instance SeparatePorts () where
   separatePorts = pure (V.Nil, mempty)
 
-instance {-# OVERLAPPABLE #-} (Typeable a, Embed a) => SeparatePorts a where
+instance {-# OVERLAPPABLE #-} (Nameable a, Embed a) => SeparatePorts a where
   separatePorts = do
     b <- synthesizeBits @a
     pure
       ( b
-      , [ ( Y.PortName $ T.pack $ show $ typeRep $ Proxy @a
+      , [ ( Y.PortName $ T.pack $ nameOf @a
           , V.toList b
           )
         ]

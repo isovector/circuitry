@@ -40,6 +40,7 @@ import Data.Foldable (toList)
 import qualified Clash.Sized.Vector as V
 import qualified Data.Text as T
 import qualified Data.Aeson as A
+import Data.Functor.Compose
 
 
 instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
@@ -253,60 +254,6 @@ nxorGate
 both :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit (a, a) (b, b)
 both f = f *** f
 
-foil :: Circuit ((a, b), (c, d)) ((a, c), (b, d))
-foil = undefined
-
-
--- TODO(sandy):  This thing is hella primitive and should live in Prim
-crossV
-    :: forall n
-     . KnownNat n
-    => Circuit (Bool, Bool) Bool
-    -> Circuit (Vec n (Bool, Bool)) (Vec (2 ^ n) Bool)
-crossV c = undefined {-Prim.primitive $ Circuit gr $
-  Prim.timeInv
-    ( ((\case
-          Nil -> Left $ Cons True Nil
-          Cons a v' -> Right $ (a, v')
-      ) :: ( Vec n (Bool, Bool)
-          -> Either (Vec (2 ^ n) Bool)
-                    ((Bool, Bool), (Vec (n - 1) (Bool, Bool)))))
-    )
-  >>> right
-        (
-      (Signal (\a ->
-              case Prim.unsafeSatisfyGEq1 @n of
-                Prim.Dict ->
-                  pumpSignal
-                    (c_roar
-                      ( second' (crossV c >>> copy)
-                    >>> foil
-                    >>> both (distribV >>> mapV c)
-                    >>> unsafeReinterpret
-                      )
-                    ) a
-              )
-            )
-        )
-  >>> unify
-  where
-    gr :: forall m. KnownNat m => Graph (Vec m (Bool, Bool)) (Vec (2 ^ m) Bool)
-    gr = Graph $ \case
-      Nil -> do
-        o <- freshBit
-        pure $ Cons o Nil
-      Cons b1 (Cons b2 Nil) -> do
-        pure $ Cons b1 $ Cons b2 Nil
-      Cons b1 (Cons b2 vin) -> do
-        (vout :: Vec (2 ^ (m - 1)) Y.Bit) <- unGraph gr vin
-        fmap V.concat $ flip V.traverse# vout $ \vb -> do
-          v1 <- unGraph (c_graph c) $ Cons b1 $ Cons vb Nil
-          v2 <- unGraph (c_graph c) $ Cons b2 $ Cons vb Nil
-          pure $ v1 V.++ v2
-      _ -> error "impossible"
-      -}
-
-
 
 mapV
     :: (KnownNat n, OkCircuit a, OkCircuit b)
@@ -320,9 +267,6 @@ distribV = first' Prim.cloneV >>> Prim.zipVC
 
 deject :: OkCircuit a => Circuit (Either a a) a
 deject = serial >>> unconsC >>> snd' >>> unsafeParse
-
--- veryUnsafeCoerce :: forall a b. Circuit a b
--- veryUnsafeCoerce = Circuit undefined $ unsafeCoerce $ Roar id
 
 
 -- distribE
