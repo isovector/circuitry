@@ -347,24 +347,26 @@ crossV c = Circuit gr go
       let (b, vin) = V.splitAtI i
           b_not = fmap (fmap not) b
           (sres, vres) = pumpSignal sind vin
-          vl = fmap ((b V.++) . flip Cons Nil) vres
-          vr = fmap ((b_not V.++) . flip Cons Nil) vres
+          vl = fmap ((b_not V.++) . flip Cons Nil) vres
+          vr = fmap ((b V.++) . flip Cons Nil) vres
           (sout, vout) = V.unzip $ V.zipWith pumpSignal vsig  $ vl V.++ vr
        in (update sres sout, V.concat vout)
-
 
     gr :: forall m. KnownNat m => Graph (Vec m Bool) (Vec (2 ^ m) Bool)
     gr = Graph $ \case
         Nil -> do
-          o <- freshBit
-          pure $ Cons o Nil
+          o <- unGraph (c_graph $ pad True) Nil
+          pure o
+        Cons b Nil -> do
+          bnot <- unGraph (c_graph notGate) $ Cons b Nil
+          pure $ V.reverse $ b :> bnot
         Cons b vin -> do
           bnot <- fmap V.head $ unGraph (c_graph notGate) $ Cons b Nil
           (vout :: Vec (2 ^ (m - 1)) Y.Bit) <- unGraph gr $ vin
           fmap V.concat $ flip V.traverse# vout $ \vb -> do
-            v1 <- unGraph (c_graph c) $ Cons b $ Cons vb Nil
-            v2 <- unGraph (c_graph c) $ Cons bnot $ Cons vb Nil
-            pure $ v1 V.++ v2
+            vl <- unGraph (c_graph c) $ Cons bnot $ Cons vb Nil
+            vr <- unGraph (c_graph c) $ Cons b $ Cons vb Nil
+            pure $ vl V.++ vr
 
 
 notGate :: Circuit Bool Bool
