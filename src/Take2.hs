@@ -256,8 +256,11 @@ snap = component "snap"
    >>> rsLatch
 
 
-snapN :: forall a. (Typeable a, OkCircuit a, SeparatePorts a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
-snapN = component ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> distribV >>> mapV snap
+snapN :: forall a. (Nameable a, OkCircuit a, SeparatePorts a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
+snapN = component ("snap " <> nameOf @a)
+      $ second' serial
+    >>> distribV
+    >>> mapV snap
 
 
 ------------------------------------------------------------------------------
@@ -280,6 +283,7 @@ addressed c = decode *** cloneV
           >>> transposeV
           >>> mapV unsafeShort
           >>> unsafeParse
+
 
 decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
 decode = component "decode" $ unsafeReinterpret >>> crossV andGate
