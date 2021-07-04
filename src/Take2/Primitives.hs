@@ -168,9 +168,9 @@ tribuf = primitive $ Circuit gr $ Signal $ \(a :> en :> Nil) ->
 ------------------------------------------------------------------------------
 -- | NOTE: Leads to undefined behavior in the circuit world if more than one of
 -- the incoming bits are not Z.
-short :: Circuit (Vec n Bool) Bool
-short = primitive $ Circuit gr $ Signal $ \a ->
-    (c_roar short, V.foldr (<|>) Nothing a :> Nil)
+unsafeShort :: Circuit (Vec n Bool) Bool
+unsafeShort = primitive $ Circuit gr $ Signal $ \a ->
+    (c_roar unsafeShort, V.foldr (<|>) Nothing a :> Nil)
   where
     gr :: Graph (Vec n Bool) Bool
     gr = Graph $ \bin -> do

@@ -260,24 +260,25 @@ snapN :: forall a. (Typeable a, OkCircuit a, SeparatePorts a) => Circuit (Bool, 
 snapN = component ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> distribV >>> mapV snap
 
 
--- TODO(sandy): this should have a tristate buffer to prevent unwanted updates
--- on the line
-addressed :: forall n a b. (Embed a, Embed b, KnownNat n) => Circuit a b -> Circuit (Addr n, a) b
+------------------------------------------------------------------------------
+-- | Duplicate the given circuit @2^n@ times, and put a decoder on the address.
+-- Each circuit gets a 'Bool' corresponding to whether or not they were the one
+-- decoded. Combine all back together with a bus.
+addressed
+    :: forall n a b
+     . (Embed a, Embed b, KnownNat n)
+    => Circuit (a, Bool) b
+    -> Circuit (Addr n, a) b
 addressed c = decode *** cloneV
           >>> zipVC
           >>> mapV ( swap
                  >>> second' copy
                  >>> reassoc
-                 >>> first' ( first' serial
-                          >>> tribufAll
-                          >>> unsafeParse
-                          >>> c
-                          >>> serial
-                            )
+                 >>> first' (c >>> serial)
                  >>> tribufAll
                    )
           >>> transposeV
-          >>> mapV short
+          >>> mapV unsafeShort
           >>> unsafeParse
 
 decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
