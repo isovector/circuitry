@@ -27,12 +27,6 @@ import           GHC.TypeLits.Extra
 import           Prelude hiding ((.), id, sum)
 import           Take2.Word
 
-data ZBool
-  = Bool Bool
-  | Z
-  deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass Embed
-
 
 class KnownNat (SizeOf a) => Embed a where
   type SizeOf a :: Nat

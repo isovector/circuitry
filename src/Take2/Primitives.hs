@@ -37,6 +37,7 @@ import Control.Monad.Reader (ask, local, asks)
 import Control.Lens ((-~))
 import Data.Bool (bool)
 import Data.Function (fix)
+import Control.Applicative ((<|>))
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -134,7 +135,7 @@ pad a = primitive $ Circuit gr $ timeInv $ \v -> v V.++ V.repeat @(n - m) a
     gr = Graph $ \v -> do
       v2 <- synthesizeBits @(Vec (n - m) a)
       name <- constantName a
-      addNamedCell (Y.CellName $ T.pack name) $
+      addCell $
         Y.Cell Y.CellConstant
           (M.singleton (Y.Width "Y") $ V.length v2)
           (M.singleton "value" $ A.String $ T.pack name)
@@ -154,25 +155,28 @@ nandGate = primitive $ Circuit gr $ timeInv $ not . uncurry (&&)
       pure $ Cons o Nil
 
 
-tribuf :: Circuit (Bool, Bool) ZBool
-tribuf = primitive $ Circuit gr $ timeInv $ \(a, en) -> bool Z (Bool a) en
+tribuf :: Circuit (Bool, Bool) Bool
+tribuf = primitive $ Circuit gr $ Signal $ \(a :> en :> Nil) ->
+    (c_roar tribuf, (en >>= bool Nothing a) :> Nil)
   where
-    gr :: Graph (Bool, Bool) ZBool
+    gr :: Graph (Bool, Bool) Bool
     gr = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
-      -- NOTE(sandy): we must be careful to not use en_out anywhere in the graph
-      en_out <- freshBit
       out <- freshBit
       addCell $ Y.mkMonoidalBinaryOp Y.CellTribuf "A" "EN" "Y" [i1] [i2] [out]
-      pure $ Cons en_out $ Cons out Nil
+      pure $ Cons out Nil
 
-untribuf :: Circuit ZBool Bool
-untribuf = primitive $ Circuit gr $ timeInv $ \case
-    Bool b -> b
-    -- TODO(sandy): don't error here; change the model so we can represent this
-    Z -> error "you untribuffed a Z!"
+------------------------------------------------------------------------------
+-- | NOTE: Leads to undefined behavior in the circuit world if more than one of
+-- the incoming bits are not Z.
+short :: Circuit (Vec n Bool) Bool
+short = primitive $ Circuit gr $ Signal $ \a ->
+    (c_roar short, V.foldr (<|>) Nothing a :> Nil)
   where
-    gr :: Graph ZBool Bool
-    gr = Graph $ \(Cons _ a) -> pure a
+    gr :: Graph (Vec n Bool) Bool
+    gr = Graph $ \bin -> do
+      o <- freshBit
+      unifyBits $ M.fromList $ zip (V.toList bin) $ repeat o
+      pure $ o :> Nil
 
 
 mapFoldVC
@@ -246,7 +250,8 @@ cloneV :: forall n r. (KnownNat n, Embed r) => Circuit r (Vec n r)
 cloneV = primitive $ Circuit gr $ timeInv V.repeat
   where
     gr :: Graph r (Vec n r)
-    gr = Graph $ \i -> pure $ V.concatMap V.repeat i
+    gr = Graph $ \i -> do
+      pure $ V.concat $ V.repeat i
 
 
 fixC

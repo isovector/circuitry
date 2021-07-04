@@ -184,18 +184,19 @@ ifC t f = second' (copy >>> (t *** f))
 andAll :: OkCircuit a => Circuit (a, Bool) (Vec (SizeOf a) Bool)
 andAll = swap >>> second' serial >>> distribV >>> mapV andGate
 
-tribufAll :: KnownNat n => Circuit (Vec n Bool, Bool) (Vec n ZBool)
-tribufAll = swap >>> distribV >>> mapV (swap >>> Prim.tribuf)
-
--- TODO(sandy): terrible terrible implementation
-untribufAll :: forall n. (1 <= n, KnownNat n) => Circuit (Vec n ZBool) Bool
-untribufAll = mapV Prim.untribuf >>> Prim.unobservable gr bigOrGate
+tribufAll :: forall n. KnownNat n => Circuit (Vec n Bool, Bool) (Vec n Bool)
+tribufAll = Prim.gateDiagram gr
+          $ swap >>> distribV >>> mapV (swap >>> Prim.tribuf)
   where
-    gr :: Graph (Vec n Bool) Bool
-    gr = Graph $ \v -> do
-      o <- freshBit
-      unifyBits $ M.fromList $ zip (V.toList v) $ repeat o
-      pure $ Cons o Nil
+    gr :: Graph (Vec n Bool, Bool) (Vec n Bool)
+    gr = Graph $ \i -> do
+      let (i1, i2) = V.splitAtI @n i
+      o <- fst <$> separatePorts @(Vec n Bool)
+      addCell $
+        Y.mkMonoidalBinaryOp
+          Y.CellTribuf "A" "EN" "Y"
+          (V.toList i1) (V.toList i2) (V.toList o)
+      pure o
 
 bigOrGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
 bigOrGate

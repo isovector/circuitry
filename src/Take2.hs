@@ -25,7 +25,7 @@ import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Machinery
 import           Take2.Numeric
-import           Take2.Primitives (timeInv, shortcircuit, gateDiagram, constantName, untribuf)
+import           Take2.Primitives (timeInv, shortcircuit, gateDiagram, constantName)
 import           Take2.Graph (RenderOptions(..))
 import           Take2.Word
 import           Test.QuickCheck
@@ -270,7 +270,6 @@ addressed c = decode *** cloneV
                  >>> reassoc
                  >>> first' ( first' serial
                           >>> tribufAll
-                          >>> mapV untribuf
                           >>> unsafeParse
                           >>> c
                           >>> serial
@@ -278,7 +277,7 @@ addressed c = decode *** cloneV
                  >>> tribufAll
                    )
           >>> transposeV
-          >>> mapV untribufAll
+          >>> mapV short
           >>> unsafeParse
 
 decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
