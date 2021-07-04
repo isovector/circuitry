@@ -104,7 +104,7 @@ ifOrEmpty :: (Embed a, Embed b) => Circuit a b -> Circuit (Bool, a) (Vec (SizeOf
 ifOrEmpty c = second' (c >>> serial) >>> andV
 
 andV :: KnownNat n => Circuit (Bool, Vec n Bool) (Vec n Bool)
-andV = blackbox "andV" $ distribV >>> mapV andGate
+andV = component "andV" $ distribV >>> mapV andGate
 
 
 when
@@ -112,7 +112,7 @@ when
     => k
     -> Circuit v r
     -> Circuit (k, v) (Vec (SizeOf r) Bool)
-when k c = blackbox' (fmap (mappend "case ") $ constantName k)
+when k c = interface' diagrammed (fmap (mappend "case ") $ constantName k)
            (first' (intro k >>> eq))
        >>> ifOrEmpty c
 
@@ -236,7 +236,7 @@ eq = diagrammed (binaryGateDiagram Y.CellEq)
 
 -- input: R S
 rsLatch :: Circuit (Bool, Bool) Bool
-rsLatch = blackbox "rs"
+rsLatch = component "rs"
          $ fixC False
          $ reassoc'
       >>> second' norGate
@@ -249,7 +249,7 @@ rsLatch_named = coerceCircuit rsLatch
 
 -- input: S V
 snap :: Circuit (Bool, Bool) Bool
-snap = blackbox "snap"
+snap = component "snap"
      $ second' (split >>> swap)
    >>> distribP
    >>> both andGate
@@ -257,7 +257,7 @@ snap = blackbox "snap"
 
 
 snapN :: forall a. (Typeable a, OkCircuit a, SeparatePorts a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
-snapN = blackbox ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> distribV >>> mapV snap
+snapN = component ("snap " <> show (typeRep $ Proxy @a)) $ second' serial >>> distribV >>> mapV snap
 
 
 -- TODO(sandy): this should have a tristate buffer to prevent unwanted updates
@@ -281,7 +281,7 @@ addressed c = decode *** cloneV
           >>> unsafeParse
 
 decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
-decode = blackbox "decode" $ unsafeReinterpret >>> crossV andGate
+decode = component "decode" $ unsafeReinterpret >>> crossV andGate
 
 
 prop_circuit :: (Arbitrary a, Eq b, Show a, Show b, Embed b, Embed a) => (a -> b) -> Circuit a b -> Property
@@ -324,7 +324,7 @@ prop_eq = property $ do
     pure $ evalCircuit (eq @a) (a, a) t === Just True
 
 example_map :: Circuit (Vec 4 Bool) (Vec 4 Bool)
-example_map = mapV (blackbox "" id)
+example_map = mapV (component "" id)
 
 
 main :: IO ()

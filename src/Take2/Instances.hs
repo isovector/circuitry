@@ -281,19 +281,27 @@ blackbox
     => String
     -> Circuit a b
     -> Circuit a b
-blackbox c = blackbox' (pure c)
+blackbox = interface' Prim.unobservable . pure
 
-blackbox'
+component
     :: forall a b
      . (KnownNat (SizeOf a), SeparatePorts a, SeparatePorts b, KnownNat (SizeOf b))
-    => GraphM String
+    => String
     -> Circuit a b
     -> Circuit a b
-blackbox' get_name = Prim.diagrammed $ Graph $ \a -> do
+component = interface' Prim.diagrammed . pure
+
+interface'
+    :: forall a b
+     . (KnownNat (SizeOf a), SeparatePorts a, SeparatePorts b, KnownNat (SizeOf b))
+    => (Graph a b -> Circuit a b -> Circuit a b)
+    -> GraphM String
+    -> Circuit a b
+    -> Circuit a b
+interface' builder get_name = builder $ Graph $ \a -> do
   let mkPort :: String -> Int -> Y.PortName -> Y.PortName
       mkPort pre ix (Y.PortName pn) =
         Y.PortName (T.pack (pre <> show ix <> " : ") <> pn)
-
 
   (ab, ip0) <- separatePorts @a
   (o, op0) <- separatePorts @b
