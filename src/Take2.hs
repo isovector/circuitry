@@ -9,10 +9,6 @@ import           Take2.Machinery
 
 
 
-data RW = R | W
-  deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
-  deriving anyclass Embed
-
 
 alu
     :: (2 <= SizeOf a, SeparatePorts a, Embed a, Numeric a)

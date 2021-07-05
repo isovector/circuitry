@@ -118,6 +118,23 @@ instance SymmetricSum Circuit where
   --             _ -> error "impossible"
 
 
+instance Cocartesian Circuit where
+  injectL = create
+        >>> second' (constC False)
+        >>> swap
+        >>> second' (serial >>> Prim.pad False)
+        >>> unsafeReinterpret
+  injectR = create
+        >>> second' (constC True)
+        >>> swap
+        >>> second' (serial >>> Prim.pad False)
+        >>> unsafeReinterpret
+  unify = serial
+      >>> unconsC
+      >>> snd'
+      >>> unsafeParse
+  tag = unsafeReinterpret
+
 {-# RULES
 "unsafeReinterpret . unsafeReinterpret" unsafeReinterpret . unsafeReinterpret = unsafeReinterpret
 #-}
