@@ -1,16 +1,4 @@
-{-# LANGUAGE CPP                     #-}
-{-# LANGUAGE ConstraintKinds         #-}
-{-# LANGUAGE DataKinds               #-}
-{-# LANGUAGE FlexibleInstances       #-}
-{-# LANGUAGE FunctionalDependencies  #-}
-{-# LANGUAGE GADTs                   #-}
-{-# LANGUAGE LambdaCase              #-}
-{-# LANGUAGE MultiParamTypeClasses   #-}
 {-# LANGUAGE QuantifiedConstraints   #-}
-{-# LANGUAGE RankNTypes              #-}
-{-# LANGUAGE StarIsType              #-}
-{-# LANGUAGE TypeFamilies            #-}
-{-# LANGUAGE TypeOperators           #-}
 {-# LANGUAGE UndecidableInstances    #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 
@@ -21,11 +9,8 @@ module Circuitry.Category where
 import qualified Control.Arrow as A
 import           Data.Kind
 import qualified Data.Profunctor as P
-import           Data.Typeable
-import           Data.Void
 import qualified Prelude
 import           Prelude hiding (id, (.))
-import qualified Control.Arrow as C
 
 class ( Ok k ()
       , forall x y okK. (Ok k x, Ok k y, okK ~ Ok k) => okK (x, y)
@@ -40,21 +25,26 @@ class Category k => Recursive k where
   recurseL :: AllOk k [a, b, s] => (Either a s `k` Either b s) -> (a `k` b)
   recurseR :: AllOk k [a, b, s] => (Either s a `k` Either s b) -> (a `k` b)
 
+
 type family AllOk k (t :: [Type]) :: Constraint where
   AllOk k '[] = ()
   AllOk k (t1 : ts) = (Ok k t1, AllOk k ts)
 
+
 class TrivialConstraint a where
 instance TrivialConstraint a where
+
 
 instance Category (->) where
   type Ok (->) = TrivialConstraint
   id = Prelude.id
   (.) = (Prelude..)
 
+
 instance Recursive (->) where
   recurseL = P.unleft
   recurseR = P.unright
+
 
 class Category k => Fixed k where
   fixL :: AllOk k [a, b, s] => ((a, s) `k` (b, s)) -> (a `k` b)
@@ -64,9 +54,11 @@ instance Fixed (->) where
   fixL = P.unfirst
   fixR = P.unsecond
 
+
 (<<<) :: (Category k, AllOk k [a, b, c]) => k b c -> k a b -> k a c
 (<<<) = (.)
 {-# INLINE (<<<) #-}
+
 
 (>>>) :: (Category k, AllOk k [a, b, c]) => k a b -> k b c -> k a c
 f >>> g = g . f
@@ -91,6 +83,7 @@ instance MonoidalProduct (->) where
   {-# INLINE (***) #-}
   {-# INLINE first' #-}
   {-# INLINE second' #-}
+
 
 class SymmetricSum k => MonoidalSum k where
   {-# MINIMAL (+++) | (left, right) #-}
@@ -121,6 +114,7 @@ instance Distrib (->) where
   factor (Left (a, b)) = (a, Left b)
   factor (Right (a, c)) = (a, Right c)
 
+
 class Category k => SymmetricProduct k where
   swap :: AllOk k [l, r] => (l, r) `k` (r, l)
   reassoc :: AllOk k [a, b, c] => (a, (b, c)) `k` ((a, b), c)
@@ -129,6 +123,7 @@ class Category k => SymmetricProduct k where
 {-# RULES
 "swap . swap" forall a. swap (swap a) = a
 #-}
+
 
 class Category k => SymmetricSum k where
   swapE :: AllOk k [l, r] => (Either l r) `k` (Either r l)
@@ -150,8 +145,10 @@ instance SymmetricSum (->) where
   reassocE (Right (Left b)) = Left (Right b)
   reassocE (Right (Right c)) = Right c
 
+
 class CategoryPlus k => CategoryZero k where
   zeroC :: AllOk k [a, b] => k a b
+
 
 class Category k => CategoryPlus k where
   (<+>) :: AllOk k [a, b] => k a b -> k a b -> k a b
@@ -172,6 +169,7 @@ instance Cartesian (->) where
   consume _ = ()
   fst' = fst
   snd' = snd
+
 
 class MonoidalSum k => Cocartesian k where
   (|||) :: AllOk k [al, ar, b] => (al `k` b) -> (ar `k` b) -> (Either al ar `k` b)

@@ -1,15 +1,5 @@
-{-# LANGUAGE InstanceSigs         #-}
 {-# LANGUAGE MagicHash            #-}
-{-# LANGUAGE OverloadedLabels     #-}
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -Wall #-}
-
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
-{-# OPTIONS_GHC -fplugin-opt GHC.TypeLits.Normalise:allow-negated-numbers #-}
 
 module Take2.Primitives where
 
@@ -18,13 +8,15 @@ import           Circuitry.Category (Category(..), (>>>))
 import qualified Circuitry.Category as Category
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
+import           Control.Applicative ((<|>))
+import           Control.Lens ((-~))
+import           Control.Monad.Reader (local, asks)
 import           Control.Monad.State (StateT(..), get, lift, MonadState (put), runStateT, execStateT)
 import qualified Data.Aeson as A
-import           Data.Bifunctor (first)
+import           Data.Bool (bool)
 import           Data.Coerce (Coercible, coerce)
 import           Data.Generics.Labels ()
 import qualified Data.Map as M
-import           Data.Profunctor (dimap, lmap)
 import qualified Data.Text as T
 import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
@@ -33,11 +25,6 @@ import           Take2.Embed
 import           Take2.Graph
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
-import Control.Monad.Reader (ask, local, asks)
-import Control.Lens ((-~))
-import Data.Bool (bool)
-import Data.Function (fix)
-import Control.Applicative ((<|>))
 
 
 primitive :: Circuit a b -> Circuit a b

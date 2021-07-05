@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bd96d659d7b3fb7f5f0b0ba42f56d2336db346c64e626c58467e60ede9de4c36
+-- hash: 4b302a1df218d43432c5da3e8b5cae76ebdd0f8f709e6f31e3cff514579f815c
 
 name:           circuitry
 version:        0.1.0.0
@@ -22,6 +22,8 @@ executable circuitry
       Circuitry.Category
       Circuitry.GraphViz
       Take2.Circuit
+      Take2.Computer.Memory
+      Take2.Computer.Simple
       Take2.Embed
       Take2.Graph
       Take2.Instances
@@ -79,7 +81,10 @@ executable circuitry
       DefaultSignatures
       TypeApplications
       LambdaCase
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -flate-specialise -fspecialise-aggressively
+      OverloadedLabels
+      InstanceSigs
+      RoleAnnotations
+  ghc-options: -Wall -fplugin GHC.TypeLits.Extra.Solver -fplugin GHC.TypeLits.KnownNat.Solver -fplugin GHC.TypeLits.Normalise -threaded -rtsopts -with-rtsopts=-N -O2 -flate-specialise -fspecialise-aggressively
   build-depends:
       MemoTrie
     , QuickCheck

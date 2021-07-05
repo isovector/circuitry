@@ -1,10 +1,5 @@
-{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE MagicHash       #-}
-{-# LANGUAGE RoleAnnotations #-}
 
-{-# OPTIONS_GHC -Wall                               #-}
-{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
-{-# OPTIONS_GHC -Wno-unused-do-bind                 #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Circuitry.Catalyst
@@ -13,20 +8,17 @@ module Circuitry.Catalyst
   ) where
 
 import           Circuitry.Category
+import           Clash.Sized.Vector (Vec)
+import qualified Clash.Sized.Vector as V
 import           Data.Bool (bool)
 import           Data.Function (fix)
-import           Data.Profunctor.Types
 import           Data.Word (Word8)
 import           Numeric.Natural (Natural)
 import           Prelude hiding (id, (.), sum, zip)
+import           Take2.Embed
 import           Test.QuickCheck (CoArbitrary, Arbitrary (arbitrary), Function (function), functionMap, (===))
 import           Test.QuickCheck.Arbitrary (CoArbitrary(coarbitrary))
 import           Test.QuickCheck.Checkers
-import Clash.Sized.Vector (Vec)
-import Take2.Embed
-import qualified Clash.Sized.Vector as V
-import GHC.TypeLits.Extra (Max)
-import GHC.TypeLits (KnownNat, type (+))
 
 
 instance Arbitrary Natural where

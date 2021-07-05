@@ -1,12 +1,18 @@
 module Take2.Machinery
-  ( module Take2.Machinery
-  , module X
+  ( module X
   , Vec (..)
   ) where
 
 import Circuitry.Category as X
-import Take2.Circuit as X
-import Take2.Instances as X
-import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, coerceCircuit, diagrammed, binaryGateDiagram, unaryGateDiagram, transposeV, tribuf, crossV, unsafeShort)
 import Clash.Sized.Vector (Vec (..))
+import Data.Generics.Labels ()
+import Data.Word as X
+import GHC.Generics as X (Generic)
+import GHC.TypeLits as X (type (+), type (-), type (^), type (<=), KnownNat)
+import Take2.Circuit as X
+import Take2.Embed as X
+import Take2.Instances as X
+import Take2.Numeric as X
+import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, coerceCircuit, diagrammed, binaryGateDiagram, unaryGateDiagram, transposeV, tribuf, crossV, unsafeShort, shortcircuit)
+import Take2.Word as X
 

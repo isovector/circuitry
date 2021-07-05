@@ -1,11 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
-
-{-# OPTIONS_GHC -Wall                   #-}
 {-# OPTIONS_GHC -Wno-deprecations #-}
 {-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}
 

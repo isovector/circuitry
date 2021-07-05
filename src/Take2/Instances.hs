@@ -1,49 +1,36 @@
-{-# LANGUAGE InstanceSigs         #-}
 {-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-{-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
-
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
-
-{-# OPTIONS_GHC -fplugin-opt GHC.TypeLits.Normalise:allow-negated-numbers #-}
-{-# OPTIONS_GHC -fconstraint-solver-iterations=20 #-}
+{-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}
 
 module Take2.Instances where
 
-import           Circuitry.Catalyst (Time, Signal (Signal), pumpSignal)
-import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum, Distrib (distrib), factor, unify)
+import           Circuitry.Catalyst (Signal)
+import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct,  MonoidalProduct, Cartesian(..), SymmetricSum(..), MonoidalSum, Distrib (distrib), factor)
 import           Circuitry.Category (MonoidalProduct(..))
 import           Circuitry.Category (MonoidalSum(..))
 import           Circuitry.Category (SymmetricProduct(..))
 import           Clash.Sized.Vector (Vec(..))
+import qualified Clash.Sized.Vector as V
+import qualified Data.Aeson as A
 import qualified Data.Bits as B
 import           Data.Generics.Labels ()
-import           Data.Map (Map)
 import qualified Data.Map as M
-import           Data.Text (Text)
+import qualified Data.Text as T
 import           GHC.TypeLits
+import           GHC.TypeLits.Extra (Max)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
-import           Take2.Graph (Graph(Graph), freshBit, addCell, synthesizeBits, GraphM (GraphM), unifyBits, unifyBitsImpl, unGraph)
+import           Take2.Graph (Graph(Graph), addCell, unifyBits, unifyBitsImpl, GraphM)
 import qualified Take2.Primitives as Prim
 import           Test.QuickCheck
+import           Type.Reflection (type (:~:) (Refl))
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
-import Data.Foldable (toList)
-import qualified Clash.Sized.Vector as V
-import qualified Data.Text as T
-import qualified Data.Aeson as A
-import Data.Functor.Compose
-import GHC.TypeLits.Extra (Max)
-import Type.Reflection (type (:~:) (Refl))
 
 
 instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
@@ -142,8 +129,10 @@ instance SymmetricSum Circuit where
 unsafeReinterpret :: (OkCircuit a, OkCircuit b, SizeOf a ~ SizeOf b) => Circuit a b
 unsafeReinterpret = Prim.raw id
 
+
 raise :: OkCircuit a => Circuit a (Vec 1 a)
 raise = unsafeReinterpret
+
 
 lower :: OkCircuit a => Circuit (Vec 1 a) a
 lower = unsafeReinterpret
@@ -221,6 +210,7 @@ ifC t f = second' (copy >>> (t *** f))
 andAll :: OkCircuit a => Circuit (a, Bool) (Vec (SizeOf a) Bool)
 andAll = swap >>> second' serial >>> distribV >>> mapV andGate
 
+
 tribufAll :: forall n. KnownNat n => Circuit (Vec n Bool, Bool) (Vec n Bool)
 tribufAll = Prim.gateDiagram gr
           $ swap >>> distribV >>> mapV (swap >>> Prim.tribuf)
@@ -234,6 +224,7 @@ tribufAll = Prim.gateDiagram gr
           Y.CellTribuf "A" "EN" "Y"
           (V.toList i1) (V.toList i2) (V.toList o)
       pure o
+
 
 bigOrGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
 bigOrGate
@@ -270,6 +261,7 @@ orGate
   $ Prim.gateDiagram (Prim.binaryGateDiagram Y.CellOr)
   $ both notGate >>> Prim.nandGate
 
+
 norGate :: Circuit (Bool, Bool) Bool
 norGate
   = Prim.gateDiagram (Prim.binaryGateDiagram Y.CellNor)
@@ -299,6 +291,7 @@ mapV
     -> Circuit (Vec n a) (Vec n b)
 mapV c = create >>> Prim.mapFoldVC (destroy >>> c >>> create) >>> destroy
 
+
 distribV :: (OkCircuit a, OkCircuit b, KnownNat n) => Circuit (a, Vec n b) (Vec n (a, b))
 distribV = first' Prim.cloneV >>> Prim.zipVC
 
@@ -306,11 +299,6 @@ distribV = first' Prim.cloneV >>> Prim.zipVC
 deject :: OkCircuit a => Circuit (Either a a) a
 deject = serial >>> unconsC >>> snd' >>> unsafeParse
 
-
--- distribE
---     :: (OkCircuit a, OkCircuit b, OkCircuit c)
---     => Circuit (a, Either b c) (Either (a, b) (a, c))
--- distribE = second' (serial >>> unconsC) >>> reassoc >>> first' swap >>> veryUnsafeCoerce
 
 blackbox
     :: forall a b
@@ -320,6 +308,7 @@ blackbox
     -> Circuit a b
 blackbox = interface' Prim.unobservable . pure
 
+
 component
     :: forall a b
      . (KnownNat (SizeOf a), SeparatePorts a, SeparatePorts b, KnownNat (SizeOf b))
@@ -327,6 +316,7 @@ component
     -> Circuit a b
     -> Circuit a b
 component = interface' Prim.diagrammed . pure
+
 
 interface'
     :: forall a b
@@ -358,6 +348,7 @@ interface' builder get_name = builder $ Graph $ \a -> do
   let subst = M.fromList $ V.toList $ V.zip ab a
   unifyBits subst
   pure $ unifyBitsImpl subst o
+
 
 sequenceMetaV
     :: (Embed a, Embed b, KnownNat cases)

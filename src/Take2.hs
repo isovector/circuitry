@@ -1,13 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE MagicHash           #-}
-{-# LANGUAGE OverloadedStrings   #-}
-
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
-
-{-# OPTIONS_GHC -Wall                   #-}
-{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Main where
 
@@ -15,21 +6,12 @@ import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
 import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
-import           Data.Generics.Labels ()
-import           Data.Typeable
-import           Data.Word (Word8, Word64)
-import           GHC.Generics (Generic)
-import           GHC.TypeLits (type (-), type (<=), KnownNat, type (^))
 import           Prelude hiding ((.), id, sum)
-import           Take2.Circuit
-import           Take2.Embed
+import           Take2.Computer.Memory
+import           Take2.Computer.Simple
 import           Take2.Machinery
-import           Take2.Numeric
-import           Take2.Primitives (timeInv, shortcircuit, gateDiagram, constantName)
-import           Take2.Graph (RenderOptions(..))
-import           Take2.Word
+import           Take2.Primitives (timeInv)
 import           Test.QuickCheck
-import           Yosys (renderModule)
 import qualified Yosys as Y
 
 
@@ -82,39 +64,12 @@ addN = diagrammed (binaryGateDiagram Y.CellAdd)
    >>> first' unsafeParse
 
 
-split :: Circuit Bool (Bool, Bool)
-split = copy >>> second' notGate
-
-
-hold :: Circuit Bool Bool
-hold = fixC False $ orGate >>> copy
 
 
 tickTock :: Circuit () Bool
 tickTock = fixC False $ snd' >>> copy >>> second' notGate
 
 
-intro :: (Embed a, Embed b, Show b) => b -> Circuit a (a, b)
-intro b = create >>> second' (constC b)
-
-cut :: Embed a => Circuit a ()
-cut = create >>> snd'
-
-ifOrEmpty :: (Embed a, Embed b) => Circuit a b -> Circuit (Bool, a) (Vec (SizeOf b) Bool)
-ifOrEmpty c = second' (c >>> serial) >>> andV
-
-andV :: KnownNat n => Circuit (Bool, Vec n Bool) (Vec n Bool)
-andV = component "andV" $ distribV >>> mapV andGate
-
-
-when
-    :: (1 <= SizeOf k, Embed k, Embed v, Embed r, Show k, SeparatePorts k, SeparatePorts v)
-    => k
-    -> Circuit v r
-    -> Circuit (k, v) (Vec (SizeOf r) Bool)
-when k c = interface' diagrammed (fmap (mappend "case ") $ constantName k)
-           (first' (intro k >>> eq))
-       >>> ifOrEmpty c
 
 
 alu
@@ -133,39 +88,7 @@ alu =
     $ Nil
 
 
-pointwise :: (Embed a, Embed b, Embed c, KnownNat n) => Circuit (a, b) c -> Circuit (Vec n a, Vec n b) (Vec n c)
-pointwise c = zipVC >>> mapV c
 
-
-branch
-    :: forall k v n cases
-     . ( 1 <= cases
-       , 1 <= SizeOf k
-       , Embed k
-       , Embed v
-       , KnownNat n
-       , Show k
-       , KnownNat cases
-       , SeparatePorts k
-       , SeparatePorts v
-       )
-    => Vec cases (k, Circuit v (Vec n Bool))
-    -> Circuit (k, v) (Vec n Bool)
-branch vs = sequenceMetaV (fmap (uncurry when) vs) >>> pointwiseOr @cases
-
-onEach :: (Embed a, Embed b, KnownNat cases) => (v -> Circuit a b) -> Vec cases v -> Circuit a (Vec cases b)
-onEach f v = sequenceMetaV $ fmap f v
-
-
-pointwiseOr
-    :: (1 <= m, KnownNat n, KnownNat m)
-    => Circuit (Vec m (Vec n Bool)) (Vec n Bool)
-pointwiseOr = transposeV >>> mapV bigOrGate
-
-pointwiseAnd
-    :: (1 <= m, KnownNat n, KnownNat m)
-    => Circuit (Vec m (Vec n Bool)) (Vec n Bool)
-pointwiseAnd = transposeV >>> mapV bigAndGate
 
 
 clock
@@ -223,44 +146,10 @@ instance Arbitrary AluOpCode where
              pure AluOpAShiftR]
        in oneof terminal
 
-bigAndGate :: (KnownNat n, 1 <= n) => Circuit (Vec n Bool) Bool
-bigAndGate
-  = shortcircuit (V.foldr (&&) True)
-  $ gateDiagram (unaryGateDiagram Y.CellAnd)
-  $ create >>> second' (constC True) >>> foldVC andGate
-
-eq :: (Embed a, 1 <= SizeOf a) => Circuit (a, a) Bool
-eq = diagrammed (binaryGateDiagram Y.CellEq)
-   $ both serial >>> zipVC >>> mapV nxorGate >>> bigAndGate
-
-
--- input: R S
-rsLatch :: Circuit (Bool, Bool) Bool
-rsLatch = component "rs"
-         $ fixC False
-         $ reassoc'
-      >>> second' norGate
-      >>> norGate
-      >>> copy
 
 rsLatch_named :: Circuit (Named "R" Bool, Named "S" Bool) Bool
 rsLatch_named = coerceCircuit rsLatch
 
-
--- input: S V
-snap :: Circuit (Bool, Bool) Bool
-snap = component "snap"
-     $ second' (split >>> swap)
-   >>> distribP
-   >>> both andGate
-   >>> rsLatch
-
-
-snapN :: forall a. (Nameable a, OkCircuit a, SeparatePorts a) => Circuit (Bool, a) (Vec (SizeOf a) Bool)
-snapN = component ("snap " <> nameOf @a)
-      $ second' serial
-    >>> distribV
-    >>> mapV snap
 
 
 ------------------------------------------------------------------------------

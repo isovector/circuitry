@@ -1,49 +1,24 @@
 {-# LANGUAGE AllowAmbiguousTypes  #-}
 {-# LANGUAGE MagicHash            #-}
-{-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedLabels     #-}
-{-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
 
 module Take2.Graph where
 
-import           Circuitry.Catalyst (Time)
-import           Circuitry.Category (Category(..), first', swap, (&&&), (>>>), swapE, SymmetricProduct (reassoc), MonoidalProduct (second'), Cartesian(..), SymmetricSum(..), MonoidalSum)
-import           Circuitry.Category (MonoidalProduct(..))
-import           Circuitry.Category (MonoidalSum(..))
-import           Circuitry.Category (SymmetricProduct(..))
+import           Circuitry.Category (Category(..))
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import           Control.Lens ((%~), (+~), (<>~))
 import           Control.Monad.Reader (ReaderT, MonadReader)
 import           Control.Monad.State
-import qualified Data.Bits as B
-import           Data.Bool (bool)
-import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
-import           Data.Generics.Wrapped ( _Unwrapped )
 import           Data.Map (Map)
 import qualified Data.Map as M
-import           Data.Profunctor
 import qualified Data.Text as T
-import           Data.Traversable
-import           Data.Typeable
-import           Data.Word (Word8, Word16, Word32, Word64)
 import           GHC.Generics
-import           GHC.TypeLits
-import           GHC.TypeLits.Extra
 import           Generics.SYB hiding (Generic)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Embed
-import           Test.QuickCheck
-import           Unsafe.Coerce (unsafeCoerce)
-import           Yosys (Bit, Module (Module), Cell (Cell), CellName (..), getBit)
-import qualified Yosys as Y
-
-
+import           Yosys (Bit, Cell (..), Module (Module), CellName (..), getBit)
 
 
 newtype Graph a b = Graph

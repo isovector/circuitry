@@ -84,6 +84,15 @@ default-extensions:
   - DefaultSignatures
   - TypeApplications
   - LambdaCase
+  - OverloadedLabels
+  - InstanceSigs
+  - RoleAnnotations
+
+ghc-options:
+  - -Wall
+  - -fplugin GHC.TypeLits.Extra.Solver
+  - -fplugin GHC.TypeLits.KnownNat.Solver
+  - -fplugin GHC.TypeLits.Normalise
 
 executables:
   circuitry:

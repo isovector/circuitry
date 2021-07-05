@@ -1,22 +1,14 @@
-{-# LANGUAGE InstanceSigs         #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE MagicHash            #-}
-{-# LANGUAGE OverloadedLabels     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
-
-{-# OPTIONS_GHC -Wall #-}
-
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver    #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise       #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE RoleAnnotations #-}
 
 module Take2.Circuit where
 
 
 import           Circuitry.Catalyst (Signal, Time, pumpSignal)
 import           Circuitry.Category (Category(..))
+import           Clash.Sized.Vector (Vec)
 import qualified Clash.Sized.Vector as V
 import           Control.Lens ((<>~))
 import           Control.Monad (join)
@@ -26,15 +18,14 @@ import           Data.Generics.Labels ()
 import qualified Data.Map as M
 import qualified Data.Text as T
 import           Data.Typeable
+import           GHC.Generics (Generic)
 import           GHC.TypeLits (Symbol, KnownSymbol, symbolVal, natVal)
+import           GHC.TypeNats (KnownNat)
 import           Prelude hiding ((.), id)
 import           Take2.Embed
 import           Take2.Graph
 import           Yosys (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
 import qualified Yosys as Y
-import GHC.TypeNats (KnownNat)
-import Clash.Sized.Vector (Vec)
-import GHC.Generics (Generic)
 
 
 data Circuit a b = Circuit
