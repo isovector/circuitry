@@ -133,7 +133,15 @@ pad a = primitive $ Circuit gr $ timeInv $ \v -> v V.++ V.repeat @(n - m) a
 
 
 nandGate :: Circuit (Bool, Bool) Bool
-nandGate = primitive $ Circuit gr $ timeInv $ not . uncurry (&&)
+nandGate = primitive $ Circuit gr $ Signal $ \(mb1 :> mb2 :> Nil) ->
+    -- Can't use 'timeInv', since we want this to be robust against Z values
+    (c_roar nandGate, (:> Nil) $ fmap not $
+      case (mb1, mb2) of
+        (Just b1, Just b2) -> Just $ b1 && b2
+        (Just b1, Nothing) -> Just b1
+        (Nothing, Just b2) -> Just b2
+        (Nothing, Nothing) -> Nothing
+    )
   where
     gr :: Graph (Bool, Bool) Bool
     gr = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
@@ -369,8 +377,12 @@ notGate
 
 ------------------------------------------------------------------------------
 -- | Too slow to run real world physics? JET STREAM IT, BABY.
+-- This will fall back to the direct implementation if any of the wires are Z.
 shortcircuit :: (Embed a, Embed b) => (a -> b) -> Circuit a b -> Circuit a b
-shortcircuit f c = Circuit (c_graph c) $ timeInv f
+shortcircuit f c = Circuit (c_graph c) $ Signal $ \ma ->
+  case V.traverse# id ma of
+    Just a  -> (c_roar $ shortcircuit f c, fmap Just $ embed $ f (reify a) )
+    Nothing -> pumpSignal (c_roar c) ma
 
 
 unobservable :: Graph a b -> Circuit a b -> Circuit a b

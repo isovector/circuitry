@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3c554b2afada851c0fbba4036248e57fafbbf7901eed1ffef80f278d7b77399d
+-- hash: 728fe71a992148a1f270563e62ea2d85db713ca1883aee6851815be521097925
 
 name:           circuitry
 version:        0.1.0.0
@@ -17,7 +17,6 @@ build-type:     Simple
 
 library
   exposed-modules:
-      Circuitry.Catalyst
       Circuitry.Category
       Circuitry.GraphViz
       Take2
@@ -33,6 +32,7 @@ library
       Take2.Machinery
       Take2.Numeric
       Take2.Primitives
+      Take2.Signal
       Take2.Word
   hs-source-dirs:
       src
