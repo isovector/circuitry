@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ec6f66ca7dc2a669bb8483afc93312ab7928447d061c5abd5dc9dff37523851c
+-- hash: be0f1812d36dd8d8fbd34c5ff906217939f4c755500dc2352ed6f48f41b8900e
 
 name:           circuitry
 version:        0.1.0.0
@@ -24,6 +24,7 @@ library
       Take2.Computer.Examples
       Take2.Computer.Math
       Take2.Computer.Memory
+      Take2.Computer.Register
       Take2.Computer.Simple
       Take2.Embed
       Take2.Graph
@@ -114,6 +115,7 @@ test-suite test
       MemSpec
       MiscSpec
       ProductSpec
+      RegisterSpec
       TribufSpec
       Paths_circuitry
   hs-source-dirs:

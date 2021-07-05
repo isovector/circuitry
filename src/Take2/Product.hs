@@ -19,7 +19,7 @@ data ProjName (name  :: Symbol) = ProjName
 instance (KnownSymbol name, name ~ name') => IsLabel name (ProjName name') where
   fromLabel = ProjName
 
-class Proj ty (name :: Symbol) res | ty name -> res where
+class Proj (name :: Symbol) res ty | ty name -> res where
   proj :: ProjName name -> Circuit ty res
   default proj :: GProj (Rep ty) ty name res => ProjName name -> Circuit ty res
   proj = gproj @(Rep ty) 0

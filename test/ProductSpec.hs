@@ -19,9 +19,9 @@ data Rec = Rec
 instance Arbitrary Rec where
   arbitrary = Rec <$> arbitrary <*> arbitrary <*> arbitrary
 
-deriving anyclass instance Proj Rec "rec1" Word8
-deriving anyclass instance Proj Rec "rec2" Bool
-deriving anyclass instance Proj Rec "rec3" Word4
+deriving anyclass instance Proj "rec1" Word8 Rec
+deriving anyclass instance Proj "rec2" Bool Rec
+deriving anyclass instance Proj "rec3" Word4 Rec
 
 
 spec :: Spec
