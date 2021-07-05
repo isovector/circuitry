@@ -21,6 +21,7 @@ import           GHC.TypeLits
 import           GHC.TypeLits.Extra
 import           Prelude hiding ((.), id, sum)
 import           Take2.Word
+import Data.Kind (Type)
 
 
 class KnownNat (SizeOf a) => Embed a where
@@ -189,5 +190,25 @@ withSomeNat i f =
    Just (SomeNat n) -> f n
 {-# INLINE withSomeNat #-}
 
-type Bigger a b = Max (SizeOf a) (SizeOf b)
+
+data HList (ts :: [Type]) where
+  HNil :: HList '[]
+  (:>>)
+      :: a
+      -> HList ts
+      -> HList (a ': ts)
+
+infixr 5 :>>
+
+instance Embed (HList '[]) where
+  type SizeOf (HList '[]) = 0
+  embed HNil = Nil
+  reify _ = HNil
+
+instance (Embed (HList ts), Embed a) => Embed (HList (a ': ts)) where
+  type SizeOf (HList (a ': ts)) = SizeOf a + SizeOf (HList ts)
+  embed (vec :>> jv') = embed vec V.++ embed jv'
+  reify vs =
+    let (here, there) = V.splitAtI vs
+     in reify here :>> reify there
 

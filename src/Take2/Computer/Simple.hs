@@ -64,6 +64,16 @@ when k c = interface' diagrammed (fmap (mappend "case ") $ constantName k)
            (first' (intro k >>> eq))
        >>> ifOrEmpty c
 
+when'
+    :: (1 <= SizeOf k, Embed k, Embed v, Embed r, Show k, SeparatePorts k, SeparatePorts v)
+    => k
+    -> Circuit (Bool, v) r
+    -> Circuit (k, v) (Vec (SizeOf r) Bool)
+when' k c = interface' diagrammed (fmap (mappend "case ") $ constantName k)
+           (first' (intro k >>> eq))
+       >>> c
+       >>> serial
+
 
 branch
     :: forall k v n cases
