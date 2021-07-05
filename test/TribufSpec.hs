@@ -11,7 +11,6 @@ import           Take2.Computer.Memory
 import           Take2.Computer.Simple
 import           Take2.Machinery
 import           Take2.Machinery (evalCircuitTMV)
-import           Take2.Primitives (timeInv)
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
 

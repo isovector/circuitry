@@ -14,7 +14,7 @@ import Take2.Embed as X
 import Take2.Graph as X (RenderOptions (..))
 import Take2.Instances as X
 import Take2.Numeric as X
-import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, coerceCircuit, diagrammed, binaryGateDiagram, unaryGateDiagram, transposeV, tribuf, crossV, unsafeShort, shortcircuit)
+import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, diagrammed, binaryGateDiagram, unaryGateDiagram, transposeV, tribuf, crossV, unsafeShort, shortcircuit)
 import Take2.Signal as X (Time)
 import Take2.Word as X
 import Test.QuickCheck as X (Property, Arbitrary(..), CoArbitrary(..), Function(..), property, (===), forAllShrink, counterexample, quickCheck, resize, oneof, applyFun)

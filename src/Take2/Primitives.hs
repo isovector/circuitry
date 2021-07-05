@@ -35,13 +35,6 @@ timeInv :: (Embed a, Embed b) => (a -> b) -> Signal a b
 timeInv = primSignal
 {-# INLINE timeInv #-}
 
-coerceCircuit
-    :: (Coercible a a', Coercible b b', SizeOf a ~ SizeOf a', SizeOf b ~ SizeOf b', Embed a', Embed a, Embed b', Embed b)
-    => Circuit a b
-    -> Circuit a' b'
-coerceCircuit (Circuit gr c) =
-  Circuit (coerceGraph gr) (timeInv coerce >>> c >>> timeInv coerce)
-
 
 raw
     :: forall a b
@@ -59,7 +52,7 @@ raw c = Circuit (coerceGraph $ c_graph c) $ go (c_roar c)
 
 swap :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
 swap =
-  primitive $ raw $ Circuit gr $ timeInv $ \v ->
+  primitive $ raw $ Circuit gr $ primVSignal $ \v ->
     let (va, vb) = V.splitAtI @(SizeOf a) v
     in vb V.++ va
   where
@@ -75,11 +68,7 @@ swap =
     => Circuit a a'
     -> Circuit b b'
     -> Circuit (a, b) (a', b')
-(***) l r =
-  primitive $ raw $ Circuit gr $
-    timeInv V.splitAtI >>> (Category.***) (timeInv reify >>> c_roar l >>> timeInv embed)
-                                          (timeInv reify >>> c_roar r >>> timeInv embed)
-                       >>> timeInv (uncurry (V.++))
+(***) l r = primitive $ raw $ Circuit gr $ go (c_roar l) (c_roar r)
   where
     gr :: Graph (Vec (SizeOf (a, b)) Bool) (Vec (SizeOf (a', b')) Bool)
     gr = Graph $ \i -> do
@@ -88,20 +77,27 @@ swap =
       o2 <- unGraph (c_graph r) i2
       pure $ o1 V.++ o2
 
+    go :: Signal a a' -> Signal b b' -> Signal (Vec (SizeOf (a, b)) Bool) (Vec (SizeOf (a', b')) Bool)
+    go k1 k2 = Signal $ \i ->
+      let (i1, i2) = V.splitAtI i
+          (s1, o1) =  pumpSignal k1 i1
+          (s2, o2) =  pumpSignal k2 i2
+      in (go s1 s2, o1 V.++ o2)
+
 
 consume :: OkCircuit a => Circuit a ()
-consume = primitive $ raw $ Circuit (Graph $ const $ pure Nil) $ timeInv $ const Nil
+consume = primitive $ raw $ Circuit (Graph $ const $ pure Nil) $ primVSignal $ const Nil
 
 
 copy :: forall a. OkCircuit a => Circuit a (a, a)
-copy = primitive $ raw $ Circuit gr $ timeInv $ \v -> v V.++ v
+copy = primitive $ raw $ Circuit gr $ primVSignal $ \v -> v V.++ v
   where
     gr :: Graph (Vec (SizeOf a) Bool) (Vec (SizeOf (a, a)) Bool)
     gr = Graph $ \i -> pure $ i V.++ i
 
 
 fst' :: (OkCircuit a, OkCircuit b) => Circuit (a, b) a
-fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ timeInv V.takeI
+fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ primVSignal V.takeI
 
 
 constantName :: (Show a, Embed a) => a -> GraphM String
@@ -116,7 +112,7 @@ pad
      . (Show a, Embed a, KnownNat m, KnownNat n, m <= n)
     => a
     -> Circuit (Vec m a) (Vec n a)
-pad a = primitive $ Circuit gr $ timeInv $ \v -> v V.++ V.repeat @(n - m) a
+pad a = primitive $ Circuit gr $ primVSignal $ \v -> v V.++ V.concat (V.repeat @(n - m) $ fmap Just $ embed a)
   where
     gr :: Graph (Vec m a) (Vec n a)
     gr = Graph $ \v -> do
@@ -134,7 +130,6 @@ pad a = primitive $ Circuit gr $ timeInv $ \v -> v V.++ V.repeat @(n - m) a
 
 nandGate :: Circuit (Bool, Bool) Bool
 nandGate = primitive $ Circuit gr $ Signal $ \(mb1 :> mb2 :> Nil) ->
-    -- Can't use 'timeInv', since we want this to be robust against Z values
     (c_roar nandGate, (:> Nil) $ fmap not $
       case (mb1, mb2) of
         (Just b1, Just b2) -> Just $ b1 && b2
@@ -237,20 +232,21 @@ zipVC
     :: forall n a b
      . (KnownNat n, KnownNat (SizeOf a), KnownNat (SizeOf b), Embed a, Embed b)
     => Circuit (Vec n a, Vec n b) (Vec n (a, b))
-zipVC = primitive $ Circuit gr $ primVSignal $ \i ->
-    let (a, b) = V.splitAtI @(n * SizeOf a) i
-     in V.concat $ V.zipWith (V.++) (V.unconcatI @n a) (V.unconcatI @n b)
+zipVC = primitive $ Circuit gr $ primVSignal func
   where
-    gr :: Graph (Vec n a, Vec n b) (Vec n (a, b))
-    gr = Graph $ \i -> do
+    func :: Vec (n * SizeOf a + n * SizeOf b) x -> Vec (n * (SizeOf a + SizeOf b)) x
+    func i =
       let (a, b) = V.splitAtI @(n * SizeOf a) i
           as = V.unconcatI @n a
           bs = V.unconcatI @n b
-      pure $ V.concatMap (\(v1, v2) -> v1 V.++ v2) $ V.zip as bs
+       in V.concatMap (\(v1, v2) -> v1 V.++ v2) $ V.zip as bs
+
+    gr :: Graph (Vec n a, Vec n b) (Vec n (a, b))
+    gr = Graph $ pure. func
 
 
 cloneV :: forall n r. (KnownNat n, Embed r) => Circuit r (Vec n r)
-cloneV = primitive $ Circuit gr $ timeInv V.repeat
+cloneV = primitive $ Circuit gr $ primVSignal $ V.concat . V.repeat
   where
     gr :: Graph r (Vec n r)
     gr = Graph $ \i -> do
@@ -281,15 +277,17 @@ fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
       unifyBits subst
       pure $ unifyBitsImpl subst b
 
-
 transposeV
     :: forall m n a
      . (KnownNat n, KnownNat m, KnownNat (SizeOf a), Embed a)
     => Circuit (Vec m (Vec n a)) (Vec n (Vec m a))
-transposeV = primitive $ Circuit gr $ timeInv V.transpose
+transposeV = primitive $ Circuit gr $ primVSignal $ \i ->
+      let v' = fmap (V.unconcatI @n) $ V.unconcatI @m i
+       in V.concat $ V.concat $ V.transpose v'
   where
     gr :: Graph (Vec m (Vec n a)) (Vec n (Vec m a))
-    gr = Graph $ \i -> do
+    gr = Graph $
+      \i -> do
       let v' = fmap (V.unconcatI @n) $ V.unconcatI @m i
       pure $ V.concat $ V.concat $ V.transpose v'
 
