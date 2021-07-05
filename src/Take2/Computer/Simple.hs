@@ -45,6 +45,11 @@ pointwiseOr
     => Circuit (Vec m (Vec n Bool)) (Vec n Bool)
 pointwiseOr = transposeV >>> mapV bigOrGate
 
+pointwiseShort
+    :: (1 <= m, KnownNat n, KnownNat m)
+    => Circuit (Vec m (Vec n Bool)) (Vec n Bool)
+pointwiseShort = transposeV >>> mapV unsafeShort
+
 
 eq :: (Embed a, 1 <= SizeOf a) => Circuit (a, a) Bool
 eq = diagrammed (binaryGateDiagram Y.CellEq)

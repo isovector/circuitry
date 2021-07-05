@@ -74,11 +74,13 @@ registerStore
        , SizeOf sp <= SizeOf pc
        , SizeOf word <= SizeOf pc
        , SizeOf Flags <= SizeOf pc
+       , Nameable (Registers pc sp word)
        )
     => Circuit (Register, Vec (SizeOf pc) Bool)
                (Registers pc sp word)
 registerStore
-    = ( when' PC    snapN'
+    = component "registers"
+    $ ( when' PC    snapN'
     &&& when' SP    (second' (separate @(SizeOf sp)    >>> fst') >>> snapN')
     &&& when' X     (second' (separate @(SizeOf word)  >>> fst') >>> snapN')
     &&& when' Y     (second' (separate @(SizeOf word)  >>> fst') >>> snapN')
@@ -99,38 +101,60 @@ data Op
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass Embed
 
--- cpu
---     :: forall a
---     . (2 <= SizeOf a, Typeable a, Embed a, Nameable a, SeparatePorts a, Num a, Show a, Numeric a)
---     => Circuit (Op, (a, a)) (Registers a)
--- cpu = fixC (Registers @a 0 0 0)
---     $  reassoc'
---   >>> branch
---         ( (JMP, fst'
---             >>> fst'
---             >>> intro PC
---             >>> swap
---             >>> serial
---           )
---        :> (MOV, fst'
---             >>> first' ( unsafeReinterpret @_ @(Register, Vec (SizeOf a - SizeOf Register) Bool)
---                      >>> fst'
---                        )
---             >>> serial
---           )
---        :> (INC, snd'
---             >>> proj #reg_X
---             >>> intro 1
---             >>> addN
---             >>> fst'
---             >>> intro OP1
---             >>> swap
---             >>> serial
---           )
---        :> Nil
---         )
---   >>> unsafeParse @(Register, a)
---   >>> registerStore
---   >>> copy
+cpu
+    :: forall pc sp word
+    . ( Embed pc
+       , Nameable pc
+       , SeparatePorts pc
+       , Embed sp
+       , Nameable sp
+       , SeparatePorts sp
+       , Embed word
+       , Nameable word
+       , SeparatePorts word
+       , Numeric word
+       , Show word
+       , SizeOf sp <= SizeOf pc
+       , SizeOf word <= SizeOf pc
+       , SizeOf Flags <= SizeOf pc, Num sp, Num pc, Num word
+       , Nameable (Registers pc sp word)
+      )
+    => Circuit (Op, (pc, pc)) (Registers pc sp word)
+cpu = fixC (Registers @pc @sp @word 0 0 0 0 0 (Flags False False False False))
+    $ reassoc'
+  >>> sequenceMetaV (fmap (uncurry when')
+        ( (instr JMP
+              $ fst'
+            >>> fst'
+            >>> intro PC
+            >>> swap
+            >>> serial
+          )
+       :> (instr MOV
+              $ fst'
+            >>> first' ( unsafeReinterpret @_ @(Register, Vec (SizeOf pc - SizeOf Register) Bool)
+                     >>> fst'
+                       )
+            >>> serial
+          )
+       :> (instr INC
+              $ snd'
+            >>> proj #reg_X
+            >>> intro 1
+            >>> addN
+            >>> fst'
+            >>> intro X
+            >>> swap
+            >>> second' (serial >>> pad False)
+            >>> serial
+          )
+       :> Nil
+        ))
+  >>> pointwiseShort
+  >>> unsafeParse @(Register, pc)
+  >>> second' serial
+  >>> registerStore
+  >>> copy
 
+instr n f = (n, component (show n <> " instr") (second' f) >>> swap >>> tribufAll)
 
