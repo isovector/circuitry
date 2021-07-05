@@ -4,16 +4,13 @@
 module Take2.Primitives where
 
 import           Circuitry.Category (Category(..), (>>>))
-import qualified Circuitry.Category as Category
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
-import           Control.Applicative ((<|>))
 import           Control.Lens ((-~))
 import           Control.Monad.Reader (local, asks)
 import           Control.Monad.State (StateT(..), get, lift, MonadState (put), runStateT, execStateT)
 import qualified Data.Aeson as A
 import           Data.Bool (bool)
-import           Data.Coerce (Coercible, coerce)
 import           Data.Generics.Labels ()
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -22,18 +19,13 @@ import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Graph
-import           Take2.Signal (Signal (..), primSignal, primVSignal)
+import           Take2.Signal (Signal (..), primSignal)
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
 
 
 primitive :: Circuit a b -> Circuit a b
 primitive = id
-
-
-timeInv :: (Embed a, Embed b) => (a -> b) -> Signal a b
-timeInv = primSignal
-{-# INLINE timeInv #-}
 
 
 raw
@@ -52,7 +44,7 @@ raw c = Circuit (coerceGraph $ c_graph c) $ go (c_roar c)
 
 swap :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
 swap =
-  primitive $ raw $ Circuit gr $ primVSignal $ \v ->
+  primitive $ raw $ Circuit gr $ primSignal $ \v ->
     let (va, vb) = V.splitAtI @(SizeOf a) v
     in vb V.++ va
   where
@@ -86,18 +78,18 @@ swap =
 
 
 consume :: OkCircuit a => Circuit a ()
-consume = primitive $ raw $ Circuit (Graph $ const $ pure Nil) $ primVSignal $ const Nil
+consume = primitive $ raw $ Circuit (Graph $ const $ pure Nil) $ primSignal $ const Nil
 
 
 copy :: forall a. OkCircuit a => Circuit a (a, a)
-copy = primitive $ raw $ Circuit gr $ primVSignal $ \v -> v V.++ v
+copy = primitive $ raw $ Circuit gr $ primSignal $ \v -> v V.++ v
   where
     gr :: Graph (Vec (SizeOf a) Bool) (Vec (SizeOf (a, a)) Bool)
     gr = Graph $ \i -> pure $ i V.++ i
 
 
 fst' :: (OkCircuit a, OkCircuit b) => Circuit (a, b) a
-fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ primVSignal V.takeI
+fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ primSignal V.takeI
 
 
 constantName :: (Show a, Embed a) => a -> GraphM String
@@ -112,7 +104,7 @@ pad
      . (Show a, Embed a, KnownNat m, KnownNat n, m <= n)
     => a
     -> Circuit (Vec m a) (Vec n a)
-pad a = primitive $ Circuit gr $ primVSignal $ \v -> v V.++ V.concat (V.repeat @(n - m) $ fmap Just $ embed a)
+pad a = primitive $ Circuit gr $ primSignal $ \v -> v V.++ V.concat (V.repeat @(n - m) $ fmap Just $ embed a)
   where
     gr :: Graph (Vec m a) (Vec n a)
     gr = Graph $ \v -> do
@@ -232,7 +224,7 @@ zipVC
     :: forall n a b
      . (KnownNat n, KnownNat (SizeOf a), KnownNat (SizeOf b), Embed a, Embed b)
     => Circuit (Vec n a, Vec n b) (Vec n (a, b))
-zipVC = primitive $ Circuit gr $ primVSignal func
+zipVC = primitive $ Circuit gr $ primSignal func
   where
     func :: Vec (n * SizeOf a + n * SizeOf b) x -> Vec (n * (SizeOf a + SizeOf b)) x
     func i =
@@ -246,7 +238,7 @@ zipVC = primitive $ Circuit gr $ primVSignal func
 
 
 cloneV :: forall n r. (KnownNat n, Embed r) => Circuit r (Vec n r)
-cloneV = primitive $ Circuit gr $ primVSignal $ V.concat . V.repeat
+cloneV = primitive $ Circuit gr $ primSignal $ V.concat . V.repeat
   where
     gr :: Graph r (Vec n r)
     gr = Graph $ \i -> do
@@ -281,7 +273,7 @@ transposeV
     :: forall m n a
      . (KnownNat n, KnownNat m, KnownNat (SizeOf a), Embed a)
     => Circuit (Vec m (Vec n a)) (Vec n (Vec m a))
-transposeV = primitive $ Circuit gr $ primVSignal $ \i ->
+transposeV = primitive $ Circuit gr $ primSignal $ \i ->
       let v' = fmap (V.unconcatI @n) $ V.unconcatI @m i
        in V.concat $ V.concat $ V.transpose v'
   where

@@ -1,4 +1,6 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE AllowAmbiguousTypes  #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module MiscSpec where
 
@@ -12,8 +14,14 @@ import           Take2.Computer.Math
 import           Take2.Computer.Memory
 import           Take2.Computer.Simple
 import           Take2.Machinery
-import           Take2.Primitives (timeInv)
 import           Test.Hspec
+
+
+instance Arbitrary RW where
+  arbitrary = oneof [ pure R, pure W ]
+
+instance Function RW where
+  function = functionMap (\case { R -> False; W -> True }) (bool R W)
 
 
 spec :: Spec
@@ -31,7 +39,6 @@ spec = do
 
     , prop_circuit (uncurry (==)) $ eq @Bool
     , prop_circuit (uncurry (==)) $ eq @Word8
-    , prop_circuit (uncurry (==)) $ eq @(Vec 20 (Bool, Maybe Bool))
 
     , property $ do
         w <- arbitrary @Word8
@@ -107,10 +114,10 @@ spec = do
     , prop_circuit
         (first' $ V.map not)
         (mapFoldVC @10 $ destroy >>> notGate >>> create)
-    , prop_circuit
-        (\(v, r0) -> foldrV @10 (\(a :: Bool) r -> (a B..&. r, B.xor a r)) r0 v)
-        (mapFoldVC $ Circuit undefined $ timeInv $ \(a, r) ->
-            (a B..&. r, B.xor a r))
+    -- , prop_circuit
+    --     (\(v, r0) -> foldrV @10 (\(a :: Bool) r -> (a B..&. r, B.xor a r)) r0 v)
+    --     (mapFoldVC $ Circuit undefined $ timeInv $ \(a, r) ->
+    --         (a B..&. r, B.xor a r))
     , prop_circuit
         (bool 10 127 . fst)
         (ifC (constC @Word8 127) (constC 10))
