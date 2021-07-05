@@ -78,57 +78,19 @@ registerStore
     => Circuit (Register, Vec (SizeOf pc) Bool)
                (Registers pc sp word)
 registerStore
-    = sequenceMetaV (fmap (uncurry when')
-        ( (PC,     snapN')
-       :> (SP,     second' (separate @(SizeOf sp) >>> fst') >>> snapN' >>> pad False)
-       :> (X ,     second' (separate @(SizeOf word) >>> fst') >>> snapN' >>> pad False)
-       :> (Y ,     second' (separate @(SizeOf word) >>> fst') >>> snapN' >>> pad False)
-       :> (A ,     second' (separate @(SizeOf word) >>> fst') >>> snapN' >>> pad False)
-       :> (FLAGS , second' (separate @(SizeOf Flags) >>> fst') >>> snapN' >>> pad False)
-       :> Nil
-        ))
-  >>> foldRegisterRecord
+    = ( when' PC    snapN'
+    &&& when' SP    (second' (separate @(SizeOf sp)    >>> fst') >>> snapN')
+    &&& when' X     (second' (separate @(SizeOf word)  >>> fst') >>> snapN')
+    &&& when' Y     (second' (separate @(SizeOf word)  >>> fst') >>> snapN')
+    &&& when' A     (second' (separate @(SizeOf word)  >>> fst') >>> snapN')
+    &&& when' FLAGS (second' (separate @(SizeOf Flags) >>> fst') >>> snapN')
+      )
+  >>> unsafeReinterpret
 
 
 snapN' :: (Embed c, Nameable c, SeparatePorts c) => Circuit (Bool, c) (Vec (SizeOf c) Bool)
 snapN' = first' boolToRW >>> snapN
 
-
-foldRegisterRecord
-    :: forall pc sp word
-     . ( Embed pc, Embed sp, Embed word
-       , SizeOf sp <= SizeOf pc
-       , SizeOf word <= SizeOf pc
-       , SizeOf Flags <= SizeOf pc
-       )
-    => Circuit (Vec 6 (Vec (SizeOf pc) Bool)) (Registers pc sp word)
-foldRegisterRecord
-    = unconsC
-  >>> second'
-      ( unconsC
-    >>> ( separate @(SizeOf sp) >>> fst')
-    *** ( unconsC
-      >>> (separate @(SizeOf word) >>> fst')
-      *** ( unconsC
-        >>> (separate @(SizeOf word) >>> fst')
-        *** ( unconsC
-          >>> (separate @(SizeOf word) >>> fst')
-          *** (lower >>> separate @(SizeOf Flags) >>> fst')
-            )
-          )
-        )
-      )
-  >>> unsafeReinterpret
-
-
-
-
---       decode *** cloneV
---   >>> zipVC
---   >>> mapV (first' unsafeReinterpret >>> snapN @(a))
---   >>> unsafeReinterpret @_ @(a, Vec 3 (a))
---   >>> snd'
---   >>> unsafeReinterpret
 
 data Op
   = JMP
