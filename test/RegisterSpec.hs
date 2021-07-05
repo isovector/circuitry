@@ -23,17 +23,23 @@ spec = do
       (fromIntegral (length vals))
         === Just (foldRegisters (val1 : vals) $ Registers 0 0 0 0 0 $ Flags False False False False)
 
---   prop "cpu spec" $
---     evalCircuitT
---       (cpu @Word4)
---       (inputOverTime
---         [ (JMP, (5, 0))
---         , (MOV, (fromIntegral $ fromEnum OP2, 13))
---         , (INC, (0, 0))
---         , (INC, (0, 0))
---         ])
---       3
---         === Just (Registers { reg_PC =  5, reg_OP1 = 2, reg_OP2 = 13 })
+  prop "cpu spec" $
+    evalCircuitT
+      (cpu @Word4 @Word4 @Word2)
+      (inputOverTime
+        [ (JMP, (5, 0))
+        , (MOV, (reify $ (V.++ (False :> Nil)) $ embed Y, 13))
+        , (INC, (0, 0))
+        , (INC, (0, 0))
+        ])
+      3
+        === Just (Registers { reg_PC =  5
+                            , reg_SP = 0
+                            , reg_X = 2
+                            , reg_Y = 13
+                            , reg_A = 0
+                            , reg_flags = Flags False False False False
+                            })
 
 
 foldRegisters
