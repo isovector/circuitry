@@ -9,67 +9,16 @@ import           Data.Foldable hiding (sum)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Computer.Memory
 import           Take2.Computer.Simple
+import           Take2.Computer.Math
+import           Take2.Computer.Examples
 import           Take2.Machinery
 import           Take2.Primitives (timeInv)
-import           Test.QuickCheck
-import qualified Yosys as Y
 
-
-everyPair
-    :: (OkCircuit a, OkCircuit b, OkCircuit c)
-    => Circuit (a, (b, c))
-               ((a, b), ((a, c), (b, c)))
-everyPair = (reassoc >>> fst')
-       &&& ((second' swap >>> reassoc >>> fst') &&& snd')
-
-
-cout :: Circuit (Bool, (Bool, Bool)) Bool
-cout = everyPair
-   >>> andGate *** (andGate *** andGate)
-   >>> ((reassoc >>> fst') &&& snd')
-   >>> orGate *** orGate
-   >>> orGate
 
 
 data RW = R | W
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass Embed
-
-
--- array :: Circuit a b -> Circuit (Vec n a) (Vec n b)
--- array f =
-
--- mem :: Circuit ((RW, Addr n), Maybe a) (Maybe a)
--- mem =
-
-
-sum :: Circuit (Bool, (Bool, Bool)) Bool
-sum = second' xorGate >>> xorGate
-
-
--- input: A B Cin
--- output: S Cout
-add2 :: Circuit (Bool, (Bool, Bool)) (Bool, Bool)
-add2 = copy >>> sum *** cout
-
-
-addN :: (SeparatePorts a, Numeric a, OkCircuit a) => Circuit (a, a) (a, Bool)
-addN = diagrammed (binaryGateDiagram Y.CellAdd)
-     $ shortcircuit (uncurry addNumeric)
-     $ serial *** serial
-   >>> zipVC
-   >>> create
-   >>> second' (constC False)
-   >>> mapFoldVC (reassoc' >>> add2)
-   >>> first' unsafeParse
-
-
-
-
-tickTock :: Circuit () Bool
-tickTock = fixC False $ snd' >>> copy >>> second' notGate
-
-
 
 
 alu
@@ -87,43 +36,6 @@ alu =
     $ Cons (AluOpAShiftR, fst' >>> ashiftR >>> serial)
     $ Nil
 
-
-
-
-
-clock
-    :: forall a. (Show a, SeparatePorts a, Embed a, OkCircuit a, Numeric a)
-    => Circuit () a
-clock = fixC (zero @a)
-      $ first' (constC one)
-    >>> swap
-    >>> first' copy
-    >>> reassoc'
-    >>> second' (addN >>> fst')
-
-shiftL :: forall a. (1 <= SizeOf a, Embed a, Numeric a) => Circuit a a
-shiftL = unsafeReinterpret @_ @(Vec (SizeOf a - 1) Bool, Bool)
-     >>> fst'
-     >>> create
-     >>> swap
-     >>> first' (constC $ zero @Bool)
-     >>> unsafeReinterpret
-
-shiftR :: forall a. (1 <= SizeOf a, Embed a, Numeric a) => Circuit a a
-shiftR = serial
-     >>> unconsC @(SizeOf a - 1)
-     >>> snd'
-     >>> create
-     >>> second' (constC $ zero @Bool)
-     >>> unsafeReinterpret
-
-ashiftR :: forall a. (2 <= SizeOf a, Embed a, Numeric a) => Circuit a a
-ashiftR = serial
-     >>> unconsC @(SizeOf a - 1)
-     >>> snd'
-     >>> unsafeReinterpret @_ @(Vec (SizeOf a - 2) Bool, Bool)
-     >>> second' copy
-     >>> unsafeReinterpret
 
 data AluOpCode
   = AluOpAdd
@@ -146,36 +58,6 @@ instance Arbitrary AluOpCode where
              pure AluOpAShiftR]
        in oneof terminal
 
-
-rsLatch_named :: Circuit (Named "R" Bool, Named "S" Bool) Bool
-rsLatch_named = coerceCircuit rsLatch
-
-
-
-------------------------------------------------------------------------------
--- | Duplicate the given circuit @2^n@ times, and put a decoder on the address.
--- Each circuit gets a 'Bool' corresponding to whether or not they were the one
--- decoded. Combine all back together with a bus.
-addressed
-    :: forall n a b
-     . (Embed a, Embed b, KnownNat n)
-    => Circuit (a, Bool) b
-    -> Circuit (Addr n, a) b
-addressed c = decode *** cloneV
-          >>> zipVC
-          >>> mapV ( swap
-                 >>> second' copy
-                 >>> reassoc
-                 >>> first' (c >>> serial)
-                 >>> tribufAll
-                   )
-          >>> transposeV
-          >>> mapV unsafeShort
-          >>> unsafeParse
-
-
-decode :: KnownNat n => Circuit (Addr n) (Vec (2 ^ n) Bool)
-decode = component "decode" $ unsafeReinterpret >>> crossV andGate
 
 
 prop_circuit :: (Arbitrary a, Eq b, Show a, Show b, Embed b, Embed a) => (a -> b) -> Circuit a b -> Property

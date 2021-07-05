@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4b302a1df218d43432c5da3e8b5cae76ebdd0f8f709e6f31e3cff514579f815c
+-- hash: 6fd6339813020a796642c2cb44bb9a3c5d2d3d8cb6d8625c2e9d28de11a0f66c
 
 name:           circuitry
 version:        0.1.0.0
@@ -22,6 +22,9 @@ executable circuitry
       Circuitry.Category
       Circuitry.GraphViz
       Take2.Circuit
+      Take2.Computer.Addressed
+      Take2.Computer.Examples
+      Take2.Computer.Math
       Take2.Computer.Memory
       Take2.Computer.Simple
       Take2.Embed
