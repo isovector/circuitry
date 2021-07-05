@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6fd6339813020a796642c2cb44bb9a3c5d2d3d8cb6d8625c2e9d28de11a0f66c
+-- hash: 3c554b2afada851c0fbba4036248e57fafbbf7901eed1ffef80f278d7b77399d
 
 name:           circuitry
 version:        0.1.0.0
@@ -15,12 +15,12 @@ license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 
-executable circuitry
-  main-is: Take2.hs
-  other-modules:
+library
+  exposed-modules:
       Circuitry.Catalyst
       Circuitry.Category
       Circuitry.GraphViz
+      Take2
       Take2.Circuit
       Take2.Computer.Addressed
       Take2.Computer.Examples
@@ -34,7 +34,6 @@ executable circuitry
       Take2.Numeric
       Take2.Primitives
       Take2.Word
-      Paths_circuitry
   hs-source-dirs:
       src
   default-extensions:
@@ -87,37 +86,105 @@ executable circuitry
       OverloadedLabels
       InstanceSigs
       RoleAnnotations
-  ghc-options: -Wall -fplugin GHC.TypeLits.Extra.Solver -fplugin GHC.TypeLits.KnownNat.Solver -fplugin GHC.TypeLits.Normalise -threaded -rtsopts -with-rtsopts=-N -O2 -flate-specialise -fspecialise-aggressively
+  ghc-options: -Wall -fplugin GHC.TypeLits.Extra.Solver -fplugin GHC.TypeLits.KnownNat.Solver -fplugin GHC.TypeLits.Normalise
   build-depends:
-      MemoTrie
-    , QuickCheck
+      QuickCheck
     , aeson
     , base
-    , base64-bytestring
     , bytestring
-    , catalyst
-    , checkers
     , cirtography
     , clash-prelude
     , containers
-    , diagrams
-    , diagrams-contrib
-    , diagrams-core
-    , diagrams-lib
-    , diagrams-svg
     , generic-lens
     , ghc-typelits-extra
     , ghc-typelits-knownnat
     , ghc-typelits-natnormalise
-    , hashable
-    , lattices
+    , hspec
     , lens
     , mtl
     , profunctors
-    , recover-rtti
-    , string-conv
-    , svg-builder
     , syb
     , text
-    , transformers
+  default-language: Haskell2010
+
+test-suite test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      MiscSpec
+      Paths_circuitry
+  hs-source-dirs:
+      test
+  default-extensions:
+      EmptyCase
+      PostfixOperators
+      TupleSections
+      NamedFieldPuns
+      BangPatterns
+      BinaryLiterals
+      HexFloatLiterals
+      NumericUnderscores
+      GADTSyntax
+      RankNTypes
+      TypeApplications
+      PolyKinds
+      ExistentialQuantification
+      TypeOperators
+      ConstraintKinds
+      ExplicitForAll
+      KindSignatures
+      NamedWildCards
+      ScopedTypeVariables
+      FlexibleContexts
+      FlexibleInstances
+      MultiParamTypeClasses
+      ConstrainedClassMethods
+      InstanceSigs
+      TypeSynonymInstances
+      DeriveDataTypeable
+      DeriveFoldable
+      DeriveFunctor
+      DeriveTraversable
+      StandaloneDeriving
+      EmptyDataDeriving
+      DeriveLift
+      GeneralisedNewtypeDeriving
+      DeriveGeneric
+      DerivingStrategies
+      DerivingVia
+      NumDecimals
+      ViewPatterns
+      PatternSynonyms
+      TypeFamilies
+      DeriveAnyClass
+      NoStarIsType
+      DataKinds
+      DefaultSignatures
+      TypeApplications
+      LambdaCase
+      OverloadedLabels
+      InstanceSigs
+      RoleAnnotations
+  ghc-options: -Wall -fplugin GHC.TypeLits.Extra.Solver -fplugin GHC.TypeLits.KnownNat.Solver -fplugin GHC.TypeLits.Normalise -threaded -rtsopts -with-rtsopts=-N -O2 -flate-specialise
+  build-tool-depends:
+      hspec-discover:hspec-discover >=2.0
+  build-depends:
+      QuickCheck
+    , aeson
+    , base
+    , bytestring
+    , circuitry
+    , cirtography
+    , clash-prelude
+    , containers
+    , generic-lens
+    , ghc-typelits-extra
+    , ghc-typelits-knownnat
+    , ghc-typelits-natnormalise
+    , hspec
+    , lens
+    , mtl
+    , profunctors
+    , syb
+    , text
   default-language: Haskell2010

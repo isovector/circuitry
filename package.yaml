@@ -6,36 +6,22 @@ maintainer: sandy@sandymaguire.me
 license: MIT
 dependencies:
 - base
-- diagrams
-- diagrams-lib
-- diagrams-svg
-- diagrams-contrib
-- diagrams-core
 - lens
-- hashable
 - mtl
 - containers
-- transformers
 - bytestring
-- svg-builder
-- string-conv
-- base64-bytestring
-- catalyst
-- lattices
 - profunctors
 - clash-prelude
 - QuickCheck
-- checkers
 - generic-lens
 - ghc-typelits-natnormalise
 - ghc-typelits-knownnat
 - ghc-typelits-extra
-- MemoTrie
-- recover-rtti
 - cirtography
 - text
-- syb
 - aeson
+- hspec
+- syb
 
 default-extensions:
   - EmptyCase
@@ -94,19 +80,23 @@ ghc-options:
   - -fplugin GHC.TypeLits.KnownNat.Solver
   - -fplugin GHC.TypeLits.Normalise
 
-executables:
-  circuitry:
-    source-dirs: src
-    main: Take2.hs
+
+tests:
+  test:
+    main:                Main.hs
+    source-dirs:         test
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
     - -flate-specialise
-    - -fspecialise-aggressively
+    build-tools:
+    - hspec-discover >= 2.0
+    dependencies:
+    - circuitry
 
+library:
+  source-dirs: src
+  other-modules: []
 
-# library:
-#   source-dirs: src
-#   other-modules: []

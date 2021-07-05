@@ -12,13 +12,11 @@ import           Clash.Sized.Vector (Vec)
 import qualified Clash.Sized.Vector as V
 import           Data.Bool (bool)
 import           Data.Function (fix)
-import           Data.Word (Word8)
 import           Numeric.Natural (Natural)
 import           Prelude hiding (id, (.), sum, zip)
 import           Take2.Embed
-import           Test.QuickCheck (CoArbitrary, Arbitrary (arbitrary), Function (function), functionMap, (===))
+import           Test.QuickCheck (CoArbitrary, Arbitrary (arbitrary), Function (function), functionMap)
 import           Test.QuickCheck.Arbitrary (CoArbitrary(coarbitrary))
-import           Test.QuickCheck.Checkers
 
 
 instance Arbitrary Natural where
@@ -30,9 +28,6 @@ instance CoArbitrary Natural where
 instance Function Natural where
   function = functionMap fromIntegral (fromIntegral @Integer . abs)
 
-
-instance EqProp Word8 where
-  (=-=) = (===)
 
 newtype Signal a b = Signal
   { pumpSignal :: Vec (SizeOf a) (Maybe Bool) -> (Signal a b, Vec (SizeOf b) (Maybe Bool))
