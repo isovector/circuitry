@@ -33,10 +33,6 @@ data Registers a = Registers
   deriving stock (Eq, Show, Generic)
   deriving anyclass Embed
 
-deriving anyclass instance Embed a => Proj "reg_PC" a (Registers a)
-deriving anyclass instance Embed a => Proj "reg_OP1" a (Registers a)
-deriving anyclass instance Embed a => Proj "reg_OP2" a (Registers a)
-
 
 registerStore
     :: (Embed a, Nameable a, SeparatePorts a)

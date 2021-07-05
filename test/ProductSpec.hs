@@ -3,7 +3,7 @@ module ProductSpec where
 import Prelude hiding ((.), id, sum)
 import Take2.Computer.Memory
 import Take2.Machinery
-import Take2.Product (Proj(..))
+import Take2.Product
 import Test.Hspec
 import Test.Hspec.QuickCheck
 
@@ -12,16 +12,13 @@ data Rec = Rec
   { rec1 :: Word8
   , rec2 :: Bool
   , rec3 :: Word4
+  , rec4 :: Vec 5 (Either Bool Word2)
   }
   deriving stock (Eq, Show, Generic)
   deriving anyclass (Embed)
 
 instance Arbitrary Rec where
-  arbitrary = Rec <$> arbitrary <*> arbitrary <*> arbitrary
-
-deriving anyclass instance Proj "rec1" Word8 Rec
-deriving anyclass instance Proj "rec2" Bool Rec
-deriving anyclass instance Proj "rec3" Word4 Rec
+  arbitrary = Rec <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 
 spec :: Spec
@@ -67,5 +64,21 @@ spec = do
         (field, rec)
         0
       === Just rec { rec3 = field }
+
+  prop "projects rec4" $ \(rec :: Rec) field ->
+    evalCircuit
+        (proj #rec4)
+        rec { rec4 = field }
+        0
+      === Just field
+
+  prop "replaces rec4" $ \(rec :: Rec) field ->
+    evalCircuit
+        (replace #rec4)
+        (field, rec)
+        0
+      === Just rec { rec4 = field }
+
+
 
 
