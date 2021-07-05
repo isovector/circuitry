@@ -32,7 +32,7 @@ spec = do
         , (INC, (0, 0))
         ])
       3
-        === Just (Registers 5 2 13)
+        === Just (Registers { reg_PC =  5, reg_OP1 = 2, reg_OP2 = 13 })
 
 
 foldRegisters :: forall a. Num a => [(Register, a)] -> Registers a -> Registers a
