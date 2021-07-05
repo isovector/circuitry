@@ -26,6 +26,7 @@ import           Take2.Embed
 import           Take2.Graph
 import           Yosys (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
 import qualified Yosys as Y
+import Test.QuickCheck.Arbitrary (Arbitrary)
 
 
 data Circuit a b = Circuit
@@ -38,19 +39,25 @@ instance Category Circuit where
   id = Circuit id id
   Circuit gg gr . Circuit fg fr = Circuit (gg . fg) (gr . fr)
 
-reallyPumpSignal :: (Embed b, Embed a) => Signal a b -> (Time -> a) -> Time -> Maybe b
+reallyPumpSignal :: (Embed b, Embed a) => Signal a b -> (Time -> Vec (SizeOf a) (Maybe Bool)) -> Time -> Vec (SizeOf b) (Maybe Bool)
 reallyPumpSignal sig f 0
-  = fmap reify $ V.traverse# id $ snd $ pumpSignal sig (fmap Just $ embed $ f 0)
+  =  snd $ pumpSignal sig (f 0)
 reallyPumpSignal sig f n
-  = reallyPumpSignal (fst $ pumpSignal sig (fmap Just $ embed $ f 0)) (f . (+ 1)) (n - 1)
+  = reallyPumpSignal (fst $ pumpSignal sig (f 0)) (f . (+ 1)) (n - 1)
 
 
 evalCircuit :: (Embed b, Embed a) => Circuit a b -> a -> Time -> Maybe b
 evalCircuit c a t = evalCircuitT c (const a) t
 
+evalCircuitMV :: (Embed b, Embed a) => Circuit a b -> Vec (SizeOf a) (Maybe Bool) -> Time -> Vec (SizeOf b) (Maybe Bool)
+evalCircuitMV c a t = evalCircuitTMV c (const a) t
+
 
 evalCircuitT :: (Embed b, Embed a) => Circuit a b -> (Time -> a) -> Time -> Maybe b
-evalCircuitT c = reallyPumpSignal (c_roar c)
+evalCircuitT c f t = fmap reify $ V.traverse# id $ reallyPumpSignal (c_roar c) (fmap Just . embed . f) t
+
+evalCircuitTMV :: (Embed b, Embed a) => Circuit a b -> (Time -> Vec (SizeOf a) (Maybe Bool)) -> Time -> Vec (SizeOf b) (Maybe Bool)
+evalCircuitTMV = reallyPumpSignal . c_roar
 
 
 getGraph :: forall a b. (SeparatePorts a, SeparatePorts b) => RenderOptions -> Circuit a b -> Module
@@ -100,6 +107,7 @@ instance (Nameable a, KnownNat n) => Nameable (Vec n a) where
 
 newtype Addr n = Addr { getAddr :: Vec n Bool }
   deriving stock (Eq, Ord, Show, Generic)
+  deriving newtype Arbitrary
   deriving anyclass Embed
 
 class SeparatePorts a where

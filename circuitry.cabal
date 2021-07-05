@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 728fe71a992148a1f270563e62ea2d85db713ca1883aee6851815be521097925
+-- hash: c72fc41e08ad8593c0050e9bb67f0bd757457c8c800c9a78b95a9de48b6f01d6
 
 name:           circuitry
 version:        0.1.0.0
@@ -18,7 +18,6 @@ build-type:     Simple
 library
   exposed-modules:
       Circuitry.Category
-      Circuitry.GraphViz
       Take2
       Take2.Circuit
       Take2.Computer.Addressed
@@ -111,7 +110,9 @@ test-suite test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      MemSpec
       MiscSpec
+      TribufSpec
       Paths_circuitry
   hs-source-dirs:
       test

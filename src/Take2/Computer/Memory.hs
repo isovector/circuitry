@@ -72,5 +72,6 @@ memoryCell
                           )
               )
   >>> swap
-  >>> tribufAll
+  >>> fst'
+  -- >>> tribufAll
 

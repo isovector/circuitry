@@ -22,7 +22,7 @@ import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Graph
-import           Take2.Signal (Signal (..), primSignal)
+import           Take2.Signal (Signal (..), primSignal, primVSignal)
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
 
@@ -165,13 +165,19 @@ tribuf = primitive $ Circuit gr $ Signal $ \(a :> en :> Nil) ->
 -- the incoming bits are not Z.
 unsafeShort :: Circuit (Vec n Bool) Bool
 unsafeShort = primitive $ Circuit gr $ Signal $ \a ->
-    (c_roar unsafeShort, V.foldr (<|>) Nothing a :> Nil)
+    (c_roar unsafeShort, V.foldr merge Nothing a :> Nil)
   where
     gr :: Graph (Vec n Bool) Bool
     gr = Graph $ \bin -> do
       o <- freshBit
       unifyBits $ M.fromList $ zip (V.toList bin) $ repeat o
       pure $ o :> Nil
+
+    merge :: Maybe Bool -> Maybe Bool -> Maybe Bool
+    merge (Just _) (Just _) = error "unsafeShort: got values at the same time"
+    merge (Just a) _ = Just a
+    merge Nothing a = a
+
 
 
 mapFoldVC
@@ -231,7 +237,9 @@ zipVC
     :: forall n a b
      . (KnownNat n, KnownNat (SizeOf a), KnownNat (SizeOf b), Embed a, Embed b)
     => Circuit (Vec n a, Vec n b) (Vec n (a, b))
-zipVC = primitive $ Circuit gr $ timeInv $ uncurry V.zip
+zipVC = primitive $ Circuit gr $ primVSignal $ \i ->
+    let (a, b) = V.splitAtI @(n * SizeOf a) i
+     in V.concat $ V.zipWith (V.++) (V.unconcatI @n a) (V.unconcatI @n b)
   where
     gr :: Graph (Vec n a, Vec n b) (Vec n (a, b))
     gr = Graph $ \i -> do

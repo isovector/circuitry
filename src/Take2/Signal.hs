@@ -41,6 +41,11 @@ primSignal f = fix $ \me -> Signal $ \ma ->
 {-# INLINE primSignal #-}
 
 
+primVSignal :: (Embed a, Embed b) => (Vec (SizeOf a) (Maybe Bool) -> Vec (SizeOf b) (Maybe Bool)) -> Signal a b
+primVSignal f = fix $ \me -> Signal $ (me, ) . f
+{-# INLINE primVSignal #-}
+
+
 instance Distrib Signal where
   distrib = primSignal distrib
   factor = primSignal factor
