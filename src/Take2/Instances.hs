@@ -2,6 +2,7 @@
 {-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 {-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -41,6 +42,8 @@ import qualified Clash.Sized.Vector as V
 import qualified Data.Text as T
 import qualified Data.Aeson as A
 import Data.Functor.Compose
+import GHC.TypeLits.Extra (Max)
+import Type.Reflection (type (:~:) (Refl))
 
 
 instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
@@ -65,9 +68,43 @@ instance MonoidalSum Circuit where
   left = flip (+++) id
   right = (+++) id
 
--- instance Distrib Circuit where
---   distrib = distribE
---   factor = undefined
+instance Distrib Circuit where
+  distrib
+      :: forall a b c
+       . (Embed a, Embed b, Embed c)
+      => Circuit (a, Either b c) (Either (a, b) (a, c))
+  distrib
+      = second' (serial >>> unconsC)
+    >>> reassoc
+    >>> first' swap
+    >>> reassoc'
+    >>> second' serial
+    >>> consC
+    >>> case proveMaxPlusOne @(SizeOf a) @(SizeOf b) @(SizeOf c) of
+          Refl -> unsafeReinterpret
+
+  factor
+      :: forall a b c
+       . (Embed a, Embed b, Embed c)
+      => Circuit (Either (a, b) (a, c)) (a, Either b c)
+  factor
+      = serial
+    >>> unconsC
+    >>> second'
+        ( (case proveMaxPlusOne @(SizeOf a) @(SizeOf b) @(SizeOf c) of
+            Refl -> unsafeReinterpret
+          ) :: Circuit (Vec (Max (SizeOf a + SizeOf b) (SizeOf a + SizeOf c)) Bool)
+                       (Vec (SizeOf a) Bool, Vec (Max (SizeOf b) (SizeOf c)) Bool))
+    >>> reassoc
+    >>> first' swap
+    >>> reassoc'
+    >>> unsafeReinterpret
+
+
+proveMaxPlusOne :: forall a b c. Max b c + a :~: Max (a + b) (a + c)
+proveMaxPlusOne = unsafeCoerce Refl
+{-# INLINE proveMaxPlusOne #-}
+
 
 instance SymmetricSum Circuit where
   swapE = serial
