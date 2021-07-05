@@ -6,7 +6,7 @@
 module Take2.Circuit where
 
 
-import           Circuitry.Catalyst (Signal, Time, pumpSignal)
+import           Take2.Signal
 import           Circuitry.Category (Category(..))
 import           Clash.Sized.Vector (Vec)
 import qualified Clash.Sized.Vector as V
@@ -37,7 +37,6 @@ instance Category Circuit where
   type Ok Circuit = OkCircuit
   id = Circuit id id
   Circuit gg gr . Circuit fg fr = Circuit (gg . fg) (gr . fr)
-
 
 reallyPumpSignal :: (Embed b, Embed a) => Signal a b -> (Time -> a) -> Time -> Maybe b
 reallyPumpSignal sig f 0

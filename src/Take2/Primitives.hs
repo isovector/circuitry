@@ -3,7 +3,6 @@
 
 module Take2.Primitives where
 
-import           Circuitry.Catalyst (Signal (..), primSignal)
 import           Circuitry.Category (Category(..), (>>>))
 import qualified Circuitry.Category as Category
 import           Clash.Sized.Vector (Vec(..))
@@ -23,6 +22,7 @@ import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Graph
+import           Take2.Signal (Signal (..), primSignal)
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
 

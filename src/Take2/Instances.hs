@@ -8,11 +8,7 @@
 
 module Take2.Instances where
 
-import           Circuitry.Catalyst (Signal)
-import           Circuitry.Category (Category(..), (>>>), swapE, SymmetricProduct,  MonoidalProduct, Cartesian(..), SymmetricSum(..), MonoidalSum, Distrib (distrib), factor)
-import           Circuitry.Category (MonoidalProduct(..))
-import           Circuitry.Category (MonoidalSum(..))
-import           Circuitry.Category (SymmetricProduct(..))
+import           Circuitry.Category
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import qualified Data.Aeson as A
@@ -27,6 +23,7 @@ import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Graph (Graph(Graph), addCell, unifyBits, unifyBitsImpl, GraphM)
 import qualified Take2.Primitives as Prim
+import           Take2.Signal (Signal)
 import           Test.QuickCheck
 import           Type.Reflection (type (:~:) (Refl))
 import           Unsafe.Coerce (unsafeCoerce)

@@ -1,32 +1,17 @@
-{-# LANGUAGE MagicHash       #-}
+{-# LANGUAGE MagicHash #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Circuitry.Catalyst
-  ( module Circuitry.Category
-  , module Circuitry.Catalyst
-  ) where
+module Take2.Signal where
 
 import           Circuitry.Category
 import           Clash.Sized.Vector (Vec)
 import qualified Clash.Sized.Vector as V
-import           Data.Bool (bool)
 import           Data.Function (fix)
 import           Numeric.Natural (Natural)
 import           Prelude hiding (id, (.), sum, zip)
 import           Take2.Embed
-import           Test.QuickCheck (CoArbitrary, Arbitrary (arbitrary), Function (function), functionMap)
-import           Test.QuickCheck.Arbitrary (CoArbitrary(coarbitrary))
-
-
-instance Arbitrary Natural where
-  arbitrary = fmap (fromIntegral . abs @Integer) arbitrary
-
-instance CoArbitrary Natural where
-  coarbitrary = coarbitrary @Integer . fromIntegral
-
-instance Function Natural where
-  function = functionMap fromIntegral (fromIntegral @Integer . abs)
+import           Test.QuickCheck (CoArbitrary(..), Arbitrary (..), Function (..), functionMap)
 
 
 newtype Signal a b = Signal
@@ -110,8 +95,14 @@ instance Cocartesian Signal where
   tag = primSignal tag
 
 
-spike :: Time -> Time -> Bool
-spike n t = bool False True $ n == t
-
 type Time = Natural
+
+instance Arbitrary Natural where
+  arbitrary = fmap (fromIntegral . abs @Integer) arbitrary
+
+instance CoArbitrary Natural where
+  coarbitrary = coarbitrary @Integer . fromIntegral
+
+instance Function Natural where
+  function = functionMap fromIntegral (fromIntegral @Integer . abs)
 

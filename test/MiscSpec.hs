@@ -2,18 +2,18 @@
 
 module MiscSpec where
 
-import Test.Hspec
 import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
 import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
 import           Prelude hiding ((.), id, sum)
+import           Take2.Computer.Examples
+import           Take2.Computer.Math
 import           Take2.Computer.Memory
 import           Take2.Computer.Simple
-import           Take2.Computer.Math
-import           Take2.Computer.Examples
 import           Take2.Machinery
 import           Take2.Primitives (timeInv)
+import           Test.Hspec
 
 
 spec :: Spec
