@@ -16,23 +16,19 @@ import Unsafe.Coerce (unsafeCoerce)
 
 data ProjName (name  :: Symbol) = ProjName
 
-type family Append (xs :: [k]) (ys :: [k]) :: [k] where
-  Append '[] ys = ys
-  Append (x ': xs) ys = x ': Append xs ys
-
-type family Flatten (f :: Type -> Type) :: [Type -> Type] where
-  Flatten (S1 a b) = '[S1 a b]
-  Flatten (f :*: g) = Append (Flatten f) (Flatten g)
-  Flatten (M1 _1 _2 f) = Flatten f
+type family FlattenSels (f :: Type -> Type) :: [Type -> Type] where
+  FlattenSels (S1 a b) = '[S1 a b]
+  FlattenSels (f :*: g) = Append (FlattenSels f) (FlattenSels g)
+  FlattenSels (M1 _1 _2 f) = FlattenSels f
 
 instance (KnownSymbol name, name ~ name') => IsLabel name (ProjName name') where
   fromLabel = ProjName
 
-proj :: forall ty name res. GProj (Flatten (Rep ty)) ty name res => ProjName name -> Circuit ty res
-proj = gproj @(Flatten (Rep ty)) 0
+proj :: forall ty name res. GProj (FlattenSels (Rep ty)) ty name res => ProjName name -> Circuit ty res
+proj = gproj @(FlattenSels (Rep ty)) 0
 
-replace :: forall ty name res. GProj (Flatten (Rep ty)) ty name res => ProjName name -> Circuit (res, ty) ty
-replace = greplace @(Flatten (Rep ty)) 0
+replace :: forall ty name res. GProj (FlattenSels (Rep ty)) ty name res => ProjName name -> Circuit (res, ty) ty
+replace = greplace @(FlattenSels (Rep ty)) 0
 
 
 type family KnownSize (rep :: Type -> Type) :: Nat where

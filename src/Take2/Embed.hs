@@ -13,6 +13,7 @@ import qualified Data.Bits as B
 import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
 import           Data.Generics.Labels ()
+import           Data.Kind (Type)
 import           Data.Maybe (fromMaybe)
 import           Data.Typeable
 import           Data.Word (Word8, Word64, Word32, Word16)
@@ -21,7 +22,7 @@ import           GHC.TypeLits
 import           GHC.TypeLits.Extra
 import           Prelude hiding ((.), id, sum)
 import           Take2.Word
-import Data.Kind (Type)
+import           Test.QuickCheck (Arbitrary(..), oneof)
 
 
 class KnownNat (SizeOf a) => Embed a where
@@ -211,4 +212,47 @@ instance (Embed (HList ts), Embed a) => Embed (HList (a ': ts)) where
   reify vs =
     let (here, there) = V.splitAtI vs
      in reify here :>> reify there
+
+
+type family Append (xs :: [k]) (ys :: [k]) :: [k] where
+  Append '[] ys = ys
+  Append (x ': xs) ys = x ': Append xs ys
+
+type family FlattenCons (f :: Type -> Type) :: [Type -> Type] where
+  FlattenCons (K1 a b) = TypeError ('Text "K1? in my flatten cons? It's likier than you think")
+  FlattenCons (C1 a b) = '[S1 a b]
+  FlattenCons (f :+: g) = Append (FlattenCons f) (FlattenCons g)
+  FlattenCons (M1 _1 _2 f) = FlattenCons f
+
+type family Length (ts :: [k]) :: Nat where
+  Length '[] = 0
+  Length (a ': as) = 1 + Length as
+
+newtype EmbededEnum a = EmbededEnum a
+  deriving newtype (Enum, Bounded)
+  deriving stock Generic
+
+instance (Enum a, Bounded a) => Arbitrary (EmbededEnum a) where
+  arbitrary = oneof $ fmap pure $ enumFromTo minBound maxBound
+
+type EnumBitSize t = EnumBitSizeImpl1 (Length (FlattenCons (Rep t)))
+
+type EnumBitSizeImpl1 len = EnumBitSizeImpl (len <=? 2) len
+
+type family EnumBitSizeImpl (b :: Bool) (len :: Nat) where
+  EnumBitSizeImpl 'True len = len - 1
+  EnumBitSizeImpl 'False len = (Min (Log2 len) (Log2 (len - 1))) + 1
+
+instance (Enum a, Bounded a, Generic a, KnownNat (EnumBitSizeImpl (Length (FlattenCons (Rep a)) <=? 2) (Length (FlattenCons (Rep a)))), SizeOf (EmbededEnum a) <= 8) => Embed (EmbededEnum a) where
+  type SizeOf (EmbededEnum a) = EnumBitSize a
+  embed
+    = V.takeI @(SizeOf (EmbededEnum a)) @(8 - SizeOf (EmbededEnum a))
+    . embed @Word8
+    . fromIntegral @_ @Word8
+    . fromEnum
+  reify v
+    = toEnum
+    . fromIntegral
+    . reify @Word8
+    $ v V.++ V.repeat @(8 - SizeOf (EmbededEnum a)) False
 

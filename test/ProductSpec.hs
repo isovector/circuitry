@@ -1,7 +1,6 @@
 module ProductSpec where
 
 import Prelude hiding ((.), id, sum)
-import Take2.Computer.Memory
 import Take2.Machinery
 import Take2.Product
 import Test.Hspec

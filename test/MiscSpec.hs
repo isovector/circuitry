@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes  #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module MiscSpec where
 
@@ -16,13 +17,10 @@ import           Take2.Computer.Simple
 import           Take2.Machinery
 import           Test.Hspec
 
-
-instance Arbitrary RW where
-  arbitrary = oneof [ pure R, pure W ]
+deriving via EmbededEnum RW instance Arbitrary RW
 
 instance Function RW where
   function = functionMap (\case { R -> False; W -> True }) (bool R W)
-
 
 spec :: Spec
 spec = do
@@ -93,17 +91,6 @@ spec = do
         (create >>> first' rsLatch >>> destroy)
         rsLatch
 
-    , prop_embedRoundtrip @Word4
-    , prop_embedRoundtrip @()
-    , prop_embedRoundtrip @Bool
-    , prop_embedRoundtrip @Word8
-    , prop_embedRoundtrip @(Either Bool ())
-    , prop_embedRoundtrip @(Either () ())
-    , prop_embedRoundtrip @(Either (Either Bool Bool) (Either Bool Bool))
-    , prop_embedRoundtrip @(Vec 10 Bool)
-    , prop_embedRoundtrip @(Vec 10 (Vec 10 Bool))
-    , prop_embedRoundtrip @(Vec 10 (Either Bool Bool))
-
     , prop_circuit (uncurry (&&)) andGate
     , prop_circuit (not . uncurry (&&)) nandGate
     , prop_circuit not notGate
@@ -159,11 +146,6 @@ prop_equivalent n c1 c2 = property $ do
       counterexample ("c1: " <> show c1_r) $
       counterexample ("c2: " <> show c2_r) $
         c1_r === c2_r
-
-prop_embedRoundtrip :: forall a. (Show a, Eq a, Embed a, Arbitrary a) => Property
-prop_embedRoundtrip = property $ do
-  forAllShrink arbitrary shrink $ \(a :: a)  ->
-    a === reify (embed a)
 
 prop_eq :: forall a. (1 <= SizeOf a, Show a, Eq a, Embed a, Arbitrary a) => Property
 prop_eq = property $ do

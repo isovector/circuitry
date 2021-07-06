@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: be0f1812d36dd8d8fbd34c5ff906217939f4c755500dc2352ed6f48f41b8900e
+-- hash: fc055b04ffc1e84430b0ad0770c289f954d7f2491ad290b37fe6869b4cae4feb
 
 name:           circuitry
 version:        0.1.0.0
@@ -112,6 +112,7 @@ test-suite test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      EmbedSpec
       MemSpec
       MiscSpec
       ProductSpec
