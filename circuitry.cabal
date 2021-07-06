@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4099ab9c075019efb993b3113304f316c502efca908acf2f871775e2a220d215
+-- hash: 54aba93310510a886459cfbf7536e064d1b4aa0d118d543aa5b8b193dec5eb31
 
 name:           circuitry
 version:        0.1.0.0
@@ -21,6 +21,7 @@ library
       Take2
       Take2.Circuit
       Take2.Computer.Addressed
+      Take2.Computer.ALU
       Take2.Computer.Bus
       Take2.Computer.Examples
       Take2.Computer.Math
@@ -115,6 +116,7 @@ test-suite test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      BusSpec
       EmbedSpec
       MemSpec
       MiscSpec
