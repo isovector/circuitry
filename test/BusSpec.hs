@@ -16,7 +16,7 @@ inputOverTime  as t = as !! fromIntegral t
 spec :: Spec
 spec = do
   prop "remembers what you put in" $ \(a :: Word4) (b :: Word4) (addr :: Addr 4) ->
-    evalCircuitT
+    evalCircuitTT
         (bus @4 @Word4 >>> unsafeParse @Word4)
         (inputOverTime
           [ (MemoryBus, Left $ MemoryCommand (Identity W) addr a)
@@ -24,6 +24,9 @@ spec = do
           , (MemoryBus, Left $ MemoryCommand (Identity R) addr a)
           ])
         2
-      === Just a
+      === [ Nothing
+          , Just (a + b)
+          , Just a
+          ]
 
 
