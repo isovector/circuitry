@@ -85,7 +85,8 @@ getGraph ro c
 
     output' <- unGraph (c_graph c) input
     unifyBits $ M.fromList $ V.toList $ V.zip output output'
-    fmap Y.simplify $ gets gs_module
+    fmap Y.simplify $
+      gets gs_module
 
 
 newtype Named (n :: Symbol) a = Named a

@@ -17,8 +17,8 @@ spec = do
     evalCircuitT
         (memoryCell @4 @Word4 >>> unsafeReinterpret)
         (inputOverTime
-          [ ((addr, Just W), a)
-          , ((addr, Just R), b)
+          [ MemoryCommand (Just W) addr a
+          , MemoryCommand (Just R) addr b
           ])
         1
       === Just a

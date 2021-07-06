@@ -371,3 +371,10 @@ sequenceMetaV
 sequenceMetaV Nil = create >>> snd' >>> unsafeReinterpret
 sequenceMetaV (Cons c v) = copy >>> first' c >>> second' (sequenceMetaV v) >>> consC
 
+parallelMetaV
+    :: (Embed a, Embed b, KnownNat cases)
+    => Vec cases (Circuit a b)
+    -> Circuit (Vec cases a) (Vec cases b)
+parallelMetaV Nil = create >>> snd' >>> unsafeReinterpret
+parallelMetaV (Cons c v) = unconsC >>> c *** parallelMetaV v >>> consC
+

@@ -22,6 +22,7 @@ dependencies:
 - aeson
 - hspec
 - syb
+- generic-arbitrary
 
 default-extensions:
   - EmptyCase
@@ -73,6 +74,7 @@ default-extensions:
   - OverloadedLabels
   - InstanceSigs
   - RoleAnnotations
+  - NoMonomorphismRestriction
 
 ghc-options:
   - -Wall

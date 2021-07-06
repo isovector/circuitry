@@ -1,9 +1,13 @@
+{-# LANGUAGE UndecidableInstances #-}
 module Take2.Computer.Memory where
 
 import Prelude hiding ((.), id, sum)
 import Take2.Computer.Simple
 import Take2.Computer.Addressed
 import Take2.Machinery
+import Take2.Product (proj)
+import Test.QuickCheck.Arbitrary.Generic (genericArbitrary, genericShrink)
+import Data.Typeable (Typeable)
 
 
 hold :: Circuit Bool Bool
@@ -37,7 +41,7 @@ snapN = component ("snap " <> nameOf @a)
 
 data RW = R | W
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
-  deriving anyclass Embed
+  deriving (Embed, Arbitrary) via (EmbededEnum RW)
 
 maybeC :: Embed a => Circuit (Maybe a) (Either () a)
 maybeC = unsafeReinterpret
@@ -45,12 +49,34 @@ maybeC = unsafeReinterpret
 maybeC' :: Embed a => Circuit (Either () a) (Maybe a)
 maybeC' = unsafeReinterpret
 
+
+data MemoryCommand n a = MemoryCommand
+  { mc_rw   :: Maybe RW
+  , mc_addr :: Addr n
+  , mc_data :: a
+  }
+  deriving stock (Generic)
+  deriving anyclass Embed
+
+instance (KnownNat n, Arbitrary a) => Arbitrary (MemoryCommand n a) where
+  arbitrary = genericArbitrary
+  shrink = genericShrink
+
+
+unpackMemoryCommand :: (Embed a, KnownNat n, SeparatePorts a, Typeable a) => Circuit (MemoryCommand n a) ((Addr n, Maybe RW), a)
+unpackMemoryCommand
+    = copy
+  >>> (copy >>> proj #mc_addr *** proj #mc_rw)
+  *** proj #mc_data
+
+
 memoryCell
     :: forall n a
-     . (Nameable a, SeparatePorts a, KnownNat n, Embed a)
-    => Circuit ((Addr n, Maybe RW), a) (Vec (SizeOf a) Bool)
+     . (Nameable a, SeparatePorts a, KnownNat n, Embed a, Typeable a)
+    => Circuit (MemoryCommand n a) (Vec (SizeOf a) Bool)
 memoryCell
-    = first' ( second' ( maybeC
+    = unpackMemoryCommand
+  >>> first' ( second' ( maybeC
                      >>> unsafeReinterpret @_ @(Bool, RW)
                      >>> second' copy
                      >>> reassoc

@@ -24,11 +24,17 @@ type family FlattenSels (f :: Type -> Type) :: [Type -> Type] where
 instance (KnownSymbol name, name ~ name') => IsLabel name (ProjName name') where
   fromLabel = ProjName
 
-proj :: forall ty name res. GProj (FlattenSels (Rep ty)) ty name res => ProjName name -> Circuit ty res
-proj = gproj @(FlattenSels (Rep ty)) 0
+proj
+    :: forall ty name res
+     . (GProj (FlattenSels (Rep ty)) ty name res, SeparatePorts ty, KnownSymbol name, SeparatePorts res)
+    => ProjName name
+    -> Circuit ty res
+proj lbl = component ("." <> symbolVal lbl)
+         $ gproj @(FlattenSels (Rep ty)) 0 lbl
 
-replace :: forall ty name res. GProj (FlattenSels (Rep ty)) ty name res => ProjName name -> Circuit (res, ty) ty
-replace = greplace @(FlattenSels (Rep ty)) 0
+replace :: forall ty name res. (GProj (FlattenSels (Rep ty)) ty name res, SeparatePorts ty, KnownSymbol name, SeparatePorts res) => ProjName name -> Circuit (res, ty) ty
+replace lbl = component ("." <> symbolVal lbl <> "=")
+            $ greplace @(FlattenSels (Rep ty)) 0 lbl
 
 
 type family KnownSize (rep :: Type -> Type) :: Nat where

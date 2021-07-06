@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: fc055b04ffc1e84430b0ad0770c289f954d7f2491ad290b37fe6869b4cae4feb
+-- hash: 4099ab9c075019efb993b3113304f316c502efca908acf2f871775e2a220d215
 
 name:           circuitry
 version:        0.1.0.0
@@ -21,6 +21,7 @@ library
       Take2
       Take2.Circuit
       Take2.Computer.Addressed
+      Take2.Computer.Bus
       Take2.Computer.Examples
       Take2.Computer.Math
       Take2.Computer.Memory
@@ -87,6 +88,7 @@ library
       OverloadedLabels
       InstanceSigs
       RoleAnnotations
+      NoMonomorphismRestriction
   ghc-options: -Wall -fplugin GHC.TypeLits.Extra.Solver -fplugin GHC.TypeLits.KnownNat.Solver -fplugin GHC.TypeLits.Normalise
   build-depends:
       QuickCheck
@@ -96,6 +98,7 @@ library
     , cirtography
     , clash-prelude
     , containers
+    , generic-arbitrary
     , generic-lens
     , ghc-typelits-extra
     , ghc-typelits-knownnat
@@ -171,6 +174,7 @@ test-suite test
       OverloadedLabels
       InstanceSigs
       RoleAnnotations
+      NoMonomorphismRestriction
   ghc-options: -Wall -fplugin GHC.TypeLits.Extra.Solver -fplugin GHC.TypeLits.KnownNat.Solver -fplugin GHC.TypeLits.Normalise -threaded -rtsopts -with-rtsopts=-N -O2 -flate-specialise
   build-tool-depends:
       hspec-discover:hspec-discover >=2.0
@@ -183,6 +187,7 @@ test-suite test
     , cirtography
     , clash-prelude
     , containers
+    , generic-arbitrary
     , generic-lens
     , ghc-typelits-extra
     , ghc-typelits-knownnat
