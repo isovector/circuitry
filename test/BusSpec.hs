@@ -7,6 +7,7 @@ import           Take2.Computer.ALU
 import           Take2.Machinery
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
+import qualified Data.Bits as B
 
 
 inputOverTime :: [a] -> Time -> a
@@ -22,11 +23,19 @@ spec = do
           [ (MemoryBus, Left $ MemoryCommand (Identity W) addr a)
           , (AluBus, Right $ AluCommand AluOpAdd a b)
           , (MemoryBus, Left $ MemoryCommand (Identity R) addr a)
+          , (MemoryBus, Left $ MemoryCommand (Identity W) addr b)
+          , (AluBus, Right $ AluCommand AluOpNot a b)
+          , (AluBus, Right $ AluCommand AluOpOr a b)
+          , (MemoryBus, Left $ MemoryCommand (Identity R) addr 0)
           ])
-        2
+        6
       === [ Nothing
           , Just (a + b)
           , Just a
+          , Nothing
+          , Just (B.complement a)
+          , Just (a B..|. b)
+          , Just b
           ]
 
 
