@@ -4,7 +4,10 @@
 {-# OPTIONS_GHC -Wno-deprecations #-}
 {-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}
 
-module Take2.Embed where
+module Take2.Embed
+  ( module Take2.Embed
+  , Identity(..)
+  ) where
 
 import           Circuitry.Category (Category(..))
 import           Clash.Sized.Vector (Vec(..))
@@ -23,6 +26,9 @@ import           GHC.TypeLits.Extra
 import           Prelude hiding ((.), id, sum)
 import           Take2.Word
 import           Test.QuickCheck (Arbitrary(..), oneof)
+import Data.Functor.Identity
+
+deriving anyclass instance Embed a => Embed (Identity a)
 
 
 class KnownNat (SizeOf a) => Embed a where

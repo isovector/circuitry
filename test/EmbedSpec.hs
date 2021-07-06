@@ -19,9 +19,6 @@ data EnumTest = ET1 | ET2 | ET3 | ET4 | ET5 | ET6 | ET7
   deriving (Embed, Arbitrary) via (EmbededEnum EnumTest)
 
 
-deriving via EmbededEnum RW instance Arbitrary RW
-
-
 spec :: Spec
 spec = do
    prop_embedRoundtrip @Word4

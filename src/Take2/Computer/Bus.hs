@@ -37,11 +37,6 @@ unsafeFromLeft = serial
              >>> unsafeParse
 
 
-dumbBus :: Circuit (BusId, Word4) Word4
-dumbBus = mkBus $ (component "f" snd')
-               :> (component "f" snd')
-               :> Nil
-
 bus :: forall n word
      . ( Embed word
        , KnownNat n
@@ -51,16 +46,17 @@ bus :: forall n word
        , Numeric word
        , 2 <= SizeOf word
        )
-    => Circuit (BusId, Either (MemoryCommand n word) (AluCommand word))
+    => Circuit (BusId, Either (MemoryCommand Identity n word) (AluCommand word))
                (Vec (SizeOf word) Bool)
 bus =
   mkBus @BusId $ ( second' unsafeFromLeft
-               >>> snd'
+               >>> unsafeReinterpret
                >>> (memoryCell @n @word)
                  )
               :> ( aluBusComponent @n @word
                  )
               :> Nil
+
 
 aluBusComponent
     :: forall n word.
@@ -71,7 +67,7 @@ aluBusComponent
        , Typeable word
        , Numeric word
        , 2 <= SizeOf word
-       ) => Circuit (Bool, Either (MemoryCommand n word) (AluCommand word)) (Vec (SizeOf word) Bool)
+       ) => Circuit (Bool, Either (MemoryCommand Identity n word) (AluCommand word)) (Vec (SizeOf word) Bool)
 aluBusComponent = second' (swapE >>> unsafeFromLeft)
                >>> swap
                >>> first' serial
