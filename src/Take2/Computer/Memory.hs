@@ -5,7 +5,6 @@ import Prelude hiding ((.), id, sum)
 import Take2.Computer.Simple
 import Take2.Computer.Addressed
 import Take2.Machinery
-import Take2.Product (proj)
 import Test.QuickCheck.Arbitrary.Generic (genericArbitrary, genericShrink)
 import Data.Typeable (Typeable)
 
@@ -33,7 +32,10 @@ snap = component "snap"
    >>> rsLatch
 
 
-snapN :: forall a. (Nameable a, OkCircuit a, SeparatePorts a) => Circuit (RW, a) (Vec (SizeOf a) Bool)
+snapN
+    :: forall a
+     . (Nameable a, OkCircuit a, SeparatePorts a)
+    => Circuit (RW, a) (Vec (SizeOf a) Bool)
 snapN = component ("snap " <> nameOf @a)
       $ second' serial
     >>> distribV
@@ -63,7 +65,9 @@ instance (KnownNat n, Arbitrary a) => Arbitrary (MemoryCommand n a) where
   shrink = genericShrink
 
 
-unpackMemoryCommand :: (Embed a, KnownNat n, SeparatePorts a, Typeable a) => Circuit (MemoryCommand n a) ((Addr n, RW), a)
+unpackMemoryCommand
+    :: (Embed a, KnownNat n, SeparatePorts a, Typeable a)
+    => Circuit (MemoryCommand n a) ((Addr n, RW), a)
 unpackMemoryCommand
     = copy
   >>> ((copy >>> proj #mc_addr *** (proj #mc_rw >>> serial >>> mapV pullDown >>> unsafeParse)))
