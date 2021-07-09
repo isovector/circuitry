@@ -1,4 +1,4 @@
-module MemSpec where
+module BusSpec where
 
 import           Prelude hiding ((.), id, sum)
 import           Take2.Computer.Memory

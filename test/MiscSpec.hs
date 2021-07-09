@@ -17,8 +17,6 @@ import           Take2.Computer.Simple
 import           Take2.Machinery
 import           Test.Hspec
 
-deriving via EmbededEnum RW instance Arbitrary RW
-
 instance Function RW where
   function = functionMap (\case { R -> False; W -> True }) (bool R W)
 
