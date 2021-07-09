@@ -9,7 +9,7 @@ import Test.Hspec.QuickCheck
 
 
 data Coprod
-  = Ctor1 Bool
+  = Ctor1 Bool Word4
   | Ctor2 Word4
   | Ctor3 Word8
   | Ctor4 (Maybe Bool)
@@ -18,7 +18,7 @@ data Coprod
 
 instance Arbitrary Coprod where
   arbitrary = oneof
-    [ Ctor1 <$> arbitrary
+    [ Ctor1 <$> arbitrary <*> arbitrary
     , Ctor2 <$> arbitrary
     , Ctor3 <$> arbitrary
     , Ctor4 <$> arbitrary
@@ -29,7 +29,7 @@ spec :: Spec
 spec = do
   let empty = Elim InjName (consume >>> serial >>> pad False >>> unsafeParse)
 
-  prop "eliminates ctor1" $ \(val :: Bool) -> do
+  prop "eliminates ctor1" $ \(val1 :: Bool) (val2 :: Word4) -> do
     evalCircuit
         (elim $ ( Elim #_Ctor1 id
               :+| empty
@@ -38,9 +38,9 @@ spec = do
               :+| empty
                 )
         )
-        (Ctor1 val)
+        (Ctor1 val1 val2)
         0
-      === Just val
+      === Just (val1, val2)
 
   prop "eliminates ctor2" $ \(val :: Word4) -> do
     evalCircuit
@@ -81,12 +81,12 @@ spec = do
         0
       === Just val
 
-  prop "injects ctor1" $ \(val :: Bool) -> do
+  prop "injects ctor1" $ \(val1 :: Bool) (val2 :: Word4) -> do
     evalCircuit
         (inj #_Ctor1)
-        val
+        (val1, val2)
         0
-      === Just (Ctor1 val)
+      === Just (Ctor1 val1 val2)
 
   prop "injects ctor2" $ \(val :: Word4) -> do
     evalCircuit

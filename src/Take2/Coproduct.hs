@@ -12,14 +12,15 @@ import           Control.Applicative ((<|>))
 import           Data.Kind (Type, Constraint)
 import           Data.Maybe (fromJust)
 import           GHC.Generics
+import           GHC.OverloadedLabels
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
-import           Take2.Circuit (Circuit, Named (Named))
+import           Take2.Circuit (Circuit, Named)
 import           Take2.Embed
 import           Take2.Instances
 import           Take2.Primitives (Dict(Dict), pad)
 import           Unsafe.Coerce (unsafeCoerce)
-import GHC.OverloadedLabels
+
 
 data InjName (name  :: Symbol) where
   InjName :: KnownSymbol name => InjName name
@@ -46,49 +47,78 @@ data Elim (xs :: Tree (Symbol, Type)) (r :: Type) where
       -> Elim rs r -> Elim ('Branch ls rs) r
 
 
-class GInject (n :: Nat) (rep :: Type -> Type) (name :: Symbol) ty a where
-  ginject :: Maybe (Circuit a (Vec n Bool))
+class GInjectThread (n :: Nat) (rep :: Type -> Type) (name :: Symbol) ty a where
+  ginjectThread :: Maybe (Circuit a (Vec n Bool))
+
+class GInject (n :: Nat) (rep :: Type -> Type) ty a where
+  ginject :: Circuit a (Vec n Bool)
+
+instance (Embed a, KnownNat n, SizeOf a <= n) => GInject n (K1 _1 a) ty a where
+  ginject = serial >>> pad False
+
+instance GInject n f ty a => GInject n (S1 _1 f) ty a where
+  ginject = ginject @n @f @ty @a
+
+instance ( SizeOf a + SizeOf b <= n
+         , GInject (SizeOf a) f a a
+         , GInject (SizeOf b) g b b
+         , Embed a
+         , Embed b
+         , KnownNat n
+         ) => GInject n (f :*: g) ty (a, b) where
+  ginject = ginject @(SizeOf a) @f @a @a
+        *** ginject @(SizeOf b) @g @b @b
+        >>> serial
+        >>> pad False
 
 instance ( (m + 1) ~ n
-         , GInject m f name ty a
-         , GInject m g name ty a
+         , GInjectThread m f name ty a
+         , GInjectThread m g name ty a
          , Embed a
          , KnownNat m
          , KnownNat n
-         ) => GInject n (f :+: g) name ty a where
-  ginject = fmap (>>> lintro False) (ginject @m @f @name @ty @a)
-        <|> fmap (>>> lintro True)  (ginject @m @g @name @ty @a)
+         ) => GInjectThread n (f :+: g) name ty a where
+  ginjectThread = fmap (>>> lintro False) (ginjectThread @m @f @name @ty @a)
+              <|> fmap (>>> lintro True)  (ginjectThread @m @g @name @ty @a)
 
-instance (SizeOf a <= n, Embed a, KnownNat n) => GInject n (K1 _1 a) name ty a where
-  ginject = Just $ serial >>> pad False
+instance (GInject n (K1 _1 a) ty a) => GInjectThread n (K1 _1 a) name ty a where
+  ginjectThread = Just $ ginject @n @(K1 _1 a) @ty @a
 
-instance GInject n f name ty a => GInject n (D1 _1 f) name ty a where
-  ginject = ginject @n @f @name @ty @a
+instance (GInject n (f :*: g) ty a) => GInjectThread n (f :*: g) name ty a where
+  ginjectThread = Just $ ginject @n @(f :*: g) @ty @a
 
-instance GInject n f name ty a => GInject n (S1 _1 f) name ty a where
-  ginject = ginject @n @f @name @ty @a
+instance GInjectThread n f name ty a => GInjectThread n (D1 _1 f) name ty a where
+  ginjectThread = ginjectThread @n @f @name @ty @a
 
-instance {-# OVERLAPPING #-} (GInject n f name ty a)
-    => GInject n (C1 ('MetaCons name _1 _2) f) name ty a where
-  ginject = ginject @n @f @name @ty @a
+instance GInjectThread n f name ty a => GInjectThread n (S1 _1 f) name ty a where
+  ginjectThread = ginjectThread @n @f @name @ty @a
 
-instance GInject n (C1 ('MetaCons name' _1 _2) f) name ty a where
-  ginject = Nothing
+instance {-# OVERLAPPING #-} (GInjectThread n f name ty a)
+    => GInjectThread n (C1 ('MetaCons name _1 _2) f) name ty a where
+  ginjectThread = ginjectThread @n @f @name @ty @a
+
+instance GInjectThread n (C1 ('MetaCons name' _1 _2) f) name ty a where
+  ginjectThread = Nothing
 
 lintro :: KnownNat n => Bool -> Circuit (Vec n Bool) (Vec (n + 1) Bool)
 lintro b = intro b >>> swap >>> consC
 
 inj
     :: forall x a name
-     . (Contains (FlattenCons2 (Rep x)) a, GInject (SizeOf x) (Rep x) name x a, Embed a, Embed x)
+     . ( Contains (FlattenCons2 (Rep x)) a
+       , GInjectThread (SizeOf x) (Rep x) name x a
+       , Embed a
+       , Embed x
+       )
     => InjName name
     -> Circuit a x
-inj _ = fromJust (ginject @(SizeOf x) @(Rep x) @name @x @a) >>> unsafeParse
+inj _ = fromJust (ginjectThread @(SizeOf x) @(Rep x) @name @x @a) >>> unsafeParse
 
 type family FlattenCons2 (f :: Type -> Type) :: [Type] where
   FlattenCons2 (K1 a b) = '[b]
   FlattenCons2 U1 = '[()]
   FlattenCons2 (f :+: g) = Append (FlattenCons2 f) (FlattenCons2 g)
+  FlattenCons2 (f :*: g) = '[FoldCoprod2 (f :*: g)]
   FlattenCons2 (M1 _1 _2 f) = FlattenCons2 f
 
 -- This makes the 'fromJust' in 'inj' safe lol
@@ -144,13 +174,15 @@ scrutinize
 
 
 
-type family FoldCoprod2 (f :: Type -> Type) (name :: Symbol) :: (Symbol, Type) where
-  FoldCoprod2 (K1 _1 a) name    = '(name, a)
-  FoldCoprod2 (M1 _1 _2 f) name = FoldCoprod2 f name
+type family FoldCoprod2 (f :: Type -> Type) :: Type where
+  FoldCoprod2 (K1 _1 a)    = a
+  FoldCoprod2 U1           = ()
+  FoldCoprod2 (f :*: g)    = (FoldCoprod2 f, FoldCoprod2 g)
+  FoldCoprod2 (M1 _1 _2 f) = FoldCoprod2 f
 
 
 type family FoldCoprod (f :: Type -> Type) :: Tree (Symbol, Type) where
-  FoldCoprod (C1 ('MetaCons name _1 _2) f) = 'Leaf (FoldCoprod2 f name)
+  FoldCoprod (C1 ('MetaCons name _1 _2) f) = 'Leaf ( '(name, FoldCoprod2 f))
   -- FoldCoprod U1           = 'Leaf ()
   FoldCoprod (f :+: g)    = 'Branch (FoldCoprod f) (FoldCoprod g)
   FoldCoprod (D1 _1 f) = FoldCoprod f
