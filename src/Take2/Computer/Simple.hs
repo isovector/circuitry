@@ -70,55 +70,6 @@ when' k c = interface' diagrammed (fmap (mappend "case ") $ constantName k)
        >>> c
        >>> serial
 
-whenBus
-    :: (1 <= SizeOf k, Embed k, Embed v, Embed r, Show k, SeparatePorts k, SeparatePorts v)
-    => k
-    -> Circuit (Bool, v) r
-    -> Circuit (k, v) (Vec (SizeOf r) Bool)
-whenBus k c = interface' diagrammed (fmap (mappend "case ") $ constantName k)
-           (first' (intro k >>> eq))
-       >>> first' copy
-       >>> reassoc'
-       >>> second' c
-       >>> swap
-       >>> first' serial
-       >>> tribufAll
-
-
-branch
-    :: forall k v n cases
-     . ( 1 <= cases
-       , 1 <= SizeOf k
-       , Embed k
-       , Embed v
-       , KnownNat n
-       , Show k
-       , KnownNat cases
-       , SeparatePorts k
-       , SeparatePorts v
-       )
-    => Vec cases (k, Circuit v (Vec n Bool))
-    -> Circuit (k, v) (Vec n Bool)
-branch vs = sequenceMetaV (fmap (uncurry when) vs) >>> pointwiseOr @cases
-
-
-totalBranch
-    :: forall k v n cases
-     . ( 1 <= cases
-       , 1 <= SizeOf k
-       , Embed k
-       , Embed v
-       , KnownNat n
-       , Show k
-       , KnownNat cases
-       , SeparatePorts k
-       , SeparatePorts v
-       )
-    => Vec cases (k, Circuit (Bool, v) (Vec n Bool))
-    -> Circuit (k, v) (Vec n Bool)
-totalBranch vs = sequenceMetaV (fmap (uncurry whenBus) vs) >>> pointwiseShort
-
-
 
 onEach :: (Embed a, Embed b, KnownNat cases) => (v -> Circuit a b) -> Vec cases v -> Circuit a (Vec cases b)
 onEach f v = sequenceMetaV $ fmap f v

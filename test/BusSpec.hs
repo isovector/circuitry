@@ -21,11 +21,11 @@ spec = do
         (bus @4 @Word4 >>> unsafeParse @Word4)
         (inputOverTime
           [ BusMemory $ MemoryCommand W addr a
-          , BusAlu $ AluCommand AluOpAdd a b
+          , BusAlu $ AluAdd a b
           , BusMemory $ MemoryCommand R addr a
           , BusMemory $ MemoryCommand W addr b
-          , BusAlu $ AluCommand AluOpNot a b
-          , BusAlu $ AluCommand AluOpOr a b
+          , BusAlu $ AluNot a
+          , BusAlu $ AluOr a b
           , BusMemory $ MemoryCommand R addr 0
           ])
         6
