@@ -14,16 +14,17 @@ import           Data.Maybe (fromJust)
 import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
-import           Take2.Circuit (Circuit)
+import           Take2.Circuit (Circuit, Named (Named))
 import           Take2.Embed
 import           Take2.Instances
 import           Take2.Primitives (Dict(Dict), pad)
 import           Unsafe.Coerce (unsafeCoerce)
 import GHC.OverloadedLabels
 
-data InjName (name  :: Symbol) = InjName
+data InjName (name  :: Symbol) where
+  InjName :: KnownSymbol name => InjName name
 
-instance (KnownSymbol name, name ~ AppendSymbol "_" name') => IsLabel name (InjName name') where
+instance (KnownSymbol name', name ~ AppendSymbol "_" name') => IsLabel name (InjName name') where
   fromLabel = InjName
 
 data Tree a = Branch (Tree a) (Tree a) | Leaf a
@@ -109,7 +110,7 @@ gelim
      . (Embed r, Embed (Coproduct xs))
     => Elim xs r
     -> Circuit (Vec (SizeOf (Coproduct xs)) Bool) (Vec (SizeOf r) Bool)
-gelim (Elim _ f) = unsafeParse >>> f >>> serial
+gelim (Elim name@InjName f) = component (symbolVal name) $ unsafeParse >>> f >>> serial
 gelim (ls :+| rs) = coproductBranch ls rs
 
 coproductBranch
@@ -120,15 +121,27 @@ coproductBranch
     -> Circuit (Vec (SizeOf (Coproduct ('Branch ls rs))) Bool) (Vec (SizeOf r) Bool)
 coproductBranch ls rs
     = unconsC
-  >>> swap
-  >>> copy
-  >>> (second' (notGate >>> copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst' >>> gelim ls) >>> tribufAll)
-  *** (second' (            copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst' >>> gelim rs) >>> tribufAll)
-  >>> both serial
-  -- >>> zipVC
-  -- >>> mapV orGate
-  >>> unsafeReinterpret @_ @(Vec 2 _)
-  >>> pointwiseShort
+  >>> (unsafeReinterpret >>> component "scrutinize" (scrutinize @(SizeOf (Coproduct ls)) @(SizeOf (Coproduct rs))) >>> unsafeReinterpret)
+  >>> first' (gelim ls) *** first' (gelim rs)
+  >>> -- component "unify"
+      ( both (tribufAll >>> serial)
+    >>> unsafeReinterpret @_ @(Vec 2 _)
+    >>> pointwiseShort
+      )
+
+scrutinize
+    :: forall a b
+     . (KnownNat a, KnownNat b)
+    => Circuit (Named "Tag" Bool, Named "D" (Vec (Max a b) Bool))
+               ((Named "DL" (Vec a Bool), Named "L" Bool), (Named "DR" (Vec b Bool), Named "R" Bool))
+scrutinize
+      = unsafeReinterpret
+    >>> swap
+    >>> copy
+    >>> (second' (notGate >>> copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst'))
+    *** (second' (            copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst'))
+    >>> unsafeReinterpret @((Vec a Bool, Bool), (Vec b Bool, Bool))
+
 
 
 type family FoldCoprod2 (f :: Type -> Type) (name :: Symbol) :: (Symbol, Type) where
@@ -148,7 +161,7 @@ type family FoldCoprod (f :: Type -> Type) :: Tree (Symbol, Type) where
 --   Depth ('Branch ls rs) = Max (Depth ls) (Depth rs) + 1
 --   Depth ('Leaf _) = 0
 
-instance (Embed x) => Embed (Coproduct ('Leaf '(name, x))) where
+instance (Embed x, KnownSymbol name) => Embed (Coproduct ('Leaf '(name, x))) where
   type SizeOf (Coproduct ('Leaf '(name, x))) = SizeOf x
   embed (Here _ x) = embed x
   reify v = Here (InjName @name) (reify v)

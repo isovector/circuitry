@@ -6,8 +6,6 @@ import Prelude hiding ((.), id, sum)
 import Take2.Machinery
 import Test.Hspec
 import Test.Hspec.QuickCheck
-import Test.QuickCheck
-import Take2.Coproduct (InjName(InjName))
 
 
 data Coprod
