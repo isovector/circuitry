@@ -38,7 +38,7 @@ data Coproduct (xs :: Tree (Symbol, Type)) where
   Here :: InjName name -> x -> Coproduct ('Leaf '(name, x))
 
 data Elim (xs :: Tree (Symbol, Type)) (r :: Type) where
-  Elim
+  (:->)
       :: (Embed x, Typeable x)
       => InjName name
       -> Circuit x r
@@ -47,6 +47,9 @@ data Elim (xs :: Tree (Symbol, Type)) (r :: Type) where
       :: (Embed (Coproduct ls), Embed (Coproduct rs))
       => Elim ls r
       -> Elim rs r -> Elim ('Branch ls rs) r
+
+infix 2 :->
+infixr 1 :+|
 
 
 class GInjectThread (n :: Nat) (rep :: Type -> Type) (name :: Symbol) ty a where
@@ -142,7 +145,7 @@ gelim
      . (Embed r, Embed (Coproduct xs))
     => Elim xs r
     -> Circuit (Vec (SizeOf (Coproduct xs)) Bool) (Vec (SizeOf r) Bool)
-gelim (Elim name@InjName f) = component (symbolVal name) unsafeParse >>> f >>> serial
+gelim (name@InjName :-> f) = component (symbolVal name) unsafeParse >>> f >>> serial
 gelim (ls :+| rs) = coproductBranch ls rs
 
 coproductBranch

@@ -27,11 +27,11 @@ instance Arbitrary Coprod where
 
 spec :: Spec
 spec = do
-  let empty = Elim InjName (consume >>> serial >>> pad False >>> unsafeParse)
+  let empty = InjName :-> (consume >>> serial >>> pad False >>> unsafeParse)
 
   prop "eliminates ctor1" $ \(val1 :: Bool) (val2 :: Word4) -> do
     evalCircuit
-        (elim $ ( Elim #_Ctor1 id
+        (elim $ ( #_Ctor1 :-> id
               :+| empty
                 )
             :+| ( empty
@@ -45,7 +45,7 @@ spec = do
   prop "eliminates ctor2" $ \(val :: Word4) -> do
     evalCircuit
         (elim $ ( empty
-              :+| Elim #_Ctor2 id
+              :+| #_Ctor2 :-> id
                 )
             :+| ( empty
               :+| empty
@@ -60,7 +60,7 @@ spec = do
         (elim $ ( empty
               :+| empty
                 )
-            :+| ( Elim #_Ctor3 id
+            :+| ( #_Ctor3 :-> id
               :+| empty
                 )
         )
@@ -74,7 +74,7 @@ spec = do
               :+| empty
                 )
             :+| ( empty
-              :+| Elim #_Ctor4 id
+              :+| #_Ctor4 :-> id
                 )
         )
         (Ctor4 val)

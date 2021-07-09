@@ -34,6 +34,6 @@ bus
        )
     => Circuit (BusCommand n word)
                (Vec (SizeOf word) Bool)
-bus = elim $ Elim #_BusMemory (memoryCell @n @word)
-         :+| Elim #_BusAlu (alu @word)
+bus = elim $ #_BusMemory :-> memoryCell @n @word
+         :+| #_BusAlu    :-> alu @word
 

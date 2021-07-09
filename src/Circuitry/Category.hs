@@ -190,6 +190,6 @@ instance Cocartesian (->) where
   tag (False, a) = Left a
 
 
-infixr 1 >>>
-infixr 1 <<<
+infixr 3 >>>
+infixr 3 <<<
 
