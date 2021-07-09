@@ -4,13 +4,16 @@
 
 module Take2.Product (proj, replace, ProjName) where
 
+import Circuitry.Category
+import Clash.Sized.Vector (Vec (..))
 import Data.Kind (Type)
 import Data.Proxy
 import GHC.Generics
 import GHC.OverloadedLabels (IsLabel, fromLabel)
 import GHC.TypeLits
+import Take2.Circuit
 import Take2.Embed
-import Take2.Machinery
+import Take2.Instances
 import Take2.Primitives (Dict(Dict))
 import Unsafe.Coerce (unsafeCoerce)
 

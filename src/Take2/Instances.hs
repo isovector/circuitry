@@ -378,3 +378,13 @@ parallelMetaV
 parallelMetaV Nil = create >>> snd' >>> unsafeReinterpret
 parallelMetaV (Cons c v) = unconsC >>> c *** parallelMetaV v >>> consC
 
+pointwiseShort
+    :: (1 <= m, KnownNat n, KnownNat m)
+    => Circuit (Vec m (Vec n Bool)) (Vec n Bool)
+pointwiseShort = Prim.transposeV >>> mapV Prim.unsafeShort
+
+pairwiseShort
+    :: (KnownNat m)
+    => Circuit (Vec m Bool, Vec m Bool) (Vec m Bool)
+pairwiseShort = Prim.zipVC >>> mapV (serial >>> Prim.unsafeShort)
+
