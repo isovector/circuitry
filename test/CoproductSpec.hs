@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
+
 module CoproductSpec where
 
 import Prelude hiding ((.), id, sum)
@@ -5,6 +7,7 @@ import Take2.Machinery
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
+import Take2.Coproduct (InjName(InjName))
 
 
 data Coprod
@@ -24,23 +27,13 @@ instance Arbitrary Coprod where
     ]
 
 
-test :: Circuit Coprod Bool
-test = (elim $ ( Elim id
-              :+| Elim (consume >>> serial >>> pad False >>> unsafeParse)
-                )
-            :+| ( Elim (consume >>> serial >>> pad False >>> unsafeParse)
-              :+| Elim (consume >>> serial >>> pad False >>> unsafeParse)
-                )
-        )
-
-
 spec :: Spec
 spec = do
-  let empty = Elim (consume >>> serial >>> pad False >>> unsafeParse)
+  let empty = Elim InjName (consume >>> serial >>> pad False >>> unsafeParse)
 
   prop "eliminates ctor1" $ \(val :: Bool) -> do
     evalCircuit
-        (elim $ ( Elim id
+        (elim $ ( Elim #_Ctor1 id
               :+| empty
                 )
             :+| ( empty
@@ -54,7 +47,7 @@ spec = do
   prop "eliminates ctor2" $ \(val :: Word4) -> do
     evalCircuit
         (elim $ ( empty
-              :+| Elim id
+              :+| Elim #_Ctor2 id
                 )
             :+| ( empty
               :+| empty
@@ -69,7 +62,7 @@ spec = do
         (elim $ ( empty
               :+| empty
                 )
-            :+| ( Elim id
+            :+| ( Elim #_Ctor3 id
               :+| empty
                 )
         )
@@ -83,7 +76,7 @@ spec = do
               :+| empty
                 )
             :+| ( empty
-              :+| Elim id
+              :+| Elim #_Ctor4 id
                 )
         )
         (Ctor4 val)

@@ -28,13 +28,17 @@ instance (KnownSymbol name, name ~ AppendSymbol "_" name') => IsLabel name (InjN
 
 data Tree a = Branch (Tree a) (Tree a) | Leaf a
 
-data Coproduct (xs :: Tree Type) where
+data Coproduct (xs :: Tree (Symbol, Type)) where
   LHS :: Coproduct ls -> Coproduct ('Branch ls rs)
   RHS :: Coproduct rs -> Coproduct ('Branch ls rs)
-  Here :: x -> Coproduct ('Leaf x)
+  Here :: InjName name -> x -> Coproduct ('Leaf '(name, x))
 
-data Elim (xs :: Tree Type) (r :: Type) where
-  Elim :: Embed x => Circuit x r -> Elim ('Leaf x) r
+data Elim (xs :: Tree (Symbol, Type)) (r :: Type) where
+  Elim
+      :: Embed x
+      => InjName name
+      -> Circuit x r
+      -> Elim ('Leaf '(name, x)) r
   (:+|)
       :: (Embed (Coproduct ls), Embed (Coproduct rs))
       => Elim ls r
@@ -105,7 +109,7 @@ gelim
      . (Embed r, Embed (Coproduct xs))
     => Elim xs r
     -> Circuit (Vec (SizeOf (Coproduct xs)) Bool) (Vec (SizeOf r) Bool)
-gelim (Elim f) = unsafeParse >>> f >>> serial
+gelim (Elim _ f) = unsafeParse >>> f >>> serial
 gelim (ls :+| rs) = coproductBranch ls rs
 
 coproductBranch
@@ -127,21 +131,27 @@ coproductBranch ls rs
   >>> pointwiseShort
 
 
-type family FoldCoprod (f :: Type -> Type) :: Tree Type where
-  FoldCoprod (K1 _1 a)    = 'Leaf a
-  FoldCoprod U1           = 'Leaf ()
+type family FoldCoprod2 (f :: Type -> Type) (name :: Symbol) :: (Symbol, Type) where
+  FoldCoprod2 (K1 _1 a) name    = '(name, a)
+  FoldCoprod2 (M1 _1 _2 f) name = FoldCoprod2 f name
+
+
+type family FoldCoprod (f :: Type -> Type) :: Tree (Symbol, Type) where
+  FoldCoprod (C1 ('MetaCons name _1 _2) f) = 'Leaf (FoldCoprod2 f name)
+  -- FoldCoprod U1           = 'Leaf ()
   FoldCoprod (f :+: g)    = 'Branch (FoldCoprod f) (FoldCoprod g)
-  FoldCoprod (M1 _1 _2 f) = FoldCoprod f
+  FoldCoprod (D1 _1 f) = FoldCoprod f
+  FoldCoprod (S1 _1 f) = FoldCoprod f
 
 
 -- type family Depth (xs :: Tree Type) :: Nat where
 --   Depth ('Branch ls rs) = Max (Depth ls) (Depth rs) + 1
 --   Depth ('Leaf _) = 0
 
-instance (Embed x) => Embed (Coproduct ('Leaf x)) where
-  type SizeOf (Coproduct ('Leaf x)) = SizeOf x
-  embed (Here x) = embed x
-  reify v = Here (reify v)
+instance (Embed x) => Embed (Coproduct ('Leaf '(name, x))) where
+  type SizeOf (Coproduct ('Leaf '(name, x))) = SizeOf x
+  embed (Here _ x) = embed x
+  reify v = Here (InjName @name) (reify v)
 
 instance ( KnownNat (SizeOf (Coproduct ls))
          , KnownNat (SizeOf (Coproduct rs))
