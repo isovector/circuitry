@@ -92,28 +92,28 @@ spec = do
 
   prop "injects ctor1" $ \(val :: Bool) -> do
     evalCircuit
-        inj
+        (inj #_Ctor1)
         val
         0
       === Just (Ctor1 val)
 
   prop "injects ctor2" $ \(val :: Word4) -> do
     evalCircuit
-        inj
+        (inj #_Ctor2)
         val
         0
       === Just (Ctor2 val)
 
   prop "injects ctor3" $ \(val :: Word8) -> do
     evalCircuit
-        inj
+        (inj #_Ctor3)
         val
         0
       === Just (Ctor3 val)
 
   prop "injects ctor4" $ \(val :: Maybe Bool) -> do
     evalCircuit
-        inj
+        (inj #_Ctor4)
         val
         0
       === Just (Ctor4 val)

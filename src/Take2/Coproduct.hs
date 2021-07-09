@@ -8,17 +8,23 @@ module Take2.Coproduct where
 import           Circuitry.Category
 import           Clash.Sized.Vector (Vec (..))
 import qualified Clash.Sized.Vector as V
+import           Control.Applicative ((<|>))
 import           Data.Kind (Type, Constraint)
+import           Data.Maybe (fromJust)
 import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
 import           Take2.Circuit (Circuit)
 import           Take2.Embed
 import           Take2.Instances
-import           Take2.Primitives (Dict(Dict), zipVC, pad)
+import           Take2.Primitives (Dict(Dict), pad)
 import           Unsafe.Coerce (unsafeCoerce)
-import Control.Applicative ((<|>))
-import Data.Maybe (fromJust)
+import GHC.OverloadedLabels
+
+data InjName (name  :: Symbol) = InjName
+
+instance (KnownSymbol name, name ~ AppendSymbol "_" name') => IsLabel name (InjName name') where
+  fromLabel = InjName
 
 data Tree a = Branch (Tree a) (Tree a) | Leaf a
 
@@ -35,33 +41,44 @@ data Elim (xs :: Tree Type) (r :: Type) where
       -> Elim rs r -> Elim ('Branch ls rs) r
 
 
-class GInject (n :: Nat) (rep :: Type -> Type) ty a where
+class GInject (n :: Nat) (rep :: Type -> Type) (name :: Symbol) ty a where
   ginject :: Maybe (Circuit a (Vec n Bool))
 
 instance ( (m + 1) ~ n
-         , GInject m f ty a
-         , GInject m g ty a
+         , GInject m f name ty a
+         , GInject m g name ty a
          , Embed a
          , KnownNat m
          , KnownNat n
-         ) => GInject n (f :+: g) ty a where
-  ginject = fmap (>>> lintro False) (ginject @m @f @ty @a)
-        <|> fmap (>>> lintro True)  (ginject @m @g @ty @a)
+         ) => GInject n (f :+: g) name ty a where
+  ginject = fmap (>>> lintro False) (ginject @m @f @name @ty @a)
+        <|> fmap (>>> lintro True)  (ginject @m @g @name @ty @a)
 
-instance (SizeOf a <= n, Embed a, KnownNat n) => GInject n (K1 _1 a) ty a where
+instance (SizeOf a <= n, Embed a, KnownNat n) => GInject n (K1 _1 a) name ty a where
   ginject = Just $ serial >>> pad False
 
-instance {-# INCOHERENT #-} GInject n (K1 _1 a) ty b where
-  ginject = Nothing
+instance GInject n f name ty a => GInject n (D1 _1 f) name ty a where
+  ginject = ginject @n @f @name @ty @a
 
-instance GInject n f ty a => GInject n (M1 _1 _2 f) ty a where
-  ginject = ginject @n @f @ty @a
+instance GInject n f name ty a => GInject n (S1 _1 f) name ty a where
+  ginject = ginject @n @f @name @ty @a
+
+instance {-# OVERLAPPING #-} (GInject n f name ty a)
+    => GInject n (C1 ('MetaCons name _1 _2) f) name ty a where
+  ginject = ginject @n @f @name @ty @a
+
+instance GInject n (C1 ('MetaCons name' _1 _2) f) name ty a where
+  ginject = Nothing
 
 lintro :: KnownNat n => Bool -> Circuit (Vec n Bool) (Vec (n + 1) Bool)
 lintro b = intro b >>> swap >>> consC
 
-inj :: forall x a. (Contains (FlattenCons2 (Rep x)) a, GInject (SizeOf x) (Rep x) x a, Embed a, Embed x) => Circuit a x
-inj = fromJust (ginject @(SizeOf x) @(Rep x) @x @a) >>> unsafeParse
+inj
+    :: forall x a name
+     . (Contains (FlattenCons2 (Rep x)) a, GInject (SizeOf x) (Rep x) name x a, Embed a, Embed x)
+    => InjName name
+    -> Circuit a x
+inj _ = fromJust (ginject @(SizeOf x) @(Rep x) @name @x @a) >>> unsafeParse
 
 type family FlattenCons2 (f :: Type -> Type) :: [Type] where
   FlattenCons2 (K1 a b) = '[b]
