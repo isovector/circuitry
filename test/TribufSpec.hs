@@ -7,6 +7,7 @@ import           Take2.Computer.Simple
 import           Take2.Machinery
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
+import Data.Maybe (fromMaybe)
 
 spec :: Spec
 spec = do
@@ -37,6 +38,20 @@ spec = do
         (Nothing :> Nothing :> Just v :> Nothing :> Nil)
         0
       === Just v :> Nil
+
+  prop "pulldown" $ \sig ->
+    evalCircuitMV
+        pullDown
+        (sig :> Nil)
+        0
+      === Just (fromMaybe False sig) :> Nil
+
+  prop "pullup" $ \sig ->
+    evalCircuitMV
+        pullUp
+        (sig :> Nil)
+        0
+      === Just (fromMaybe True sig) :> Nil
 
 shortTest :: KnownNat n => Circuit ((Vec n Bool, Bool), (Vec n Bool, Bool)) (Vec n Bool)
 shortTest = both tribufAll >>> pointwise (serial >>> unsafeShort)

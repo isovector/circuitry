@@ -42,6 +42,54 @@ raw c = Circuit (coerceGraph $ c_graph c) $ go (c_roar c)
 {-# INLINE raw #-}
 
 
+pullDown :: Circuit Bool Bool
+pullDown = primitive $ Circuit gr $ Signal $ \(v :> Nil) ->
+    (c_roar pullDown, maybe (Just False) Just v :> Nil)
+  where
+    gr :: Graph Bool Bool
+    gr = Graph $ \(v :> Nil) -> do
+      vcc <- freshBit
+      addCell $ mkCell (Y.CellGeneric "$gnd") mempty $
+        M.singleton "A" (Y.Output, [vcc])
+      addCell $ mkCell (Y.CellGeneric "$r") (M.singleton "value" "10k") $
+        M.fromList
+          [ ("A", (Y.Input, [vcc]))
+          , ("B", (Y.Output, [v]))
+          ]
+      pure $ v :> Nil
+
+pullUp :: Circuit Bool Bool
+pullUp = primitive $ Circuit gr $ Signal $ \(v :> Nil) ->
+    (c_roar pullDown, maybe (Just True) Just v :> Nil)
+  where
+    gr :: Graph Bool Bool
+    gr = Graph $ \(v :> Nil) -> do
+      vcc <- freshBit
+      addCell $ mkCell (Y.CellGeneric "$vcc") mempty $
+        M.singleton "A" (Y.Output, [vcc])
+      addCell $ mkCell (Y.CellGeneric "$r") (M.singleton "value" "10k") $
+        M.fromList
+          [ ("A", (Y.Input, [vcc]))
+          , ("B", (Y.Output, [v]))
+          ]
+      pure $ v :> Nil
+
+
+mkCell
+    :: Y.CellType
+    -> M.Map T.Text A.Value
+    -> M.Map Y.PortName (Y.Direction, [Y.Bit])
+    -> Y.Cell
+mkCell ty as m =
+  Y.Cell
+    ty
+    (M.fromList $ fmap (\(pn, bs) -> (Y.Width pn, length bs)) $ M.toList $ fmap snd m)
+    as
+    (fmap fst m)
+    (fmap snd m)
+
+
+
 swap :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
 swap =
   primitive $ raw $ Circuit gr $ primSignal $ \v ->
