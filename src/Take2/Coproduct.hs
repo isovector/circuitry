@@ -65,6 +65,7 @@ inj = fromJust (ginject @(SizeOf x) @(Rep x) @x @a) >>> unsafeParse
 
 type family FlattenCons2 (f :: Type -> Type) :: [Type] where
   FlattenCons2 (K1 a b) = '[b]
+  FlattenCons2 U1 = '[()]
   FlattenCons2 (f :+: g) = Append (FlattenCons2 f) (FlattenCons2 g)
   FlattenCons2 (M1 _1 _2 f) = FlattenCons2 f
 

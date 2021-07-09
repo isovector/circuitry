@@ -57,6 +57,8 @@ data MemoryCommand f n a = MemoryCommand
   }
   deriving stock (Generic)
 
+deriving stock instance (Show (f RW), Show a)  => Show (MemoryCommand f n a)
+
 deriving anyclass instance (KnownNat n, Embed a, Embed (f RW))  => Embed (MemoryCommand f n a)
 
 instance (KnownNat n, Arbitrary a, Arbitrary (f RW)) => Arbitrary (MemoryCommand f n a) where

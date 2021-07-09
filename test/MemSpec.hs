@@ -13,9 +13,9 @@ inputOverTime  as t = as !! fromIntegral t
 
 spec :: Spec
 spec = do
-  prop "get . put = pure" $ \(a :: Word4) (b :: Word4) (addr :: Addr 4) ->
+  prop "get . put = pure" $ \(a :: Word2) (b :: Word2) (addr :: Addr 2) ->
     evalCircuitT
-        (memoryCell @4 @Word4 >>> unsafeReinterpret)
+        (memoryCell @2 @Word2 >>> unsafeReinterpret)
         (inputOverTime
           [ MemoryCommand (Just W) addr a
           , MemoryCommand (Just R) addr b
@@ -23,9 +23,9 @@ spec = do
         1
       === Just a
 
-  prop "put . put = put" $ \(a :: Word4) (b :: Word4) (addr :: Addr 4) ->
+  prop "put . put = put" $ \(a :: Word2) (b :: Word2) (addr :: Addr 2) ->
     evalCircuitT
-        (memoryCell @4 @Word4 >>> unsafeReinterpret)
+        (memoryCell @2 @Word2 >>> unsafeReinterpret)
         (inputOverTime
           [ MemoryCommand (Just W) addr a
           , MemoryCommand (Just W) addr b
@@ -33,4 +33,15 @@ spec = do
           ])
         2
       === Just b
+
+  prop "high Z doesn't corrupt memory" $ \(a :: Word2) (addr :: Addr 1) arb ->
+    evalCircuitT
+        (first' serial >>> tribufAll >>> unsafeParse >>> memoryCell @1 @Word2 >>> unsafeReinterpret)
+        (inputOverTime
+          [ (MemoryCommand (Just W) addr a, True)
+          , (arb, False)
+          , (MemoryCommand (Just R) addr a, True)
+          ])
+        2
+      === Just a
 
