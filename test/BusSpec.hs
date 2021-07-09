@@ -1,14 +1,14 @@
 module BusSpec where
 
+import qualified Clash.Sized.Vector as V
+import qualified Data.Bits as B
 import           Prelude hiding ((.), id, sum)
-import           Take2.Computer.Memory
-import           Take2.Computer.Bus
 import           Take2.Computer.ALU
+import           Take2.Computer.Bus
+import           Take2.Computer.Memory
 import           Take2.Machinery
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
-import qualified Data.Bits as B
-import qualified Clash.Sized.Vector as V
 
 
 inputOverTime :: [a] -> Time -> a

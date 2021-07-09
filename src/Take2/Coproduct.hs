@@ -11,17 +11,17 @@ import qualified Clash.Sized.Vector as V
 import           Control.Applicative ((<|>))
 import           Data.Kind (Type, Constraint)
 import           Data.Maybe (fromJust)
+import           Data.Typeable (Typeable)
 import           GHC.Generics
 import           GHC.OverloadedLabels
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
+import           Prelude hiding (id)
 import           Take2.Circuit (Circuit, Named)
 import           Take2.Embed
 import           Take2.Instances
 import           Take2.Primitives (Dict(Dict), pad)
 import           Unsafe.Coerce (unsafeCoerce)
-import Prelude hiding (id)
-import Data.Typeable (Typeable)
 
 
 data InjName (name  :: Symbol) where
@@ -134,7 +134,12 @@ type family Contains (tys :: [k]) (a :: k) :: Constraint where
 
 
 elim
-    :: (xs ~ FoldCoprod (Rep a), SizeOf (Coproduct xs) ~ SizeOf a, Embed a, Embed r, Embed (Coproduct xs))
+    :: ( xs ~ FoldCoprod (Rep a)
+       , SizeOf (Coproduct xs) ~ SizeOf a
+       , Embed a
+       , Embed r
+       , Embed (Coproduct xs)
+       )
     => Elim xs r
     -> Circuit a r
 elim e = serial >>> gelim e >>> unsafeParse
@@ -178,7 +183,6 @@ scrutinize
     >>> unsafeReinterpret @((Vec a Bool, Bool), (Vec b Bool, Bool))
 
 
-
 type family FoldCoprod2 (f :: Type -> Type) :: Type where
   FoldCoprod2 (K1 _1 a)    = a
   FoldCoprod2 U1           = ()
@@ -194,22 +198,16 @@ type family FoldCoprod (f :: Type -> Type) :: Tree (Symbol, Type) where
   FoldCoprod (S1 _1 f) = FoldCoprod f
 
 
--- type family Depth (xs :: Tree Type) :: Nat where
---   Depth ('Branch ls rs) = Max (Depth ls) (Depth rs) + 1
---   Depth ('Leaf _) = 0
-
 instance (Embed x, KnownSymbol name) => Embed (Coproduct ('Leaf '(name, x))) where
   type SizeOf (Coproduct ('Leaf '(name, x))) = SizeOf x
   embed (Here _ x) = embed x
   reify v = Here (InjName @name) (reify v)
 
+
 instance ( KnownNat (SizeOf (Coproduct ls))
          , KnownNat (SizeOf (Coproduct rs))
          , Embed (Coproduct ls)
          , Embed (Coproduct rs)
-         , SizeOf (Coproduct ls) <= SizeOf (Coproduct ('Branch ls rs))
-         , SizeOf (Coproduct rs) <= SizeOf (Coproduct ('Branch ls rs))
-         , 1 <= SizeOf (Coproduct ('Branch ls rs))
          ) => Embed (Coproduct ('Branch ls rs)) where
   type SizeOf (Coproduct ('Branch ls rs)) = Max (SizeOf (Coproduct ls)) (SizeOf (Coproduct rs)) + 1
 
@@ -231,6 +229,7 @@ instance ( KnownNat (SizeOf (Coproduct ls))
     $ reify
     $ V.takeI @_ @(SizeOf (Coproduct ('Branch ls rs)) - 1 - SizeOf (Coproduct rs))
     $ v
+  reify _ = error "impossible"
 
 proofMaxCommutative :: forall n m. Dict (Max m n ~ Max n m)
 proofMaxCommutative = unsafeCoerce (Dict @(1 <= 1))
