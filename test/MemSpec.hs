@@ -17,8 +17,8 @@ spec = do
     evalCircuitT
         (memoryCell @2 @Word2 >>> unsafeReinterpret)
         (inputOverTime
-          [ MemoryCommand (Just W) addr a
-          , MemoryCommand (Just R) addr b
+          [ MemoryCommand W addr a
+          , MemoryCommand R addr b
           ])
         1
       === Just a
@@ -27,9 +27,9 @@ spec = do
     evalCircuitT
         (memoryCell @2 @Word2 >>> unsafeReinterpret)
         (inputOverTime
-          [ MemoryCommand (Just W) addr a
-          , MemoryCommand (Just W) addr b
-          , MemoryCommand (Just R) addr 0
+          [ MemoryCommand W addr a
+          , MemoryCommand W addr b
+          , MemoryCommand R addr 0
           ])
         2
       === Just b
@@ -38,9 +38,9 @@ spec = do
     evalCircuitT
         (first' serial >>> tribufAll >>> unsafeParse >>> memoryCell @1 @Word2 >>> unsafeReinterpret)
         (inputOverTime
-          [ (MemoryCommand (Just W) addr a, True)
+          [ (MemoryCommand W addr a, True)
           , (arb, False)
-          , (MemoryCommand (Just R) addr a, True)
+          , (MemoryCommand R addr a, True)
           ])
         2
       === Just a

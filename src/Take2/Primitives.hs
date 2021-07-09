@@ -53,8 +53,8 @@ pullDown = primitive $ Circuit gr $ Signal $ \(v :> Nil) ->
         M.singleton "A" (Y.Output, [vcc])
       addCell $ mkCell (Y.CellGeneric "$r") (M.singleton "value" "10k") $
         M.fromList
-          [ ("A", (Y.Input, [vcc]))
-          , ("B", (Y.Output, [v]))
+          [ ("B", (Y.Input, [vcc]))
+          , ("A", (Y.Output, [v]))
           ]
       pure $ v :> Nil
 

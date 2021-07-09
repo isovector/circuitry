@@ -20,6 +20,8 @@ import           Take2.Embed
 import           Take2.Instances
 import           Take2.Primitives (Dict(Dict), pad)
 import           Unsafe.Coerce (unsafeCoerce)
+import Prelude hiding (id)
+import Data.Typeable (Typeable)
 
 
 data InjName (name  :: Symbol) where
@@ -37,7 +39,7 @@ data Coproduct (xs :: Tree (Symbol, Type)) where
 
 data Elim (xs :: Tree (Symbol, Type)) (r :: Type) where
   Elim
-      :: Embed x
+      :: (Embed x, Typeable x)
       => InjName name
       -> Circuit x r
       -> Elim ('Leaf '(name, x)) r
@@ -140,7 +142,7 @@ gelim
      . (Embed r, Embed (Coproduct xs))
     => Elim xs r
     -> Circuit (Vec (SizeOf (Coproduct xs)) Bool) (Vec (SizeOf r) Bool)
-gelim (Elim name@InjName f) = component (symbolVal name) $ unsafeParse >>> f >>> serial
+gelim (Elim name@InjName f) = component (symbolVal name) unsafeParse >>> f >>> serial
 gelim (ls :+| rs) = coproductBranch ls rs
 
 coproductBranch

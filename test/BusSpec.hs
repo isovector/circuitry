@@ -20,13 +20,13 @@ spec = do
     evalCircuitTT
         (bus @4 @Word4 >>> unsafeParse @Word4)
         (inputOverTime
-          [ (MemoryBus, Left $ MemoryCommand (Identity W) addr a)
-          , (AluBus, Right $ AluCommand AluOpAdd a b)
-          , (MemoryBus, Left $ MemoryCommand (Identity R) addr a)
-          , (MemoryBus, Left $ MemoryCommand (Identity W) addr b)
-          , (AluBus, Right $ AluCommand AluOpNot a b)
-          , (AluBus, Right $ AluCommand AluOpOr a b)
-          , (MemoryBus, Left $ MemoryCommand (Identity R) addr 0)
+          [ BusMemory $ MemoryCommand W addr a
+          , BusAlu $ AluCommand AluOpAdd a b
+          , BusMemory $ MemoryCommand R addr a
+          , BusMemory $ MemoryCommand W addr b
+          , BusAlu $ AluCommand AluOpNot a b
+          , BusAlu $ AluCommand AluOpOr a b
+          , BusMemory $ MemoryCommand R addr 0
           ])
         6
       === [ Nothing
