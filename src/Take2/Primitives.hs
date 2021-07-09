@@ -157,7 +157,8 @@ unsafeShort = primitive $ Circuit gr $ Signal $ \a ->
     gr :: Graph (Vec n Bool) Bool
     gr = Graph $ \bin -> do
       o <- freshBit
-      unifyBits $ M.fromList $ zip (V.toList bin) $ repeat o
+      let subst = M.fromList $ zip (V.toList bin) $ repeat o
+      unifyBits subst
       pure $ o :> Nil
 
     merge :: Maybe Bool -> Maybe Bool -> Maybe Bool

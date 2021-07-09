@@ -8,15 +8,17 @@ module Take2.Coproduct where
 import           Circuitry.Category
 import           Clash.Sized.Vector (Vec (..))
 import qualified Clash.Sized.Vector as V
-import           Data.Kind (Type)
+import           Data.Kind (Type, Constraint)
 import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
 import           Take2.Circuit (Circuit)
 import           Take2.Embed
 import           Take2.Instances
-import           Take2.Primitives (Dict(Dict), zipVC)
+import           Take2.Primitives (Dict(Dict), zipVC, pad)
 import           Unsafe.Coerce (unsafeCoerce)
+import Control.Applicative ((<|>))
+import Data.Maybe (fromJust)
 
 data Tree a = Branch (Tree a) (Tree a) | Leaf a
 
@@ -33,9 +35,44 @@ data Elim (xs :: Tree Type) (r :: Type) where
       -> Elim rs r -> Elim ('Branch ls rs) r
 
 
--- test :: Circuit (Either Bool Word4) Bool
--- test = elim $ Elim (notGate >>> notGate >>> notGate)
---           :+| Elim (serial >>> unconsC >>> fst')
+class GInject (n :: Nat) (rep :: Type -> Type) ty a where
+  ginject :: Maybe (Circuit a (Vec n Bool))
+
+instance ( (m + 1) ~ n
+         , GInject m f ty a
+         , GInject m g ty a
+         , Embed a
+         , KnownNat m
+         , KnownNat n
+         ) => GInject n (f :+: g) ty a where
+  ginject = fmap (>>> lintro False) (ginject @m @f @ty @a)
+        <|> fmap (>>> lintro True)  (ginject @m @g @ty @a)
+
+instance (SizeOf a <= n, Embed a, KnownNat n) => GInject n (K1 _1 a) ty a where
+  ginject = Just $ serial >>> pad False
+
+instance {-# INCOHERENT #-} GInject n (K1 _1 a) ty b where
+  ginject = Nothing
+
+instance GInject n f ty a => GInject n (M1 _1 _2 f) ty a where
+  ginject = ginject @n @f @ty @a
+
+lintro :: KnownNat n => Bool -> Circuit (Vec n Bool) (Vec (n + 1) Bool)
+lintro b = intro b >>> swap >>> consC
+
+inj :: forall x a. (Contains (FlattenCons2 (Rep x)) a, GInject (SizeOf x) (Rep x) x a, Embed a, Embed x) => Circuit a x
+inj = fromJust (ginject @(SizeOf x) @(Rep x) @x @a) >>> unsafeParse
+
+type family FlattenCons2 (f :: Type -> Type) :: [Type] where
+  FlattenCons2 (K1 a b) = '[b]
+  FlattenCons2 (f :+: g) = Append (FlattenCons2 f) (FlattenCons2 g)
+  FlattenCons2 (M1 _1 _2 f) = FlattenCons2 f
+
+-- This makes the 'fromJust' in 'inj' safe lol
+type family Contains (tys :: [k]) (a :: k) :: Constraint where
+  Contains '[] a = TypeError ('Text "Can't inject a " ':<>: 'ShowType a)
+  Contains (a ': tys) a = (() :: Constraint)
+  Contains (b ': tys) a = Contains tys a
 
 
 elim

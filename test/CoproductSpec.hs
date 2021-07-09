@@ -90,6 +90,34 @@ spec = do
         0
       === Just val
 
+  prop "injects ctor1" $ \(val :: Bool) -> do
+    evalCircuit
+        inj
+        val
+        0
+      === Just (Ctor1 val)
+
+  prop "injects ctor2" $ \(val :: Word4) -> do
+    evalCircuit
+        inj
+        val
+        0
+      === Just (Ctor2 val)
+
+  prop "injects ctor3" $ \(val :: Word8) -> do
+    evalCircuit
+        inj
+        val
+        0
+      === Just (Ctor3 val)
+
+  prop "injects ctor4" $ \(val :: Maybe Bool) -> do
+    evalCircuit
+        inj
+        val
+        0
+      === Just (Ctor4 val)
+
 
 
 

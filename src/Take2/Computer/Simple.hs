@@ -7,9 +7,6 @@ import           Take2.Primitives (gateDiagram, constantName)
 import qualified Yosys as Y
 
 
-intro :: (Embed a, Embed b, Show b) => b -> Circuit a (a, b)
-intro b = create >>> second' (constC b)
-
 
 cut :: Embed a => Circuit a ()
 cut = create >>> snd'
