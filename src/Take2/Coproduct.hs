@@ -15,7 +15,7 @@ import           GHC.TypeLits.Extra (Max)
 import           Take2.Circuit (Circuit)
 import           Take2.Embed
 import           Take2.Instances
-import           Take2.Primitives (Dict(Dict))
+import           Take2.Primitives (Dict(Dict), zipVC)
 import           Unsafe.Coerce (unsafeCoerce)
 
 data Tree a = Branch (Tree a) (Tree a) | Leaf a
@@ -42,33 +42,34 @@ elim
     :: (xs ~ FoldCoprod (Rep a), SizeOf (Coproduct xs) ~ SizeOf a, Embed a, Embed r, Embed (Coproduct xs))
     => Elim xs r
     -> Circuit a r
-elim e = serial >>> gelim e
+elim e = serial >>> gelim e >>> unsafeParse
 
 
 gelim
     :: forall xs r
      . (Embed r, Embed (Coproduct xs))
     => Elim xs r
-    -> Circuit (Vec (SizeOf (Coproduct xs)) Bool) r
-gelim  (Elim f) = unsafeParse >>> f
-gelim ((ls :: Elim ls r) :+| (rs :: Elim rs r)) = coproductBranch ls rs
+    -> Circuit (Vec (SizeOf (Coproduct xs)) Bool) (Vec (SizeOf r) Bool)
+gelim (Elim f) = unsafeParse >>> f >>> serial
+gelim (ls :+| rs) = coproductBranch ls rs
 
 coproductBranch
     :: forall ls rs r
     . (Embed r, Embed (Coproduct ls), Embed (Coproduct rs))
     => Elim ls r
     -> Elim rs r
-    -> Circuit (Vec (SizeOf (Coproduct ('Branch ls rs))) Bool) r
+    -> Circuit (Vec (SizeOf (Coproduct ('Branch ls rs))) Bool) (Vec (SizeOf r) Bool)
 coproductBranch ls rs
     = unconsC
   >>> swap
   >>> copy
-  >>> (second' notGate >>> tribufAll >>> separate >>> fst' >>> gelim ls)
-  *** (                    tribufAll >>> separate >>> fst' >>> gelim rs)
+  >>> (second' (notGate >>> copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst' >>> gelim ls) >>> tribufAll)
+  *** (second' (            copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst' >>> gelim rs) >>> tribufAll)
   >>> both serial
+  -- >>> zipVC
+  -- >>> mapV orGate
   >>> unsafeReinterpret @_ @(Vec 2 _)
   >>> pointwiseShort
-  >>> unsafeParse
 
 
 type family FoldCoprod (f :: Type -> Type) :: Tree Type where
