@@ -1,6 +1,8 @@
 module MemSpec where
 
+import qualified Clash.Sized.Vector as V
 import           Prelude hiding ((.), id, sum)
+import           Take2.Computer.Addressed (decode)
 import           Take2.Computer.Memory
 import           Take2.Machinery
 import           Test.Hspec
@@ -13,6 +15,23 @@ inputOverTime  as t = as !! fromIntegral t
 
 spec :: Spec
 spec = do
+  prop "decode indexes in order" $ \(addr :: Addr 4) t ->
+    evalCircuit
+        (decode)
+        addr
+        t
+      === Just ( V.unsafeFromList @16
+               $ fmap (== (fromIntegral $ reify @Word4 $ embed addr))
+               $ [minBound @Word4 .. maxBound]
+               )
+
+  prop "rom read" $ \(addr :: Addr 4) (rom :: Vec 16 Word4) t ->
+    evalCircuit
+        (mkRom rom)
+        addr
+        t
+      === Just (rom V.!! reify @Word4 (embed addr))
+
   prop "get . put = pure" $ \(a :: Word2) (b :: Word2) (addr :: Addr 2) ->
     evalCircuitT
         (memoryCell @2 @Word2 >>> unsafeReinterpret)

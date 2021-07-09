@@ -41,15 +41,22 @@ snapN = component ("snap " <> nameOf @a)
     >>> distribV
     >>> mapV snap
 
+
+mkRom :: (KnownNat n, Show a, Embed a) => Vec (2 ^ n) a -> Circuit (Addr n) a
+mkRom mem
+    = decode
+  >>> parallelMetaV (fmap (\a -> intro a
+                             >>> swap
+                             >>> first' serial
+                             >>> tribufAll
+                          ) mem)
+  >>> pointwiseShort
+  >>> unsafeParse
+
+
 data RW = R | W
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving (Embed, Arbitrary) via (EmbededEnum RW)
-
-maybeC :: Embed a => Circuit (Maybe a) (Either () a)
-maybeC = unsafeReinterpret
-
-maybeC' :: Embed a => Circuit (Either () a) (Maybe a)
-maybeC' = unsafeReinterpret
 
 
 data MemoryCommand n a = MemoryCommand

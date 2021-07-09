@@ -113,7 +113,7 @@ instance (Nameable a, KnownNat n) => Nameable (Vec n a) where
 
 newtype Addr n = Addr { getAddr :: Vec n Bool }
   deriving stock (Eq, Ord, Show, Generic)
-  deriving newtype Arbitrary
+  deriving newtype (Arbitrary)
   deriving anyclass Embed
 
 class SeparatePorts a where

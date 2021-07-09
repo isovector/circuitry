@@ -8,6 +8,7 @@ import           Take2.Machinery
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
 import qualified Data.Bits as B
+import qualified Clash.Sized.Vector as V
 
 
 inputOverTime :: [a] -> Time -> a
@@ -16,19 +17,25 @@ inputOverTime  as t = as !! fromIntegral t
 
 spec :: Spec
 spec = do
-  prop "remembers what you put in" $ \(a :: Word4) (b :: Word4) (addr :: Addr 4) ->
+  prop "remembers what you put in" $
+    forAllShrink arbitrary shrink $ \(a :: Word4) ->
+    forAllShrink arbitrary shrink $ \(b :: Word4) ->
+    forAllShrink arbitrary shrink $ \(addr :: Addr 4) ->
+    forAllShrink arbitrary shrink $ \rom_addr ->
+    forAllShrink arbitrary shrink $ \rom ->
     evalCircuitTT
-        (bus @4 @Word4 >>> unsafeParse @Word4)
+        (bus @4 @Word4 rom >>> unsafeParse @Word4)
         (inputOverTime
           [ BusMemory $ MemoryCommand W addr a
-          , BusAlu $ AluAdd a b
+          , BusAlu    $ AluAdd a b
           , BusMemory $ MemoryCommand R addr a
           , BusMemory $ MemoryCommand W addr b
-          , BusAlu $ AluNot a
-          , BusAlu $ AluOr a b
+          , BusAlu    $ AluNot a
+          , BusAlu    $ AluOr a b
           , BusMemory $ MemoryCommand R addr 0
+          , BusROM    $ rom_addr
           ])
-        6
+        7
       === [ Nothing
           , Just (a + b)
           , Just a
@@ -36,6 +43,6 @@ spec = do
           , Just (B.complement a)
           , Just (a B..|. b)
           , Just b
+          , Just $ rom V.!! (fromIntegral $ reify @Word4 (embed rom_addr))
           ]
-
 

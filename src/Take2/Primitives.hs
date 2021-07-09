@@ -377,7 +377,7 @@ crossV
      . KnownNat n
     => Circuit (Bool, Bool) Bool
     -> Circuit (Vec n Bool) (Vec (2 ^ n) Bool)
-crossV c = Circuit gr go
+crossV c = Circuit gr $ primSignal V.reverse >>> go
   where
     go :: forall n'. KnownNat n' => Signal (Vec n' Bool) (Vec (2 ^ n') Bool)
     go = Signal $ \case

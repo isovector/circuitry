@@ -3,13 +3,16 @@ module Take2.Word (Word2 (..), Word3(..), Word4 (..)) where
 import Data.Bits
 import Data.Typeable
 import Data.Ratio
-import Test.QuickCheck (Arbitrary, arbitrary)
+import Test.QuickCheck (Arbitrary, arbitrary, shrink, genericShrink)
 import Test.QuickCheck.Function
+import Data.List (nub)
+import GHC.Generics (Generic)
 
-newtype Word2 = Word2 { unWord2 :: Int } deriving (Eq, Ord)
+newtype Word2 = Word2 { unWord2 :: Int } deriving stock (Eq, Ord, Generic)
 
 instance Arbitrary Word2 where
   arbitrary = word2 <$> arbitrary
+  shrink = nub . fmap fromIntegral . shrink . unWord2
 
 instance Function Word2 where
   function = functionIntegral
@@ -47,10 +50,11 @@ instance Bits Word2 where
   bit = word2 . bit
   popCount = popCount . unWord2
 
-newtype Word3 = Word3 { unWord3 :: Int } deriving (Eq, Ord)
+newtype Word3 = Word3 { unWord3 :: Int } deriving stock (Eq, Ord, Generic)
 
 instance Arbitrary Word3 where
   arbitrary = word3 <$> arbitrary
+  shrink = nub . fmap fromIntegral . shrink . unWord3
 
 instance Function Word3 where
   function = functionIntegral
@@ -88,10 +92,12 @@ instance Bits Word3 where
   bit = word3 . bit
   popCount = popCount . unWord3
 
-newtype Word4 = Word4 { unWord4 :: Int } deriving (Eq, Ord)
+newtype Word4 = Word4 { unWord4 :: Int } deriving stock (Eq, Ord, Generic)
 
 instance Arbitrary Word4 where
   arbitrary = word4 <$> arbitrary
+  shrink 0 = []
+  shrink n = pure $ subtract 1 n
 
 instance Function Word4 where
   function = functionIntegral
