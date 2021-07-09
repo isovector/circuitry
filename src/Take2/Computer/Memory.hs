@@ -69,7 +69,7 @@ instance (KnownNat n, Arbitrary a, Arbitrary (f RW)) => Arbitrary (MemoryCommand
 unpackMemoryCommand :: (Embed a, KnownNat n, SeparatePorts (f RW), Typeable f, SeparatePorts a, Typeable a, Embed (f RW)) => Circuit (MemoryCommand f n a) ((Addr n, f RW), a)
 unpackMemoryCommand
     = copy
-  >>> (copy >>> proj #mc_addr *** proj #mc_rw)
+  >>> ((copy >>> proj #mc_addr *** (proj #mc_rw >>> serial >>> mapV pullDown >>> unsafeParse)))
   *** proj #mc_data
 
 
