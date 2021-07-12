@@ -2,6 +2,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fplugin-opt GHC.TypeLits.Normalise:allow-negated-numbers #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module Take2.Coproduct where
 
@@ -17,7 +18,7 @@ import           GHC.OverloadedLabels
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
 import           Prelude hiding (id)
-import           Take2.Circuit (Circuit, Named)
+import           Take2.Circuit (Circuit, Named, SeparatePorts, BitsOf)
 import           Take2.Embed
 import           Take2.Instances
 import           Take2.Primitives (Dict(Dict), pad)
@@ -37,18 +38,18 @@ data Coproduct (xs :: Tree (Symbol, Type)) where
   RHS :: Coproduct rs -> Coproduct ('Branch ls rs)
   Here :: InjName name -> x -> Coproduct ('Leaf '(name, x))
 
-data Elim (xs :: Tree (Symbol, Type)) (r :: Type) where
+data Elim (xs :: Tree (Symbol, Type)) (b :: Type) (r :: Type) where
   (:->)
       :: (Embed x, Typeable x)
       => InjName name
-      -> Circuit x r
-      -> Elim ('Leaf '(name, x)) r
+      -> Circuit (x, b) r
+      -> Elim ('Leaf '(name, x)) b r
   (:+|)
       :: (Embed (Coproduct ls), Embed (Coproduct rs))
-      => Elim ls r
-      -> Elim rs r -> Elim ('Branch ls rs) r
+      => Elim ls b r
+      -> Elim rs b r -> Elim ('Branch ls rs) b r
 
-infix 2 :->
+infix  2 :->
 infixr 1 :+|
 
 
@@ -139,29 +140,51 @@ elim
        , Embed a
        , Embed r
        , Embed (Coproduct xs)
+       , SeparatePorts b
+       , Embed b
        )
-    => Elim xs r
+    => Elim xs b r
+    -> Circuit (a, b) r
+elim e = first' serial >>> gelim e >>> unsafeParse
+
+elim_
+    :: ( xs ~ FoldCoprod (Rep a)
+       , SizeOf (Coproduct xs) ~ SizeOf a
+       , Embed a
+       , Embed r
+       , Embed (Coproduct xs)
+       )
+    => Elim xs () r
     -> Circuit a r
-elim e = serial >>> gelim e >>> unsafeParse
+elim_ e = create >>> elim e
 
 
 gelim
-    :: forall xs r
-     . (Embed r, Embed (Coproduct xs))
-    => Elim xs r
-    -> Circuit (Vec (SizeOf (Coproduct xs)) Bool) (Vec (SizeOf r) Bool)
-gelim (name@InjName :-> f) = component (symbolVal name) unsafeParse >>> f >>> serial
+    :: forall xs r b
+     . (Embed r, Embed (Coproduct xs), Embed b, SeparatePorts b)
+    => Elim xs b r
+    -> Circuit (Vec (SizeOf (Coproduct xs)) Bool, b) (Vec (SizeOf r) Bool)
+gelim (name@InjName :-> f) = component (symbolVal name) (first' unsafeParse) >>> f >>> serial
 gelim (ls :+| rs) = coproductBranch ls rs
 
+
 coproductBranch
-    :: forall ls rs r
-    . (Embed r, Embed (Coproduct ls), Embed (Coproduct rs))
-    => Elim ls r
-    -> Elim rs r
-    -> Circuit (Vec (SizeOf (Coproduct ('Branch ls rs))) Bool) (Vec (SizeOf r) Bool)
+    :: forall ls rs r b
+    . (Embed r, Embed (Coproduct ls), Embed (Coproduct rs), Embed b, SeparatePorts b)
+    => Elim ls b r
+    -> Elim rs b r
+    -> Circuit (BitsOf (Coproduct ('Branch ls rs)), b) (BitsOf r)
 coproductBranch ls rs
-    = unconsC
-  >>> (unsafeReinterpret >>> component "scrutinize" (scrutinize @(SizeOf (Coproduct ls)) @(SizeOf (Coproduct rs))) >>> unsafeReinterpret)
+    = first'
+      ( unconsC
+    >>> ( scrutinize @(SizeOf (Coproduct ls)) @(SizeOf (Coproduct rs))
+
+        )
+      )
+  >>> swap
+  >>> distribP
+  >>> (reassoc >>> first' swap)
+  *** (reassoc >>> first' swap)
   >>> first' (gelim ls) *** first' (gelim rs)
   >>> -- component "unify"
       ( both (tribufAll >>> serial)
@@ -170,17 +193,16 @@ coproductBranch ls rs
       )
 
 scrutinize
-    :: forall a b
-     . (KnownNat a, KnownNat b)
-    => Circuit (Named "Tag" Bool, Named "D" (Vec (Max a b) Bool))
-               ((Named "DL" (Vec a Bool), Named "L" Bool), (Named "DR" (Vec b Bool), Named "R" Bool))
+    :: forall ls rs
+     . (KnownNat ls, KnownNat rs)
+    => Circuit (Bool, Vec (Max ls rs) Bool)
+               ((Vec ls Bool, Bool), (Vec rs Bool, Bool))
 scrutinize
-      = unsafeReinterpret
-    >>> swap
+      = component "scrutinize"
+      $ swap
     >>> copy
     >>> (second' (notGate >>> copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst'))
     *** (second' (            copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst'))
-    >>> unsafeReinterpret @((Vec a Bool, Bool), (Vec b Bool, Bool))
 
 
 type family FoldCoprod2 (f :: Type -> Type) :: Type where

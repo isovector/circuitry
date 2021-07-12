@@ -27,11 +27,12 @@ import           Take2.Signal
 import           Test.QuickCheck.Arbitrary (Arbitrary)
 import           Yosys (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
 import qualified Yosys as Y
+import Control.Monad.ST (runST)
 
 
 data Circuit a b = Circuit
   { c_graph :: Graph a b
-  , c_roar :: Signal a b
+  , c_roar :: forall s. Signal s a b
   }
 
 instance Category Circuit where
@@ -39,13 +40,15 @@ instance Category Circuit where
   id = Circuit id id
   Circuit gg gr . Circuit fg fr = Circuit (gg . fg) (gr . fr)
 
+type BitsOf a = Vec (SizeOf a) Bool
 
-reallyPumpSignal :: (Embed b, Embed a) => Signal a b -> (Time -> Vec (SizeOf a) (Maybe Bool)) -> Time -> [Vec (SizeOf b) (Maybe Bool)]
+
+reallyPumpSignal :: (Embed b, Embed a) => (forall s. Signal s a b) -> (Time -> Vec (SizeOf a) (Maybe Bool)) -> Time -> [Vec (SizeOf b) (Maybe Bool)]
 reallyPumpSignal sig f 0
-  =  pure $ snd $ pumpSignal sig (f 0)
+  =  pure $ snd $ runST $ pumpSignal sig (f 0)
 reallyPumpSignal sig f n
-  = let (sig', v) = pumpSignal sig (f 0)
-     in v : reallyPumpSignal sig' (f . (+ 1)) (n - 1)
+  = let (sig', v) = runST $ pumpSignal sig (f 0)
+     in v : reallyPumpSignal (unsafeCoerceSignalToken sig') (f . (+ 1)) (n - 1)
 
 
 evalCircuit :: (Embed b, Embed a) => Circuit a b -> a -> Time -> Maybe b

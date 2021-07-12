@@ -34,8 +34,9 @@ bus
     -> Circuit (BusCommand n word)
                (Vec (SizeOf word) Bool)
 bus rom =
-  elim $ #_BusMemory :-> memoryCell @n @word
-   :+| ( #_BusAlu :-> alu @word
-     :+| #_BusROM :-> mkRom rom >>> serial
+  elim_
+       $ #_BusMemory :-> fst' >>> memoryCell @n @word
+   :+| ( #_BusAlu    :-> fst' >>> alu @word
+     :+| #_BusROM    :-> fst' >>> mkRom rom >>> serial
        )
 

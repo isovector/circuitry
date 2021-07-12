@@ -30,8 +30,10 @@ import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
 
 
-instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
-  arbitrary = Circuit <$> pure (error "yo") <*> arbitrary
+instance Arbitrary (Signal () a b) => Arbitrary (Circuit a b) where
+  arbitrary = do
+    sig <- arbitrary @(Signal () a b)
+    pure $ Circuit (error "yo") $ unsafeCoerce sig
 
 instance SymmetricProduct Circuit where
   swap = Prim.swap

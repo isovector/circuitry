@@ -42,9 +42,10 @@ snapN = component ("snap " <> nameOf @a)
     >>> mapV snap
 
 
-mkRom :: (KnownNat n, Show a, Embed a) => Vec (2 ^ n) a -> Circuit (Addr n) a
+mkRom :: (KnownNat n, Show a, Embed a, SeparatePorts a) => Vec (2 ^ n) a -> Circuit (Addr n) a
 mkRom mem
-    = decode
+    = component "rom"
+    $ decode
   >>> parallelMetaV (fmap (\a -> intro a
                              >>> swap
                              >>> first' serial

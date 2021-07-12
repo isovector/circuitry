@@ -19,9 +19,11 @@ import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
 import           Take2.Graph
-import           Take2.Signal (Signal (..), primSignal)
+import           Take2.Signal (Signal (..), primSignal, vacuousSignal, SomeSignal (SomeSignal), unsafeCoerceSignalToken)
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
+import Data.STRef (newSTRef, readSTRef, writeSTRef)
+import Data.Maybe (isJust, fromMaybe)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -35,16 +37,17 @@ raw
     -> Circuit a b
 raw c = Circuit (coerceGraph $ c_graph c) $ go (c_roar c)
   where
+    go :: Signal s (BitsOf a) (BitsOf b) -> Signal s a b
     go k =
-      Signal $ \a ->
-        let (sf, sb) = pumpSignal k a
-         in (go $ sf, sb)
+      Signal $ \a -> do
+        (sf, sb) <- pumpSignal k a
+        pure (go $ sf, sb)
 {-# INLINE raw #-}
 
 
 pullDown :: Circuit Bool Bool
 pullDown = primitive $ Circuit gr $ Signal $ \(v :> Nil) ->
-    (c_roar pullDown, maybe (Just False) Just v :> Nil)
+    pure (c_roar pullDown, maybe (Just False) Just v :> Nil)
   where
     gr :: Graph Bool Bool
     gr = Graph $ \(v :> Nil) -> do
@@ -60,7 +63,7 @@ pullDown = primitive $ Circuit gr $ Signal $ \(v :> Nil) ->
 
 pullUp :: Circuit Bool Bool
 pullUp = primitive $ Circuit gr $ Signal $ \(v :> Nil) ->
-    (c_roar pullDown, maybe (Just True) Just v :> Nil)
+    pure (c_roar pullDown, maybe (Just True) Just v :> Nil)
   where
     gr :: Graph Bool Bool
     gr = Graph $ \(v :> Nil) -> do
@@ -117,12 +120,12 @@ swap =
       o2 <- unGraph (c_graph r) i2
       pure $ o1 V.++ o2
 
-    go :: Signal a a' -> Signal b b' -> Signal (Vec (SizeOf (a, b)) Bool) (Vec (SizeOf (a', b')) Bool)
-    go k1 k2 = Signal $ \i ->
+    go :: Signal s a a' -> Signal s b b' -> Signal s (Vec (SizeOf (a, b)) Bool) (Vec (SizeOf (a', b')) Bool)
+    go k1 k2 = Signal $ \i -> do
       let (i1, i2) = V.splitAtI i
-          (s1, o1) =  pumpSignal k1 i1
-          (s2, o2) =  pumpSignal k2 i2
-      in (go s1 s2, o1 V.++ o2)
+      (s1, o1) <- pumpSignal k1 i1
+      (s2, o2) <- pumpSignal k2 i2
+      pure (go s1 s2, o1 V.++ o2)
 
 
 consume :: OkCircuit a => Circuit a ()
@@ -170,7 +173,7 @@ pad a = primitive $ Circuit gr $ primSignal $ \v -> v V.++ V.concat (V.repeat @(
 
 nandGate :: Circuit (Bool, Bool) Bool
 nandGate = primitive $ Circuit gr $ Signal $ \(mb1 :> mb2 :> Nil) ->
-    (c_roar nandGate, (:> Nil) $ fmap not $
+    pure $ (c_roar nandGate, (:> Nil) $ fmap not $
       case (mb1, mb2) of
         (Just b1, Just b2) -> Just $ b1 && b2
         (Just b1, Nothing) -> Just b1
@@ -187,7 +190,7 @@ nandGate = primitive $ Circuit gr $ Signal $ \(mb1 :> mb2 :> Nil) ->
 
 tribuf :: Circuit (Bool, Bool) Bool
 tribuf = primitive $ Circuit gr $ Signal $ \(a :> en :> Nil) ->
-    (c_roar tribuf, (en >>= bool Nothing a) :> Nil)
+    pure (c_roar tribuf, (en >>= bool Nothing a) :> Nil)
   where
     gr :: Graph (Bool, Bool) Bool
     gr = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
@@ -200,7 +203,7 @@ tribuf = primitive $ Circuit gr $ Signal $ \(a :> en :> Nil) ->
 -- the incoming bits are not Z.
 unsafeShort :: Circuit (Vec n Bool) Bool
 unsafeShort = primitive $ Circuit gr $ Signal $ \a ->
-    (c_roar unsafeShort, V.foldr merge Nothing a :> Nil)
+    pure (c_roar unsafeShort, V.foldr merge Nothing a :> Nil)
   where
     gr :: Graph (Vec n Bool) Bool
     gr = Graph $ \bin -> do
@@ -226,26 +229,26 @@ mapFoldVC c = Circuit gr go
     {-# INLINE combine #-}
     {-# INLINE go #-}
 
-    go :: forall n'. KnownNat n' => Signal (Vec n' a, r) (Vec n' b, r)
+    go :: forall n' s. KnownNat n' => Signal s (Vec n' a, r) (Vec n' b, r)
     go = Signal $ \i ->
       let (vna, r) = V.splitAtI @(SizeOf (Vec n' a)) i
       in case V.unconcatI @n' vna of
-            Nil -> (go, r)
+            Nil -> pure (go, r)
             Cons _ _ -> pumpSignal (combine (c_roar c) go) i
 
     combine
-        :: forall n'
+        :: forall n' s
         .  KnownNat n'
-        => Signal (a, r) (b, r)
-        -> Signal (Vec n' a, r) (Vec n' b, r)
-        -> Signal (Vec (n' + 1) a, r) (Vec (n' + 1) b, r)
-    combine s1 s2 = Signal $ \i ->
+        => Signal s (a, r) (b, r)
+        -> Signal s (Vec n' a, r) (Vec n' b, r)
+        -> Signal s (Vec (n' + 1) a, r) (Vec (n' + 1) b, r)
+    combine s1 s2 = Signal $ \i -> do
       let (vas, r) = V.splitAtI @(SizeOf (Vec (n' + 1) a)) i
           (V.head -> a, va) = V.splitAtI @1 $ V.unconcatI @(n' + 1) vas
-          (sbr, vbr) = pumpSignal s1 (a V.++ r)
-          (b, r') = V.splitAtI @(SizeOf b) vbr
-          (svs, bsr) = pumpSignal s2 $ V.concat va V.++ r'
-       in (combine sbr svs, b V.++ V.takeI bsr V.++ r')
+      (sbr, vbr) <- pumpSignal s1 (a V.++ r)
+      let (b, r') = V.splitAtI @(SizeOf b) vbr
+      (svs, bsr) <- pumpSignal s2 $ V.concat va V.++ r'
+      pure (combine sbr svs, b V.++ V.takeI bsr V.++ r')
 
     gr :: Graph (Vec n a, r) (Vec n b, r)
     gr = Graph $ \i -> do
@@ -300,14 +303,15 @@ fixC
     => s
     -> Circuit (a, s) (b, s)
     -> Circuit a b
-fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
+fixC s0 k0 = primitive $ Circuit gr $ go s0 $ c_roar k0
   where
-    go s k = Signal $ \v ->
-      let (k', v') = pumpSignal k (v V.++ fmap Just (embed s))
-          (b, ms') = V.splitAtI v'
-      in case V.traverse# id ms' of
-           Just s' -> (go (reify s') k', b)
-           Nothing -> (go s k', b)
+    go :: s -> Signal st (a, s) (b, s) -> Signal st a b
+    go s k = Signal $ \v -> do
+      (k', v') <- pumpSignal k (v V.++ fmap Just (embed s))
+      let (b, ms') = V.splitAtI v'
+      pure $ case V.traverse# id ms' of
+        Just s' -> (go (reify s') k', b)
+        Nothing -> (go s k', b)
 
     gr :: Graph a b
     gr = Graph $ \v -> do
@@ -339,25 +343,25 @@ foldVC c = Circuit gr $ go
     {-# INLINE combine #-}
     {-# INLINE go #-}
 
-    go :: forall n'. KnownNat n' => Signal (Vec n' a, b) b
+    go :: forall n' s. KnownNat n' => Signal s (Vec n' a, b) b
     go = Signal $ \i ->
       let (vna, r) = V.splitAtI @(SizeOf (Vec n' a)) i
       in case V.unconcatI @n' vna of
-            Nil -> (go, r)
+            Nil -> pure (go, r)
             Cons _ _ -> pumpSignal (combine (c_roar c) go) i
 
     combine
-        :: forall n'
+        :: forall n' s
         .  KnownNat n'
-        => Signal (a, b) b
-        -> Signal (Vec n' a, b) b
-        -> Signal (Vec (n' + 1) a, b) b
-    combine s1 s2 = Signal $ \i ->
+        => Signal s (a, b) b
+        -> Signal s (Vec n' a, b) b
+        -> Signal s (Vec (n' + 1) a, b) b
+    combine s1 s2 = Signal $ \i -> do
       let (vas, r) = V.splitAtI @(SizeOf (Vec (n' + 1) a)) i
           (V.head -> a, va) = V.splitAtI @1 $ V.unconcatI @(n' + 1) vas
-          (sbr, b) = pumpSignal s1 (a V.++ r)
-          (svs, b') = pumpSignal s2 $ V.concat va V.++ b
-       in (combine sbr svs, b')
+      (sbr, b)  <- pumpSignal s1 (a V.++ r)
+      (svs, b') <- pumpSignal s2 $ V.concat va V.++ b
+      pure (combine sbr svs, b')
 
     gr :: Graph (Vec n a, b) b
     gr = Graph $ \i -> do
@@ -379,25 +383,26 @@ crossV
     -> Circuit (Vec n Bool) (Vec (2 ^ n) Bool)
 crossV c = Circuit gr $ primSignal V.reverse >>> go
   where
-    go :: forall n'. KnownNat n' => Signal (Vec n' Bool) (Vec (2 ^ n') Bool)
+    go :: forall n' s. KnownNat n' => Signal s (Vec n' Bool) (Vec (2 ^ n') Bool)
     go = Signal $ \case
-        Nil -> (go, Cons (Just True) Nil)
+        Nil -> pure (go, Cons (Just True) Nil)
         vin@(Cons _ _) ->
           pumpSignal (update go $ V.repeat $ c_roar c) vin
 
     update
-        :: forall n'
-         . Signal (Vec n' Bool) (Vec (2 ^ n') Bool)
-        -> Vec (2 ^ (n' + 1)) (Signal (Bool, Bool) Bool)
-        -> Signal (Vec (n' + 1) Bool) (Vec (2 ^ (n' + 1)) Bool)
-    update sind vsig = Signal $ \i ->
+        :: forall n' s
+         . Signal s (Vec n' Bool) (Vec (2 ^ n') Bool)
+        -> Vec (2 ^ (n' + 1)) (Signal s (Bool, Bool) Bool)
+        -> Signal s (Vec (n' + 1) Bool) (Vec (2 ^ (n' + 1)) Bool)
+    update sind vsig = Signal $ \i -> do
       let (b, vin) = V.splitAtI i
           b_not = fmap (fmap not) b
-          (sres, vres) = pumpSignal sind vin
-          vl = fmap ((b_not V.++) . flip Cons Nil) vres
+      (sres, vres) <- pumpSignal sind vin
+      let vl = fmap ((b_not V.++) . flip Cons Nil) vres
           vr = fmap ((b V.++) . flip Cons Nil) vres
-          (sout, vout) = V.unzip $ V.zipWith pumpSignal vsig  $ vl V.++ vr
-       in (update sres sout, V.concat vout)
+      vs <- V.traverse# id $ V.zipWith pumpSignal vsig $ vl V.++ vr
+      let (sout, vout) = V.unzip vs
+      pure (update sres sout, V.concat vout)
 
     gr :: forall m. KnownNat m => Graph (Vec m Bool) (Vec (2 ^ m) Bool)
     gr = Graph $ \case
@@ -428,7 +433,7 @@ notGate
 shortcircuit :: (Embed a, Embed b) => (a -> b) -> Circuit a b -> Circuit a b
 shortcircuit f c = Circuit (c_graph c) $ Signal $ \ma ->
   case V.traverse# id ma of
-    Just a  -> (c_roar $ shortcircuit f c, fmap Just $ embed $ f (reify a) )
+    Just a  -> pure (c_roar $ shortcircuit f c, fmap Just $ embed $ f (reify a) )
     Nothing -> pumpSignal (c_roar c) ma
 
 
@@ -487,4 +492,44 @@ binaryGateDiagram ty = Graph $ \i -> do
   c <- fst <$> separatePorts @c
   addCell $ Y.mkMonoidalBinaryOp ty "A" "B" "Y" (V.toList a) (V.toList b) (V.toList c)
   pure c
+
+
+sharing
+    :: forall x y a b
+     . ( SeparatePorts x
+       , Embed y, Embed x)
+    => Circuit x y
+    -> (Circuit x y -> Circuit a b)
+    -> Circuit a b
+sharing inst f = Circuit gr go
+  where
+    go :: Signal s a b
+    go = combine (c_roar inst) (\x -> c_roar $ f $ Circuit undefined $ unsafeCoerceSignalToken x)
+
+    combine :: Signal s x y -> (Signal s x y -> Signal s a b) -> Signal s a b
+    combine sxy fsab = Signal $ \a -> do
+      ref <- newSTRef (Nothing @(SomeSignal x y))
+      (sab, vb) <- flip pumpSignal a $ fsab $ Signal $ \x -> do
+        done <- readSTRef ref
+        case (isJust done, any isJust $ V.toList x) of
+          (True, True) -> error "two things are trying to share at once"
+          (False, True) -> do
+            res@(sxy', _) <- pumpSignal sxy x
+            writeSTRef ref $ Just $ SomeSignal sxy'
+            pure res
+          (_, False) -> pure (vacuousSignal, V.repeat Nothing)
+      readSTRef ref >>= \case
+        Just (SomeSignal sxy') ->
+          pure (combine (unsafeCoerceSignalToken sxy') $ const $ unsafeCoerceSignalToken sab, vb)
+        Nothing -> pure (combine (unsafeCoerceSignalToken sxy) $ const $ unsafeCoerceSignalToken sab, vb)
+
+    gr :: Graph a b
+    gr = Graph $ \i -> do
+      (inst_i, _) <- separatePorts @x
+      inst_o <- unGraph (c_graph inst) inst_i
+      let gr2 =
+            Graph $ \x -> do
+              unifyBits $ M.fromList $ zip (V.toList x) (V.toList inst_i)
+              pure inst_o
+      flip unGraph i $ c_graph $ f $ Circuit gr2 undefined
 

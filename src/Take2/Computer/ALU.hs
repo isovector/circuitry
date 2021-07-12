@@ -32,18 +32,19 @@ alu
     :: (2 <= SizeOf a, SeparatePorts a, Embed a, Numeric a, Nameable a, SeparatePorts a, Typeable a)
     => Circuit (AluCommand a) (Vec (SizeOf a) Bool)
 alu =
-  elim $ ( ( #_AluAdd :-> addN >>> fst' >>> serial
-         :+| #_AluAnd :-> both serial >>> pointwise andGate
+  elim_
+      $ ( ( #_AluAdd :-> fst' >>> addN >>> fst' >>> serial
+         :+| #_AluAnd :-> fst' >>> both serial >>> pointwise andGate
            )
-       :+| ( #_AluOr  :-> both serial >>> pointwise orGate
-         :+| #_AluXor :-> both serial >>> pointwise xorGate
+       :+| ( #_AluOr  :-> fst' >>> both serial >>> pointwise orGate
+         :+| #_AluXor :-> fst' >>> both serial >>> pointwise xorGate
            )
          )
-     :+| ( ( #_AluNot    :-> serial >>> mapV notGate
-         :+| #_AluShiftL :-> shiftL >>> serial
+     :+| ( ( #_AluNot    :-> fst' >>> serial >>> mapV notGate
+         :+| #_AluShiftL :-> fst' >>> shiftL >>> serial
            )
-       :+| ( #_AluShiftR  :-> shiftR >>> serial
-         :+| #_AluAShiftR :-> ashiftR >>> serial
+       :+| ( #_AluShiftR  :-> fst' >>> shiftR >>> serial
+         :+| #_AluAShiftR :-> fst' >>> ashiftR >>> serial
            )
          )
 
