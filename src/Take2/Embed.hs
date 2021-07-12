@@ -30,15 +30,17 @@ import Data.Functor.Identity
 
 deriving anyclass instance Embed a => Embed (Identity a)
 
+type BitsOf a = Vec (SizeOf a) Bool
+
 
 class KnownNat (SizeOf a) => Embed a where
   type SizeOf a :: Nat
   type SizeOf a = GSizeOf (Rep a)
-  embed :: a -> Vec (SizeOf a) Bool
-  default embed :: (SizeOf a ~ GSizeOf (Rep a), GEmbed (Rep a), Generic a) => a -> Vec (SizeOf a) Bool
+  embed :: a -> BitsOf a
+  default embed :: (SizeOf a ~ GSizeOf (Rep a), GEmbed (Rep a), Generic a) => a -> BitsOf a
   embed = gembed . from
-  reify :: Vec (SizeOf a) Bool -> a
-  default reify :: (SizeOf a ~ GSizeOf (Rep a), GEmbed (Rep a), Generic a) => Vec (SizeOf a) Bool -> a
+  reify :: BitsOf a -> a
+  default reify :: (SizeOf a ~ GSizeOf (Rep a), GEmbed (Rep a), Generic a) => BitsOf a -> a
   reify = to . greify
 
 {-# RULES
@@ -249,7 +251,12 @@ type family EnumBitSizeImpl (b :: Bool) (len :: Nat) where
   EnumBitSizeImpl 'True len = len - 1
   EnumBitSizeImpl 'False len = (Min (Log2 len) (Log2 (len - 1))) + 1
 
-instance (Enum a, Bounded a, Generic a, KnownNat (EnumBitSizeImpl (Length (FlattenCons (Rep a)) <=? 2) (Length (FlattenCons (Rep a)))), SizeOf (EmbededEnum a) <= 8) => Embed (EmbededEnum a) where
+instance ( Enum a
+         , Bounded a
+         , Generic a
+         , KnownNat (EnumBitSizeImpl (Length (FlattenCons (Rep a)) <=? 2) (Length (FlattenCons (Rep a))))
+         , SizeOf (EmbededEnum a) <= 8
+         ) => Embed (EmbededEnum a) where
   type SizeOf (EmbededEnum a) = EnumBitSize a
   embed
     = V.takeI @(SizeOf (EmbededEnum a)) @(8 - SizeOf (EmbededEnum a))

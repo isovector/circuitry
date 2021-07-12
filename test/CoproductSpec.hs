@@ -31,12 +31,12 @@ spec = do
 
   prop "eliminates ctor1" $ \(val1 :: Bool) (val2 :: Word4) -> do
     evalCircuit
-        (elim $ ( #_Ctor1 :-> id
-              :+| empty
-                )
-            :+| ( empty
-              :+| empty
-                )
+        (elim_ $ ( #_Ctor1 :=> id
+               :+| empty
+                 )
+             :+| ( empty
+               :+| empty
+                 )
         )
         (Ctor1 val1 val2)
         0
@@ -44,12 +44,12 @@ spec = do
 
   prop "eliminates ctor2" $ \(val :: Word4) -> do
     evalCircuit
-        (elim $ ( empty
-              :+| #_Ctor2 :-> id
-                )
-            :+| ( empty
-              :+| empty
-                )
+        (elim_ $ ( empty
+               :+| #_Ctor2 :=> id
+                 )
+             :+| ( empty
+               :+| empty
+                 )
         )
         (Ctor2 val)
         0
@@ -57,12 +57,12 @@ spec = do
 
   prop "eliminates ctor3" $ \(val :: Word8) -> do
     evalCircuit
-        (elim $ ( empty
-              :+| empty
-                )
-            :+| ( #_Ctor3 :-> id
-              :+| empty
-                )
+        (elim_ $ ( empty
+               :+| empty
+                 )
+             :+| ( #_Ctor3 :=> id
+               :+| empty
+                 )
         )
         (Ctor3 val)
         0
@@ -70,12 +70,12 @@ spec = do
 
   prop "eliminates ctor4" $ \(val :: Maybe Bool) -> do
     evalCircuit
-        (elim $ ( empty
-              :+| empty
-                )
-            :+| ( empty
-              :+| #_Ctor4 :-> id
-                )
+        (elim_ $ ( empty
+               :+| empty
+                 )
+             :+| ( empty
+               :+| #_Ctor4 :=> id
+                 )
         )
         (Ctor4 val)
         0
