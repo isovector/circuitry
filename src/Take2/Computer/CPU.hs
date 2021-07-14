@@ -50,13 +50,15 @@ cpuImpl1
     :: Circuit (Step, Registers PC SP W)
                (BusCommand N W)
 cpuImpl1 =
-  elim $ #_Fetch
-            :~> fetch
-   :+| ( #_Decode
-            :-> snd' >>> incPC
-       :+| #_Execute
-            :-> execute1
-       )
+  elim $ foldElim
+       $ #_Fetch :~>
+          fetch
+     :+| #_Decode :->
+          snd' >>> incPC
+     :+| #_Execute :->
+          execute1
+     :+| End
+
 
 execute1 :: Circuit (Instruction, Registers PC SP W) (BusCommand N W)
 execute1 = undefined -- elim $ _ :+| ((_ :+| (_ :+| _)) :+| ((_ :+| _) :+| (_ :+| _)))
@@ -79,15 +81,16 @@ cpuBus rom  = bus rom >>> unsafeParse
 cpuImpl2
     :: Circuit (Step, (Registers PC SP W, W)) (Step, Registers PC SP W)
 cpuImpl2 =
-  elim $ #_Fetch
+  elim $ foldElim
+       $ #_Fetch
             :~> swap
             >>> first' (inj #_Decode)
-   :+| ( #_Decode
+     :+| #_Decode
             :-> (decodeInstr >>> inj #_Execute)
             *** (swap >>> replace #reg_PC)
-       :+| #_Execute
+     :+| #_Execute
             :-> undefined
-       )
+     :+| End
 
 decodeInstr :: Circuit W Instruction
 decodeInstr = unsafeReinterpret

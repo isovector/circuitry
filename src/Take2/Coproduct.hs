@@ -23,7 +23,7 @@ import           Take2.Instances
 import           Take2.Primitives (Dict(Dict), pad)
 import           Unsafe.Coerce (unsafeCoerce)
 import Take2.Sing
-import Data.Proxy
+import GHC.Exts (Any)
 
 
 data InjName (name  :: Symbol) where
@@ -39,16 +39,12 @@ data Coproduct (xs :: Tree (Symbol, Type)) where
   RHS :: Coproduct rs -> Coproduct ('Branch ls rs)
   Here :: InjName name -> x -> Coproduct ('Leaf '(name, x))
 
-data Elim2 (xs :: [(Symbol, Type)]) b (r :: Type) where
-  Nil2
-      :: Elim2 '[] b r
-
-  (::->)
-      :: (Embed x, Typeable x)
-      => InjName name
-      -> Circuit (x, b) r
-      -> Elim2 xs b r
-      -> Elim2 ('(name, x) ': xs) b r
+data ElimList (xs :: [(Symbol, Type)]) b (r :: Type) where
+  End :: ElimList '[] b r
+  (:+|)
+      :: Elim  ('Leaf '(name, x)) b r
+      -> ElimList xs b r
+      -> ElimList ('(name, x) ': xs) b r
 
 data Elim (xs :: Tree (Symbol, Type)) b (r :: Type) where
   (:->)
@@ -69,7 +65,7 @@ data Elim (xs :: Tree (Symbol, Type)) b (r :: Type) where
       => InjName name
       -> Circuit x r
       -> Elim ('Leaf '(name, x)) () r
-  (:+|)
+  Both
       :: (Embed (Coproduct ls), Embed (Coproduct rs))
       => Elim ls b r
       -> Elim rs b r -> Elim ('Branch ls rs) b r
@@ -81,18 +77,29 @@ infix 2 :=~>
 infixr 1 :+|
 
 
-elim2Length :: Elim2 xs b r -> Int
-elim2Length = undefined
+elim2ToList :: ElimList xs b r -> [Any]
+elim2ToList = unsafeCoerce
+-- elim2ToList End = []
 
-elim2SplitAt :: (SplitAt (Div (Length xs) 2) xs ~ '(ys, zs)) => Elim2 xs b r -> (Elim2 ys b r, Elim2 zs b r)
-elim2SplitAt = undefined
+elimFromList :: [Any] -> ElimList xs b r
+elimFromList = unsafeCoerce -- (x : xs) = unsafeCoerce $ unsafeCoerce x :+| elimFromList xs
+-- elimFromList [] = unsafeCoerce End
+
+elim2SplitAt
+    :: (SplitAt (Div (Length xs) 2) xs ~ '(ys, zs))
+    => ElimList xs b r
+    -> (ElimList ys b r, ElimList zs b r)
+elim2SplitAt es =
+  let xs = elim2ToList es
+      (l, r) = splitAt (length xs `div` 2) xs
+   in  (elimFromList l, elimFromList r)
 
 
 class FoldElim xs b r where
-  foldElim :: Elim2 xs b r -> Elim (FoldBal 'Branch (MapT 'Leaf xs)) b r
+  foldElim :: ElimList xs b r -> Elim (FoldBal 'Branch (MapT 'Leaf xs)) b r
 
 instance {-# OVERLAPPING #-} FoldElim '[ '(name, x) ] b r where
-  foldElim ((::->) n c Nil2) = n :-> c
+  foldElim (e :+| End) = e
 
 instance ( ls ~ (Take (Div (Length xs) 2) xs)
          , rs ~ (Drop (Div (Length xs) 2) xs)
@@ -108,9 +115,7 @@ instance ( ls ~ (Take (Div (Length xs) 2) xs)
     => FoldElim xs b r where
   foldElim xs =
     let (l,r) = elim2SplitAt xs
-    in foldElim l :+| foldElim r
-
-
+    in foldElim l `Both` foldElim r
 
 
 
@@ -228,7 +233,7 @@ gelim (name@InjName :-> f) = component (symbolVal name) (first' unsafeParse) >>>
 gelim (name@InjName :=> f) = component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
 gelim (name@InjName :~> f) = component (symbolVal name) snd' >>> f >>> serial
 gelim (name@InjName :=~> f) = component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
-gelim (ls :+| rs) = coproductBranch ls rs
+gelim (Both ls rs) = coproductBranch ls rs
 
 coproductBranch
     :: forall ls rs b r
