@@ -2,10 +2,19 @@
 
 module Take2.Computer.Register where
 
+import Data.Typeable
 import qualified Clash.Sized.Vector as V
 import           Prelude hiding ((.), id, sum)
 import           Take2.Machinery
 
+
+data Register
+  = X
+  | Y
+  | Z
+  | A
+  deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
+  deriving (Embed, Arbitrary) via EmbededEnum Register
 
 data Flags = Flags
   { f_neg      :: Bool
@@ -27,6 +36,34 @@ data Registers pc sp word = Registers
   }
   deriving stock (Eq, Show, Generic)
   deriving anyclass Embed
+
+
+getReg
+    :: (Embed pc, Embed sp, Embed word, Typeable pc, Typeable sp, Typeable word, SeparatePorts word)
+    => Circuit (Registers pc sp word, Register) word
+getReg
+    = (swap >>>)
+    $ elim
+    $ foldElim
+    $ #_X :~> proj #reg_X
+  :+| #_Y :~> proj #reg_Y
+  :+| #_Z :~> proj #reg_Z
+  :+| #_A :~> proj #reg_A
+  :+| End
+
+
+setReg
+    :: (Embed pc, Embed sp, Embed word, Typeable pc, Typeable sp, Typeable word, SeparatePorts word)
+    => Circuit ((Register, word), Registers pc sp word) (Registers pc sp word)
+setReg
+    = (reassoc' >>>)
+    $ elim
+    $ foldElim
+    $ #_X :~> replace #reg_X
+  :+| #_Y :~> replace #reg_Y
+  :+| #_Z :~> replace #reg_Z
+  :+| #_A :~> replace #reg_A
+  :+| End
 
 
 registers

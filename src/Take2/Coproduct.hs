@@ -77,22 +77,14 @@ infix 2 :=~>
 infixr 1 :+|
 
 
-elim2ToList :: ElimList xs b r -> [Any]
-elim2ToList = unsafeCoerce
--- elim2ToList End = []
-
-elimFromList :: [Any] -> ElimList xs b r
-elimFromList = unsafeCoerce -- (x : xs) = unsafeCoerce $ unsafeCoerce x :+| elimFromList xs
--- elimFromList [] = unsafeCoerce End
-
 elim2SplitAt
     :: (SplitAt (Div (Length xs) 2) xs ~ '(ys, zs))
     => ElimList xs b r
     -> (ElimList ys b r, ElimList zs b r)
 elim2SplitAt es =
-  let xs = elim2ToList es
+  let xs = unsafeCoerce @_ @[_] es
       (l, r) = splitAt (length xs `div` 2) xs
-   in  (elimFromList l, elimFromList r)
+   in  (unsafeCoerce l, unsafeCoerce r)
 
 
 class FoldElim xs b r where

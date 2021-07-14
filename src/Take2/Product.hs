@@ -2,7 +2,7 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Take2.Product (proj, replace, ProjName) where
+module Take2.Product (proj, replace, ProjName, FlattenSels) where
 
 import Circuitry.Category
 import Clash.Sized.Vector (Vec (..))
@@ -55,6 +55,25 @@ instance {-# OVERLAPPING #-} (Embed res, Embed ty) => GProj (S1 ('MetaSel ('Just
   gproj = gprojImpl
   greplace = greplaceImpl
 
+instance (KnownNat (KnownSize f), GProj g ty name res) => GProj (f ': g) ty name res where
+  gproj n = gproj @g (n + natVal (Proxy @(KnownSize f)))
+  greplace n = greplace @g (n + natVal (Proxy @(KnownSize f)))
+
+instance ( TypeError ( 'Text "'"
+                 ':<>: 'ShowType ty
+                 ':<>: 'Text "' does not contain a '"
+                 ':<>: 'Text name
+                 ':<>: 'Text "' field with type "
+                 ':<>: 'ShowType res
+                     )
+         , GProj '[] ty name res
+         , Embed res
+         , Embed ty
+         )
+      => GProj '[] ty name res where
+  gproj = error "impossible"
+  greplace = error "impossible"
+
 gprojImpl
     :: forall name res ty
      . (Embed res, Embed ty)
@@ -91,9 +110,5 @@ greplaceImpl n _ =
 
 unsafeProofBigEnough :: forall n m. Dict (n <= m)
 unsafeProofBigEnough = unsafeCoerce (Dict @(0 <= 1))
-
-instance (KnownNat (KnownSize f), GProj g ty name res) => GProj (f ': g) ty name res where
-  gproj n = gproj @g (n + natVal (Proxy @(KnownSize f)))
-  greplace n = greplace @g (n + natVal (Proxy @(KnownSize f)))
 
 

@@ -5,6 +5,7 @@ module Take2.Computer.Instruction where
 import Prelude hiding ((.), id, sum)
 import Take2.Machinery
 import Data.Proxy
+import Take2.Computer.Register
 
 
 type PC = Word16
@@ -16,14 +17,6 @@ type N = 8
 
 proof :: Proxy (SizeOf Instruction) -> Proxy (SizeOf W)
 proof = id
-
-data Register
-  = X
-  | Y
-  | Z
-  | A
-  deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
-  deriving (Embed, Arbitrary) via EmbededEnum Register
 
 data Instruction
   = IAdd Register Register
