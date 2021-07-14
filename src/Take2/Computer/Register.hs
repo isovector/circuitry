@@ -1,4 +1,5 @@
-{-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE UndecidableInstances                 #-}
+{-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
 module Take2.Computer.Register where
 
@@ -6,6 +7,7 @@ import Data.Typeable
 import qualified Clash.Sized.Vector as V
 import           Prelude hiding ((.), id, sum)
 import           Take2.Machinery
+import Test.QuickCheck.Arbitrary.Generic (genericArbitrary)
 
 
 data Register
@@ -37,12 +39,20 @@ data Registers pc sp word = Registers
   deriving stock (Eq, Show, Generic)
   deriving anyclass Embed
 
+instance Arbitrary Flags where
+  arbitrary = genericArbitrary
+
+instance (Arbitrary pc, Arbitrary sp, Arbitrary word) => Arbitrary (Registers pc sp word) where
+  arbitrary = genericArbitrary
+
+
 
 getReg
     :: (Embed pc, Embed sp, Embed word, Typeable pc, Typeable sp, Typeable word, SeparatePorts word)
     => Circuit (Registers pc sp word, Register) word
 getReg
-    = (swap >>>)
+    = component "getReg"
+    $ (swap >>>)
     $ elim
     $ foldElim
     $ #_X :~> proj #reg_X
@@ -56,7 +66,8 @@ setReg
     :: (Embed pc, Embed sp, Embed word, Typeable pc, Typeable sp, Typeable word, SeparatePorts word)
     => Circuit ((Register, word), Registers pc sp word) (Registers pc sp word)
 setReg
-    = (reassoc' >>>)
+    = component "setReg"
+    $ (reassoc' >>>)
     $ elim
     $ foldElim
     $ #_X :~> replace #reg_X

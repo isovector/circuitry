@@ -15,4 +15,18 @@ inputOverTime  as t = as !! fromIntegral t
 
 
 spec :: Spec
-spec = pure ()
+spec = do
+  prop "get . set" $ \(v :: Word4) (r :: Register) (rs :: Registers Word4 Word4 Word4) ->
+    evalCircuit
+      (first' setReg >>> getReg)
+      (((r, v), rs), r)
+      2
+      === Just v
+
+  prop "set . get" $ \(v :: Word4) (r :: Register) (rs :: Registers Word4 Word4 Word4) ->
+    evalCircuit
+      (first' (second' getReg) >>> setReg)
+      ((r, (rs, r)), rs)
+      2
+      === Just rs
+

@@ -21,9 +21,8 @@ import           Take2.Circuit (Circuit, SeparatePorts)
 import           Take2.Embed hiding (Length)
 import           Take2.Instances
 import           Take2.Primitives (Dict(Dict), pad)
+import           Take2.Sing
 import           Unsafe.Coerce (unsafeCoerce)
-import Take2.Sing
-import GHC.Exts (Any)
 
 
 data InjName (name  :: Symbol) where

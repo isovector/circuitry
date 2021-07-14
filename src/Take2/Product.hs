@@ -63,8 +63,9 @@ instance ( TypeError ( 'Text "'"
                  ':<>: 'ShowType ty
                  ':<>: 'Text "' does not contain a '"
                  ':<>: 'Text name
-                 ':<>: 'Text "' field with type "
+                 ':<>: 'Text "' field with type '"
                  ':<>: 'ShowType res
+                 ':<>: 'Text "'"
                      )
          , GProj '[] ty name res
          , Embed res
