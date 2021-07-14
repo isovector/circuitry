@@ -388,6 +388,6 @@ pairwiseShort
     => Circuit (Vec m Bool, Vec m Bool) (Vec m Bool)
 pairwiseShort = Prim.zipVC >>> mapV (serial >>> Prim.unsafeShort)
 
-intro :: (Embed a, Embed b, Show b) => b -> Circuit a (a, b)
+intro :: forall b a. (Embed a, Embed b, Show b) => b -> Circuit a (a, b)
 intro b = create >>> second' (constC b)
 

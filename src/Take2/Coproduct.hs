@@ -18,10 +18,12 @@ import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
 import           Prelude hiding (id)
 import           Take2.Circuit (Circuit, SeparatePorts)
-import           Take2.Embed
+import           Take2.Embed hiding (Length)
 import           Take2.Instances
 import           Take2.Primitives (Dict(Dict), pad)
 import           Unsafe.Coerce (unsafeCoerce)
+import Take2.Sing
+import Data.Proxy
 
 
 data InjName (name  :: Symbol) where
@@ -37,12 +39,31 @@ data Coproduct (xs :: Tree (Symbol, Type)) where
   RHS :: Coproduct rs -> Coproduct ('Branch ls rs)
   Here :: InjName name -> x -> Coproduct ('Leaf '(name, x))
 
+data Elim2 (xs :: [(Symbol, Type)]) b (r :: Type) where
+  Nil2
+      :: Elim2 '[] b r
+
+  (::->)
+      :: (Embed x, Typeable x)
+      => InjName name
+      -> Circuit (x, b) r
+      -> Elim2 xs b r
+      -> Elim2 ('(name, x) ': xs) b r
+
 data Elim (xs :: Tree (Symbol, Type)) b (r :: Type) where
   (:->)
       :: (Embed x, Typeable x)
       => InjName name
       -> Circuit (x, b) r
       -> Elim ('Leaf '(name, x)) b r
+  (:~>)
+      :: InjName name
+      -> Circuit b r
+      -> Elim ('Leaf '(name, ())) b r
+  (:=~>)
+      :: InjName name
+      -> Circuit () r
+      -> Elim ('Leaf '(name, ())) () r
   (:=>)
       :: (Embed x, Typeable x)
       => InjName name
@@ -55,7 +76,55 @@ data Elim (xs :: Tree (Symbol, Type)) b (r :: Type) where
 
 infix 2 :->
 infix 2 :=>
+infix 2 :~>
+infix 2 :=~>
 infixr 1 :+|
+
+
+elim2Length :: Elim2 xs b r -> Int
+elim2Length = undefined
+
+elim2SplitAt :: (SplitAt (Div (Length xs) 2) xs ~ '(ys, zs)) => Elim2 xs b r -> (Elim2 ys b r, Elim2 zs b r)
+elim2SplitAt = undefined
+
+
+class FoldElim xs b r where
+  foldElim :: Elim2 xs b r -> Elim (FoldBal 'Branch (MapT 'Leaf xs)) b r
+
+instance {-# OVERLAPPING #-} FoldElim '[ '(name, x) ] b r where
+  foldElim ((::->) n c Nil2) = n :-> c
+
+instance ( Fold_Bal 'Branch (Length (MapT 'Leaf xs)) (MapT 'Leaf xs)
+         ~ 'Branch
+              (Fold_Bal
+                'Branch
+                (Length (MapT 'Leaf (Take (Div (Length xs) 2) xs)))
+                (MapT 'Leaf (Take (Div (Length xs) 2) xs)))
+              (Fold_Bal
+                'Branch
+                (Length (MapT 'Leaf (Drop (Div (Length xs) 2) xs)))
+                (MapT 'Leaf (Drop (Div (Length xs) 2) xs)))
+         , FoldElim (Take (Div (Length xs) 2) xs) b r
+         , FoldElim (Drop (Div (Length xs) 2) xs) b r
+         , Embed (Coproduct
+                   (Fold_Bal
+                      'Branch
+                      (Length (MapT 'Leaf (Take (Div (Length xs) 2) xs)))
+                      (MapT 'Leaf (Take (Div (Length xs) 2) xs))))
+         , Embed
+               (Coproduct
+                  (Fold_Bal
+                     'Branch
+                     (Length (MapT 'Leaf (Drop (Div (Length xs) 2) xs)))
+                     (MapT 'Leaf (Drop (Div (Length xs) 2) xs))))
+         )
+    => FoldElim xs b r where
+  foldElim xs =
+    let (l,r) = elim2SplitAt xs
+    in foldElim l :+| foldElim r
+
+
+
 
 
 class GInjectThread (n :: Nat) (rep :: Type -> Type) (name :: Symbol) ty a where
@@ -82,15 +151,14 @@ instance ( SizeOf a + SizeOf b <= n
         >>> serial
         >>> pad False
 
-instance ( (m + 1) ~ n
-         , GInjectThread m f name ty a
-         , GInjectThread m g name ty a
+instance ( GInjectThread (n - 1) f name ty a
+         , GInjectThread (n - 1) g name ty a
+         , 1 <= n
          , Embed a
-         , KnownNat m
          , KnownNat n
          ) => GInjectThread n (f :+: g) name ty a where
-  ginjectThread = fmap (>>> lintro False) (ginjectThread @m @f @name @ty @a)
-              <|> fmap (>>> lintro True)  (ginjectThread @m @g @name @ty @a)
+  ginjectThread = fmap (>>> lintro False) (ginjectThread @(n - 1) @f @name @ty @a)
+              <|> fmap (>>> lintro True)  (ginjectThread @(n - 1) @g @name @ty @a)
 
 instance (GInject n (K1 _1 a) ty a) => GInjectThread n (K1 _1 a) name ty a where
   ginjectThread = Just $ ginject @n @(K1 _1 a) @ty @a
@@ -171,6 +239,8 @@ gelim
     -> Circuit (BitsOf (Coproduct xs), b) (BitsOf r)
 gelim (name@InjName :-> f) = component (symbolVal name) (first' unsafeParse) >>> f >>> serial
 gelim (name@InjName :=> f) = component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
+gelim (name@InjName :~> f) = component (symbolVal name) snd' >>> f >>> serial
+gelim (name@InjName :=~> f) = component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
 gelim (ls :+| rs) = coproductBranch ls rs
 
 coproductBranch

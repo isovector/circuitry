@@ -1,5 +1,6 @@
 {-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Take2.Primitives where
 
@@ -22,6 +23,8 @@ import           Take2.Graph
 import           Take2.Signal (Signal (..), primSignal)
 import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
+import Data.Proxy
+import GHC.TypeLits.Extra
 
 
 primitive :: Circuit a b -> Circuit a b

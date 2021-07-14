@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3017848f75d117cc510416c595aad3e7b8d22c12bbf770c0851a0bd3dcd564d3
+-- hash: 87cd0e447f1d7e0cf03511dd6f4a1cc0ec0afbcce184c7ab2ae5caad6a0e0873
 
 name:           circuitry
 version:        0.1.0.0
@@ -23,7 +23,9 @@ library
       Take2.Computer.Addressed
       Take2.Computer.ALU
       Take2.Computer.Bus
+      Take2.Computer.CPU
       Take2.Computer.Examples
+      Take2.Computer.Instruction
       Take2.Computer.Math
       Take2.Computer.Memory
       Take2.Computer.Register
@@ -37,6 +39,7 @@ library
       Take2.Primitives
       Take2.Product
       Take2.Signal
+      Take2.Sing
       Take2.Word
   hs-source-dirs:
       src

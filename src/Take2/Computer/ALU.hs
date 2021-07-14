@@ -32,19 +32,29 @@ alu
     :: (2 <= SizeOf a, SeparatePorts a, Embed a, Numeric a, Nameable a, SeparatePorts a, Typeable a)
     => Circuit (AluCommand a) (Vec (SizeOf a) Bool)
 alu =
-  elim_
-       $ ( ( #_AluAdd :=> addN >>> fst' >>> serial
-         :+| #_AluAnd :=> both serial >>> pointwise andGate
-           )
-       :+| ( #_AluOr  :=> both serial >>> pointwise orGate
-         :+| #_AluXor :=> both serial >>> pointwise xorGate
-           )
-         )
-     :+| ( ( #_AluNot    :=> serial >>> mapV notGate
-         :+| #_AluShiftL :=> shiftL >>> serial
-           )
-       :+| ( #_AluShiftR  :=> shiftR >>> serial
-         :+| #_AluAShiftR :=> ashiftR >>> serial
-           )
-         )
+  elim_ $ foldElim $ (::->) #_AluAdd undefined
+                   $ (::->) #_AluAnd undefined
+                   $ (::->) #_AluOr undefined
+                   $ (::->) #_AluXor undefined
+                   $ (::->) #_AluNot undefined
+                   $ (::->) #_AluShiftL undefined
+                   $ (::->) #_AluShiftR undefined
+                   $ (::->) #_AluAShiftR undefined
+                   $ Nil2
+
+
+--        $ ( ( #_AluAdd :=> addN >>> fst' >>> serial
+--          :+| #_AluAnd :=> both serial >>> pointwise andGate
+--            )
+--        :+| ( #_AluOr  :=> both serial >>> pointwise orGate
+--          :+| #_AluXor :=> both serial >>> pointwise xorGate
+--            )
+--          )
+--      :+| ( ( #_AluNot    :=> serial >>> mapV notGate
+--          :+| #_AluShiftL :=> shiftL >>> serial
+--            )
+--        :+| ( #_AluShiftR  :=> shiftR >>> serial
+--          :+| #_AluAShiftR :=> ashiftR >>> serial
+--            )
+--          )
 
