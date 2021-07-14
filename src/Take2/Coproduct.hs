@@ -94,29 +94,16 @@ class FoldElim xs b r where
 instance {-# OVERLAPPING #-} FoldElim '[ '(name, x) ] b r where
   foldElim ((::->) n c Nil2) = n :-> c
 
-instance ( Fold_Bal 'Branch (Length (MapT 'Leaf xs)) (MapT 'Leaf xs)
-         ~ 'Branch
-              (Fold_Bal
-                'Branch
-                (Length (MapT 'Leaf (Take (Div (Length xs) 2) xs)))
-                (MapT 'Leaf (Take (Div (Length xs) 2) xs)))
-              (Fold_Bal
-                'Branch
-                (Length (MapT 'Leaf (Drop (Div (Length xs) 2) xs)))
-                (MapT 'Leaf (Drop (Div (Length xs) 2) xs)))
-         , FoldElim (Take (Div (Length xs) 2) xs) b r
-         , FoldElim (Drop (Div (Length xs) 2) xs) b r
-         , Embed (Coproduct
-                   (Fold_Bal
-                      'Branch
-                      (Length (MapT 'Leaf (Take (Div (Length xs) 2) xs)))
-                      (MapT 'Leaf (Take (Div (Length xs) 2) xs))))
-         , Embed
-               (Coproduct
-                  (Fold_Bal
-                     'Branch
-                     (Length (MapT 'Leaf (Drop (Div (Length xs) 2) xs)))
-                     (MapT 'Leaf (Drop (Div (Length xs) 2) xs))))
+instance ( ls ~ (Take (Div (Length xs) 2) xs)
+         , rs ~ (Drop (Div (Length xs) 2) xs)
+         , fls ~ (Fold_Bal 'Branch (Length (MapT 'Leaf ls)) (MapT 'Leaf ls))
+         , frs ~ (Fold_Bal 'Branch (Length (MapT 'Leaf rs)) (MapT 'Leaf rs))
+         , Fold_Bal 'Branch (Length (MapT 'Leaf xs)) (MapT 'Leaf xs)
+         ~ 'Branch fls frs
+         , FoldElim ls b r
+         , FoldElim rs b r
+         , Embed (Coproduct fls)
+         , Embed (Coproduct frs)
          )
     => FoldElim xs b r where
   foldElim xs =
