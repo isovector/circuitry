@@ -19,7 +19,8 @@ proof :: Proxy (SizeOf Instruction) -> Proxy (SizeOf W)
 proof = id
 
 data Instruction
-  = IAdd Register Register Register
+  =      -- src1  -- src2  -- dst
+    IAdd Register Register Register
   | IAnd Register Register Register
   | IOr Register Register Register
   | IXOr Register Register Register
@@ -30,7 +31,7 @@ data Instruction
   | IShiftL Register Register
   | IShiftR Register Register
   | IAShiftR Register Register
-  | IJumpTo Register (Vec 8 Bool)
+  | IJump Register HalfW
   | IBranchEq Register Register (Vec 4 Bool)
   | IBranchNeq Register Register (Vec 4 Bool)
   | PADDING_ (Vec 12 Bool)

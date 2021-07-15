@@ -40,24 +40,24 @@ data Flags = Flags
   deriving anyclass Embed
 
 data Registers pc sp word = Registers
-  { reg_PC    :: pc
-  , reg_SP    :: sp
-  , reg_R1    :: word
-  , reg_R2    :: word
-  , reg_R3    :: word
-  , reg_R4    :: word
-  , reg_R5    :: word
-  , reg_R6    :: word
-  , reg_R7    :: word
-  , reg_R8    :: word
-  , reg_R9    :: word
-  , reg_R10    :: word
-  , reg_R11    :: word
-  , reg_R12    :: word
-  , reg_R13    :: word
-  , reg_R14    :: word
-  , reg_R15    :: word
-  , reg_R16    :: word
+  { reg_PC :: pc
+  , reg_SP :: sp
+  , reg_R1  :: word
+  , reg_R2  :: word
+  , reg_R3  :: word
+  , reg_R4  :: word
+  , reg_R5  :: word
+  , reg_R6  :: word
+  , reg_R7  :: word
+  , reg_R8  :: word
+  , reg_R9  :: word
+  , reg_R10 :: word
+  , reg_R11 :: word
+  , reg_R12 :: word
+  , reg_R13 :: word
+  , reg_R14 :: word
+  , reg_R15 :: word
+  , reg_R16 :: word
   , reg_flags :: Flags
   }
   deriving stock (Eq, Show, Generic)

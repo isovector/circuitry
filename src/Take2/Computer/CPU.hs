@@ -1,5 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction            #-}
 {-# LANGUAGE UndecidableInstances                 #-}
+{-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
 {-# OPTIONS_GHC -fplugin-opt GHC.TypeLits.Normalise:allow-negated-numbers #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
@@ -126,7 +127,12 @@ execute1
   :+| #_IShiftL :-> aluUnaryOp1 #_AluShiftL
   :+| #_IShiftR :-> aluUnaryOp1 #_AluShiftR
   :+| #_IAShiftR :-> aluUnaryOp1 #_AluAShiftR
-  :+| #_IJumpTo :-> todo
+  :+| #_IJump :-> first' swap
+              >>> reassoc'
+              >>> (serial >>> pad False >>> unsafeParse @W)
+              *** (swap >>> getReg)
+              >>> inj @(AluCommand W) #_AluAdd
+              >>> inj #_BusAlu
   :+| #_IBranchEq :-> todo
   :+| #_IBranchNeq :-> todo
   :+| #_PADDING_ :-> todo
@@ -148,7 +154,9 @@ execute2
   :+| #_IShiftL :-> aluUnaryOp2
   :+| #_IShiftR :-> aluUnaryOp2
   :+| #_IAShiftR :-> aluUnaryOp2
-  :+| #_IJumpTo :-> todo
+  :+| #_IJump :-> snd'
+              >>> swap
+              >>> replace #reg_PC
   :+| #_IBranchEq :-> todo
   :+| #_IBranchNeq :-> todo
   :+| #_PADDING_ :-> todo
