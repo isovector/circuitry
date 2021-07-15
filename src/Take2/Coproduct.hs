@@ -165,13 +165,16 @@ instance GInjectThread n (C1 ('MetaCons name' _1 _2) f) name ty a where
 lintro :: KnownNat n => Bool -> Circuit (Vec n Bool) (Vec (n + 1) Bool)
 lintro b = intro b >>> swap >>> consC
 
-inj
-    :: forall x a name
-     . ( Contains (FlattenCons2 (Rep x)) a
+type Inj x a name
+     = ( Contains (FlattenCons2 (Rep x)) a
        , GInjectThread (SizeOf x) (Rep x) name x a
        , Embed a
        , Embed x
        )
+
+inj
+    :: forall x a name
+     . Inj x a name
     => InjName name
     -> Circuit a x
 inj _ = fromJust (ginjectThread @(SizeOf x) @(Rep x) @name @x @a) >>> unsafeParse

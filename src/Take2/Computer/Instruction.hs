@@ -19,17 +19,17 @@ proof :: Proxy (SizeOf Instruction) -> Proxy (SizeOf W)
 proof = id
 
 data Instruction
-  = IAdd Register Register
-  | IAnd Register Register
-  | IOr Register Register
-  | IXOr Register Register
-  | INot Register
+  = IAdd Register Register Register
+  | IAnd Register Register Register
+  | IOr Register Register Register
+  | IXOr Register Register Register
+  | INot Register Register
   | IMove Register Register
   | ILoadHi Register HalfW
   | ILoadLo Register HalfW
-  | IShiftL Register
-  | IShiftR Register
-  | IAShiftR Register
+  | IShiftL Register Register
+  | IShiftR Register Register
+  | IAShiftR Register Register
   | IJumpTo Register
   | IJumpZ Register
   | PADDING_ (Vec 12 Bool)

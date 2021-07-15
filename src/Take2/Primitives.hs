@@ -25,6 +25,7 @@ import           Unsafe.Coerce (unsafeCoerce)
 import qualified Yosys as Y
 import Data.Proxy
 import GHC.TypeLits.Extra
+import Debug.Trace (trace)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -490,4 +491,11 @@ binaryGateDiagram ty = Graph $ \i -> do
   c <- fst <$> separatePorts @c
   addCell $ Y.mkMonoidalBinaryOp ty "A" "B" "Y" (V.toList a) (V.toList b) (V.toList c)
   pure c
+
+traceC :: forall a. (Embed a, Show a) => String -> Circuit a a
+traceC n
+  = primitive
+  $ Circuit id
+  $ primSignal
+  $ \v -> trace (n <> ": " <> show (fmap (reify @a) $ V.traverse# id v)) v
 

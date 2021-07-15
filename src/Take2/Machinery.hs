@@ -15,7 +15,7 @@ import Take2.Embed as X
 import Take2.Graph as X (RenderOptions (..))
 import Take2.Instances as X
 import Take2.Numeric as X
-import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, diagrammed, binaryGateDiagram, unaryGateDiagram, transposeV, tribuf, crossV, unsafeShort, shortcircuit, pullDown, pullUp)
+import Take2.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, diagrammed, binaryGateDiagram, unaryGateDiagram, transposeV, tribuf, crossV, unsafeShort, shortcircuit, pullDown, pullUp, traceC)
 import Take2.Product as X
 import Take2.Signal as X (Time)
 import Take2.Word as X
