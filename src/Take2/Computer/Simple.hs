@@ -1,5 +1,7 @@
 module Take2.Computer.Simple where
 
+{-# OPTIONS_GHC -fplugin-opt GHC.TypeLits.Normalise:allow-negated-numbers #-}
+
 import qualified Clash.Sized.Vector as V
 import           Prelude hiding ((.), id, sum)
 import           Take2.Machinery
@@ -73,4 +75,21 @@ when' k c = interface' diagrammed (fmap (mappend "case ") $ constantName k)
 
 onEach :: (Embed a, Embed b, KnownNat cases) => (v -> Circuit a b) -> Vec cases v -> Circuit a (Vec cases b)
 onEach f v = sequenceMetaV $ fmap f v
+
+
+sext
+    :: forall m n
+     . (KnownNat m, KnownNat n, 1 <= m, (m - 1) <= n)
+    => Circuit (Vec m Bool) (Vec n Bool)
+sext
+    = separate @(m - 1)
+  >>> second' (unsafeParse @Bool >>> replicateC @(n - (m - 1)))
+  >>> unsafeReinterpret
+
+
+ext
+    :: forall m n
+     . (KnownNat m, KnownNat n, m <= n)
+    => Circuit (Vec m Bool) (Vec n Bool)
+ext = pad False >>> unsafeReinterpret
 

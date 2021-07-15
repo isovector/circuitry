@@ -134,11 +134,21 @@ consume :: OkCircuit a => Circuit a ()
 consume = primitive $ raw $ Circuit (Graph $ const $ pure Nil) $ primSignal $ const Nil
 
 
+unsafeReinterpret :: (OkCircuit a, OkCircuit b, SizeOf a ~ SizeOf b) => Circuit a b
+unsafeReinterpret = raw id
+
+
 copy :: forall a. OkCircuit a => Circuit a (a, a)
-copy = primitive $ raw $ Circuit gr $ primSignal $ \v -> v V.++ v
+copy = replicateC >>> unsafeReinterpret
+  -- where
+  --   gr :: Graph (Vec (SizeOf a) Bool) (Vec (SizeOf (a, a)) Bool)
+  --   gr = Graph $ \i -> pure $ i V.++ i
+
+
+replicateC :: forall m a. (KnownNat m, OkCircuit a) => Circuit a (Vec m a)
+replicateC = primitive $ raw $ Circuit gr $ primSignal $ V.concat . V.repeat
   where
-    gr :: Graph (Vec (SizeOf a) Bool) (Vec (SizeOf (a, a)) Bool)
-    gr = Graph $ \i -> pure $ i V.++ i
+    gr = Graph $ pure . V.concat . V.repeat
 
 
 fst' :: (OkCircuit a, OkCircuit b) => Circuit (a, b) a
@@ -506,7 +516,7 @@ bypassing c = Circuit (c_graph c) $ go $ c_roar c
   where
     go :: Signal a b -> Signal a b
     go c0 = Signal $ \v ->
-      case all isNothing $ V.toList v of
+      case any isNothing $ V.toList v of
         True -> (go c0, V.repeat Nothing)
         False ->
           let (s, v') = pumpSignal c0 v

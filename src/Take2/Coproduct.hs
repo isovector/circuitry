@@ -239,6 +239,7 @@ coproductBranch ls rs
     = first' (unconsC >>> component "scrutinize" (scrutinize @(SizeOf (Coproduct ls)) @(SizeOf (Coproduct rs))))
   >>> swap
   >>> distribP
+  -- TODO(sandy): THIS DOESNT TRIBUF BEFORE ELIMINATING
   >>> (reassoc >>> first' (swap >>> gelim ls))
   *** (reassoc >>> first' (swap >>> gelim rs))
   >>> -- component "unify"
@@ -253,7 +254,8 @@ scrutinize
     => Circuit (Bool, Vec (Max a r) Bool)
                ((Vec a Bool, Bool), (Vec r Bool, Bool))
 scrutinize
-      = swap
+      = bypassing
+      $ swap
     >>> copy
     >>> (second' (notGate >>> copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst'))
     *** (second' (            copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst'))

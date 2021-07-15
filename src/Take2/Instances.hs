@@ -6,7 +6,10 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}
 
-module Take2.Instances where
+module Take2.Instances
+  ( module Take2.Instances
+  , Prim.unsafeReinterpret
+  ) where
 
 import           Circuitry.Category
 import           Clash.Sized.Vector (Vec(..))
@@ -35,8 +38,8 @@ instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
 
 instance SymmetricProduct Circuit where
   swap = Prim.swap
-  reassoc = unsafeReinterpret
-  reassoc' = unsafeReinterpret
+  reassoc = Prim.unsafeReinterpret
+  reassoc' = Prim.unsafeReinterpret
 
 instance MonoidalProduct Circuit where
   (***) = (Prim.***)
@@ -65,7 +68,7 @@ instance Distrib Circuit where
     >>> second' serial
     >>> consC
     >>> case proveMaxPlusOne @(SizeOf a) @(SizeOf b) @(SizeOf c) of
-          Refl -> unsafeReinterpret
+          Refl -> Prim.unsafeReinterpret
 
   factor
       :: forall a b c
@@ -76,13 +79,13 @@ instance Distrib Circuit where
     >>> unconsC
     >>> second'
         ( (case proveMaxPlusOne @(SizeOf a) @(SizeOf b) @(SizeOf c) of
-            Refl -> unsafeReinterpret
+            Refl -> Prim.unsafeReinterpret
           ) :: Circuit (Vec (Max (SizeOf a + SizeOf b) (SizeOf a + SizeOf c)) Bool)
                        (Vec (SizeOf a) Bool, Vec (Max (SizeOf b) (SizeOf c)) Bool))
     >>> reassoc
     >>> first' swap
     >>> reassoc'
-    >>> unsafeReinterpret
+    >>> Prim.unsafeReinterpret
 
 
 proveMaxPlusOne :: forall a b c. Max b c + a :~: Max (a + b) (a + c)
@@ -123,33 +126,30 @@ instance Cocartesian Circuit where
         >>> second' (constC False)
         >>> swap
         >>> second' (serial >>> Prim.pad False)
-        >>> unsafeReinterpret
+        >>> Prim.unsafeReinterpret
   injectR = create
         >>> second' (constC True)
         >>> swap
         >>> second' (serial >>> Prim.pad False)
-        >>> unsafeReinterpret
+        >>> Prim.unsafeReinterpret
   unify = serial
       >>> unconsC
       >>> snd'
       >>> unsafeParse
-  tag = unsafeReinterpret
+  tag = Prim.unsafeReinterpret
 
 {-# RULES
-"unsafeReinterpret . unsafeReinterpret" unsafeReinterpret . unsafeReinterpret = unsafeReinterpret
+"Prim.unsafeReinterpret . Prim.unsafeReinterpret" Prim.unsafeReinterpret . Prim.unsafeReinterpret = Prim.unsafeReinterpret
 #-}
 
 
-unsafeReinterpret :: (OkCircuit a, OkCircuit b, SizeOf a ~ SizeOf b) => Circuit a b
-unsafeReinterpret = Prim.raw id
-
 
 raise :: OkCircuit a => Circuit a (Vec 1 a)
-raise = unsafeReinterpret
+raise = Prim.unsafeReinterpret
 
 
 lower :: OkCircuit a => Circuit (Vec 1 a) a
-lower = unsafeReinterpret
+lower = Prim.unsafeReinterpret
 
 
 eitherE
@@ -164,7 +164,7 @@ eitherE l r = serial
 
 
 constC :: forall a. (Show a, Embed a) => a -> Circuit () a
-constC a = unsafeReinterpret @_ @(Vec 0 a) >>> Prim.pad a >>> lower
+constC a = Prim.unsafeReinterpret @_ @(Vec 0 a) >>> Prim.pad a >>> lower
 
 
 injl :: (OkCircuit a, OkCircuit b) => Circuit a (Either a b)
@@ -180,35 +180,35 @@ injr = injl >>> swapE
 
 
 create :: OkCircuit a => Circuit a (a, ())
-create = unsafeReinterpret
+create = Prim.unsafeReinterpret
 
 
 destroy :: OkCircuit a => Circuit (a, ()) a
-destroy = unsafeReinterpret
+destroy = Prim.unsafeReinterpret
 
 
 serial :: OkCircuit a => Circuit a (Vec (SizeOf a) Bool)
-serial = unsafeReinterpret
+serial = Prim.unsafeReinterpret
 
 
 unsafeParse :: OkCircuit a => Circuit (Vec (SizeOf a) Bool) a
-unsafeParse = unsafeReinterpret
+unsafeParse = Prim.unsafeReinterpret
 
 
 consC :: (KnownNat n, OkCircuit a) => Circuit (a, Vec n a) (Vec (n + 1) a)
-consC = unsafeReinterpret
+consC = Prim.unsafeReinterpret
 
 
 unconsC :: (KnownNat n, OkCircuit a) => Circuit (Vec (n + 1) a) (a, Vec n a)
-unconsC = unsafeReinterpret
+unconsC = Prim.unsafeReinterpret
 
 
 separate :: (KnownNat m, KnownNat n, m <= n, OkCircuit a) => Circuit (Vec n a) (Vec m a, Vec (n - m) a)
-separate = unsafeReinterpret
+separate = Prim.unsafeReinterpret
 
 
 unseparate :: (KnownNat m, KnownNat n, m <= n, OkCircuit a) => Circuit (Vec m a, Vec (n - m) a) (Vec n a)
-unseparate = unsafeReinterpret
+unseparate = Prim.unsafeReinterpret
 
 
 ifC :: (OkCircuit a, OkCircuit b) => Circuit a b -> Circuit a b -> Circuit (Bool, a) b
@@ -368,14 +368,14 @@ sequenceMetaV
     :: (Embed a, Embed b, KnownNat cases)
     => Vec cases (Circuit a b)
     -> Circuit a (Vec cases b)
-sequenceMetaV Nil = create >>> snd' >>> unsafeReinterpret
+sequenceMetaV Nil = create >>> snd' >>> Prim.unsafeReinterpret
 sequenceMetaV (Cons c v) = copy >>> first' c >>> second' (sequenceMetaV v) >>> consC
 
 parallelMetaV
     :: (Embed a, Embed b, KnownNat cases)
     => Vec cases (Circuit a b)
     -> Circuit (Vec cases a) (Vec cases b)
-parallelMetaV Nil = create >>> snd' >>> unsafeReinterpret
+parallelMetaV Nil = create >>> snd' >>> Prim.unsafeReinterpret
 parallelMetaV (Cons c v) = unconsC >>> c *** parallelMetaV v >>> consC
 
 pointwiseShort
@@ -390,4 +390,7 @@ pairwiseShort = Prim.zipVC >>> mapV (serial >>> Prim.unsafeShort)
 
 intro :: forall b a. (Embed a, Embed b, Show b) => b -> Circuit a (a, b)
 intro b = create >>> second' (constC b)
+
+todo :: (Embed a, Embed b) => Circuit a b
+todo = create >>> snd' >>> serial >>> Prim.pad False >>> unsafeParse
 

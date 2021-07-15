@@ -14,6 +14,7 @@ import Take2.Computer.Memory
 import Take2.Computer.Register
 import Take2.Computer.Instruction
 import Take2.Machinery
+import Take2.Computer.Simple (eq, ext, sext)
 
 
 
@@ -61,9 +62,6 @@ cpuImpl1 =
           execute1
      :+| End
 
-
-todo :: (Embed a, Embed b) => Circuit a b
-todo = create >>> snd' >>> serial >>> pad False >>> unsafeParse
 
 aluBinaryOp1
     :: forall name
@@ -129,13 +127,12 @@ execute1
   :+| #_IAShiftR :-> aluUnaryOp1 #_AluAShiftR
   :+| #_IJump :-> first' swap
               >>> reassoc'
-              >>> (serial >>> pad False >>> unsafeParse @W)
+              >>> (serial >>> ext >>> unsafeParse @W)
               *** (swap >>> getReg)
               >>> inj @(AluCommand W) #_AluAdd
               >>> inj #_BusAlu
-  :+| #_IBranchEq :-> todo
-  :+| #_IBranchNeq :-> todo
-  :+| #_PADDING_ :-> todo
+  :+| #_IBranchZ :-> branch1
+  :+| #_INop :-> todo
   :+| End
 
 execute2
@@ -157,9 +154,8 @@ execute2
   :+| #_IJump :-> snd'
               >>> swap
               >>> replace #reg_PC
-  :+| #_IBranchEq :-> todo
-  :+| #_IBranchNeq :-> todo
-  :+| #_PADDING_ :-> todo
+  :+| #_IBranchZ :-> branch2
+  :+| #_INop :-> snd' >>> fst'
   :+| End
 
 move :: Circuit ((Register, Register), Registers PC SP W) (Registers PC SP W)
@@ -211,6 +207,39 @@ loadLoOrHigh f
     >>> setReg
 
 
+getReg1
+    :: Embed a
+    => Circuit ((Register, a), Registers PC SP W)
+               (W, (a, Registers PC SP W))
+getReg1 = swap *** copy
+      >>> reassoc'
+      >>> second' (reassoc >>> first' (swap >>> getReg))
+      >>> reassoc
+      >>> first' swap
+      >>> reassoc'
+
+
+branch1 :: Circuit ((Register, HalfW), Registers PC SP W)
+                   (BusCommand N W)
+branch1 = first' snd'
+      >>> second' (proj #reg_PC)
+      >>> first' (serial >>> sext >>> unsafeParse @W)
+      >>> inj @(AluCommand W) #_AluAdd
+      >>> inj #_BusAlu
+
+
+branch2 :: Circuit ((Register, HalfW), (Registers PC SP W, W))
+                   (Registers PC SP W)
+branch2 = reassoc
+      >>> first'
+          ( getReg1
+        >>> first' (intro 1 >>> eq)
+        >>> second' snd'
+          )
+      >>> reassoc'
+      >>> ifC (swap >>> replace #reg_PC) fst'
+
+
 
 incPC
     :: Circuit (Registers PC SP W) (BusCommand N W)
@@ -250,6 +279,7 @@ decodeInstr = unsafeReinterpret
 fetch
     :: Circuit (Registers PC SP W) (BusCommand N W)
 fetch = proj #reg_PC
+    >>> traceC "PC"
     >>> serial
     >>> separate @N
     >>> fst'

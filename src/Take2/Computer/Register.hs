@@ -72,10 +72,12 @@ instance (Arbitrary pc, Arbitrary sp, Arbitrary word) => Arbitrary (Registers pc
 
 
 getReg
-    :: (Embed pc, Embed sp, Embed word, Typeable pc, Typeable sp, Typeable word, SeparatePorts word)
+    :: forall pc sp word
+     . (Embed pc, Embed sp, Embed word, Typeable pc, Typeable sp, Typeable word, SeparatePorts word)
     => Circuit (Registers pc sp word, Register) word
 getReg
-    = component "getReg"
+    = shortcircuit fast
+    $ component "getReg"
     $ (swap >>>)
     $ elim
     $ foldElim
@@ -96,13 +98,35 @@ getReg
   :+| #_R15 :~> proj #reg_R15
   :+| #_R16 :~> proj #reg_R16
   :+| End
+  where
+    fast :: (Registers pc sp word, Register) -> word
+    fast (regs, reg) =
+      (case reg of
+        R1 -> reg_R1
+        R2 -> reg_R2
+        R3 -> reg_R3
+        R4 -> reg_R4
+        R5 -> reg_R5
+        R6 -> reg_R6
+        R7 -> reg_R7
+        R8 -> reg_R8
+        R9 -> reg_R9
+        R10 -> reg_R10
+        R11 -> reg_R11
+        R12 -> reg_R12
+        R13 -> reg_R13
+        R14 -> reg_R14
+        R15 -> reg_R15
+        R16 -> reg_R16) regs
 
 
 setReg
-    :: (Embed pc, Embed sp, Embed word, Typeable pc, Typeable sp, Typeable word, SeparatePorts word)
+    :: forall pc sp word
+     . (Embed pc, Embed sp, Embed word, Typeable pc, Typeable sp, Typeable word, SeparatePorts word)
     => Circuit ((Register, word), Registers pc sp word) (Registers pc sp word)
 setReg
-    = component "setReg"
+    = shortcircuit fast
+    $ component "setReg"
     $ (reassoc' >>>)
     $ elim
     $ foldElim
@@ -123,6 +147,27 @@ setReg
   :+| #_R15 :~> replace #reg_R15
   :+| #_R16 :~> replace #reg_R16
   :+| End
+  where
+    fast :: ((Register, word), Registers pc sp word)
+         -> Registers pc sp word
+    fast ((reg, val), regs) =
+      case reg of
+        R1 ->  regs { reg_R1 = val }
+        R2 ->  regs { reg_R2 = val }
+        R3 ->  regs { reg_R3 = val }
+        R4 ->  regs { reg_R4 = val }
+        R5 ->  regs { reg_R5 = val }
+        R6 ->  regs { reg_R6 = val }
+        R7 ->  regs { reg_R7 = val }
+        R8 ->  regs { reg_R8 = val }
+        R9 ->  regs { reg_R9 = val }
+        R10 -> regs { reg_R10 = val }
+        R11 -> regs { reg_R11 = val }
+        R12 -> regs { reg_R12 = val }
+        R13 -> regs { reg_R13 = val }
+        R14 -> regs { reg_R14 = val }
+        R15 -> regs { reg_R15 = val }
+        R16 -> regs { reg_R16 = val }
 
 
 registers

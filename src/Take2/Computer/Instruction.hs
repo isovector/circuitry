@@ -21,6 +21,7 @@ proof = id
 data Instruction
   =      -- src1  -- src2  -- dst
     IAdd Register Register Register
+  -- | IAddI Register (Vec 4 Bool) Register
   | IAnd Register Register Register
   | IOr Register Register Register
   | IXOr Register Register Register
@@ -32,9 +33,8 @@ data Instruction
   | IShiftR Register Register
   | IAShiftR Register Register
   | IJump Register HalfW
-  | IBranchEq Register Register (Vec 4 Bool)
-  | IBranchNeq Register Register (Vec 4 Bool)
-  | PADDING_ (Vec 12 Bool)
+  | IBranchZ Register HalfW
+  | INop (Vec 12 Bool)
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass Embed
 
