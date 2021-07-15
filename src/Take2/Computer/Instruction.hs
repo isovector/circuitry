@@ -30,8 +30,9 @@ data Instruction
   | IShiftL Register Register
   | IShiftR Register Register
   | IAShiftR Register Register
-  | IJumpTo Register
-  | IJumpZ Register
+  | IJumpTo Register (Vec 8 Bool)
+  | IBranchEq Register Register (Vec 4 Bool)
+  | IBranchNeq Register Register (Vec 4 Bool)
   | PADDING_ (Vec 12 Bool)
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass Embed

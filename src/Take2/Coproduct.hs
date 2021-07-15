@@ -20,7 +20,7 @@ import           Prelude hiding (id)
 import           Take2.Circuit (Circuit, SeparatePorts)
 import           Take2.Embed hiding (Length)
 import           Take2.Instances
-import           Take2.Primitives (Dict(Dict), pad)
+import           Take2.Primitives (Dict(Dict), pad, bypassing)
 import           Take2.Sing
 import           Unsafe.Coerce (unsafeCoerce)
 
@@ -223,11 +223,11 @@ gelim
      . (Embed r, Embed (Coproduct xs), KnownNat (SizeOf b), Embed b, SeparatePorts b)
     => Elim xs b r
     -> Circuit (BitsOf (Coproduct xs), b) (BitsOf r)
-gelim (name@InjName :-> f) = component (symbolVal name) (first' unsafeParse) >>> f >>> serial
-gelim (name@InjName :=> f) = component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
-gelim (name@InjName :~> f) = component (symbolVal name) snd' >>> f >>> serial
-gelim (name@InjName :=~> f) = component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
-gelim (Both ls rs) = coproductBranch ls rs
+gelim (name@InjName :-> f) = bypassing $ component (symbolVal name) (first' unsafeParse) >>> f >>> serial
+gelim (name@InjName :=> f) = bypassing $ component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
+gelim (name@InjName :~> f) = bypassing $ component (symbolVal name) snd' >>> f >>> serial
+gelim (name@InjName :=~> f) = bypassing $ component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
+gelim (Both ls rs) = bypassing $ coproductBranch ls rs
 
 coproductBranch
     :: forall ls rs b r

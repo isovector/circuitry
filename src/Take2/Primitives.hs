@@ -26,6 +26,7 @@ import qualified Yosys as Y
 import Data.Proxy
 import GHC.TypeLits.Extra
 import Debug.Trace (trace)
+import Data.Maybe (isNothing)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -498,4 +499,16 @@ traceC n
   $ Circuit id
   $ primSignal
   $ \v -> trace (n <> ": " <> show (fmap (reify @a) $ V.traverse# id v)) v
+
+
+bypassing :: forall a b. Embed b => Circuit a b -> Circuit a b
+bypassing c = Circuit (c_graph c) $ go $ c_roar c
+  where
+    go :: Signal a b -> Signal a b
+    go c0 = Signal $ \v ->
+      case all isNothing $ V.toList v of
+        True -> (go c0, V.repeat Nothing)
+        False ->
+          let (s, v') = pumpSignal c0 v
+           in (go s, v')
 

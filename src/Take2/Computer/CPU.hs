@@ -120,14 +120,15 @@ execute1
   :+| #_IOr  :-> aluBinaryOp1 #_AluOr
   :+| #_IXOr :-> aluBinaryOp1 #_AluXor
   :+| #_INot :-> aluUnaryOp1 #_AluNot
-  :+| #_IMove :-> todo
-  :+| #_ILoadHi :-> todo
-  :+| #_ILoadLo :-> todo -- not actually todo
+  :+| #_IMove :-> todo    -- not actually todo
+  :+| #_ILoadHi :-> todo  -- not actually todo
+  :+| #_ILoadLo :-> todo  -- not actually todo
   :+| #_IShiftL :-> aluUnaryOp1 #_AluShiftL
   :+| #_IShiftR :-> aluUnaryOp1 #_AluShiftR
   :+| #_IAShiftR :-> aluUnaryOp1 #_AluAShiftR
   :+| #_IJumpTo :-> todo
-  :+| #_IJumpZ :-> todo
+  :+| #_IBranchEq :-> todo
+  :+| #_IBranchNeq :-> todo
   :+| #_PADDING_ :-> todo
   :+| End
 
@@ -148,7 +149,8 @@ execute2
   :+| #_IShiftR :-> aluUnaryOp2
   :+| #_IAShiftR :-> aluUnaryOp2
   :+| #_IJumpTo :-> todo
-  :+| #_IJumpZ :-> todo
+  :+| #_IBranchEq :-> todo
+  :+| #_IBranchNeq :-> todo
   :+| #_PADDING_ :-> todo
   :+| End
 
