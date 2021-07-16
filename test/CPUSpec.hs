@@ -65,6 +65,23 @@ spec = do
   --     ] 2)
   --     === (Just $ fromIntegral $ bool 2 (2 + full_b) $ n == 0)
 
+  prop "BranchZ negative" $ do
+    let nop = INop $ V.repeat False
+    fmap reg_PC (evalProgram
+      [ IJump R1 10
+      , nop
+      , nop
+      , nop
+      , nop
+      , nop
+      , nop
+      , nop
+      , nop
+      , nop
+      , IBranchZ R1 $ twosComplement 6
+      ] 2)
+      === Just 5
+
   let b = 4
   prop "it multiplies!" $
     fmap reg_R11 (evalProgram
@@ -72,12 +89,11 @@ spec = do
       , ILoadLo R2 0    --     i = 0
       , ILoadLo R3 b    --     b = `b`
       , ILoadLo R4 0    --     r = 0
-      , ILoadLo R5 1    --     j = 1
       , IXOr R2 R3 R10  -- z = i ^ b
       , IBranchZ R10 3  -- if ( z != 0 ) // aka  i /= b {
-      , IAdd R2 R5 R2   --   i++
+      , IAddI R2 1 R2   --   i++
       , IAdd R1 R4 R4   --   r += a
-      , IJump R16 5     -- }
+      , IJump R16 4     -- }
       , IMove R4 R11
       ] (6 + (b + 1) * 2 + (b * 3)))
       === Just (b * 7)

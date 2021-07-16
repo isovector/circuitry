@@ -78,7 +78,7 @@ onEach f v = sequenceMetaV $ fmap f v
 
 
 sext
-    :: forall m n
+    :: forall n m
      . (KnownNat m, KnownNat n, 1 <= m, (m - 1) <= n)
     => Circuit (Vec m Bool) (Vec n Bool)
 sext

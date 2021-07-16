@@ -19,9 +19,10 @@ proof :: Proxy (SizeOf Instruction) -> Proxy (SizeOf W)
 proof = id
 
 data Instruction
-  =      -- src1  -- src2  -- dst
-    IAdd Register Register Register
-  -- | IAddI Register (Vec 4 Bool) Register
+  = INop (Vec 12 Bool)
+         -- src1  -- src2  -- dst
+  | IAdd Register Register Register
+  | IAddI Register Word4 Register
   | IAnd Register Register Register
   | IOr Register Register Register
   | IXOr Register Register Register
@@ -34,7 +35,6 @@ data Instruction
   | IAShiftR Register Register
   | IJump Register HalfW
   | IBranchZ Register HalfW
-  | INop (Vec 12 Bool)
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass Embed
 

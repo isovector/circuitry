@@ -113,7 +113,9 @@ execute1 :: Circuit (Instruction, Registers PC SP W) (BusCommand N W)
 execute1
     = elim
     $ foldElim
-    $ #_IAdd :-> aluBinaryOp1 #_AluAdd
+    $ #_INop :-> todo
+  :+| #_IAdd :-> aluBinaryOp1 #_AluAdd
+  :+| #_IAddI :-> addI
   :+| #_IAnd :-> aluBinaryOp1 #_AluAnd
   :+| #_IOr  :-> aluBinaryOp1 #_AluOr
   :+| #_IXOr :-> aluBinaryOp1 #_AluXor
@@ -131,15 +133,29 @@ execute1
               >>> inj @(AluCommand W) #_AluAdd
               >>> inj #_BusAlu
   :+| #_IBranchZ :-> branch1
-  :+| #_INop :-> todo
   :+| End
+
+
+addI :: Circuit ((Register, (Word4, Register)), Registers PC SP W) (BusCommand N W)
+addI = getReg1
+   >>> reassoc
+   >>> first' (second' (fst' >>> serial >>> sext @(SizeOf W) >>> unsafeParse @W))
+   >>> fst'
+   >>> inj @(AluCommand W) #_AluAdd
+   >>> inj #_BusAlu
+
 
 execute2
     :: Circuit (Instruction, (Registers PC SP W, W)) (Registers PC SP W)
 execute2
     = elim
     $ foldElim
-    $ #_IAdd :-> aluBinaryOp2
+    $ #_INop :-> snd' >>> fst'
+  :+| #_IAdd :-> aluBinaryOp2
+  :+| #_IAddI :-> (snd' >>> snd')
+              *** swap
+              >>> reassoc
+              >>> setReg
   :+| #_IAnd :-> aluBinaryOp2
   :+| #_IOr  :-> aluBinaryOp2
   :+| #_IXOr :-> aluBinaryOp2
@@ -154,7 +170,6 @@ execute2
               >>> swap
               >>> replace #reg_PC
   :+| #_IBranchZ :-> branch2
-  :+| #_INop :-> snd' >>> fst'
   :+| End
 
 move :: Circuit ((Register, Register), Registers PC SP W) (Registers PC SP W)
