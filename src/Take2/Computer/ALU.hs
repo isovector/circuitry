@@ -20,7 +20,7 @@ data AluCommand a
   | AluShiftL a
   | AluShiftR a
   | AluAShiftR a
-  deriving stock Generic
+  deriving stock (Show, Generic)
   deriving anyclass Embed
 
 instance Arbitrary a => Arbitrary (AluCommand a) where

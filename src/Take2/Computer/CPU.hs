@@ -38,7 +38,6 @@ cpu rom
   >>> second' copy
   >>> reassoc'
   >>> second' reassoc
-  >>> second' (first' $ first' $ traceC "step")
   >>> second' ( first'
               $ cpuImpl1
             >>> cpuBus rom
@@ -59,7 +58,7 @@ cpuImpl1 =
      :+| #_Decode :->
           snd' >>> incPC
      :+| #_Execute :->
-          execute1
+          first' (traceC "execute") >>> execute1
      :+| End
 
 
@@ -233,7 +232,7 @@ branch2 :: Circuit ((Register, HalfW), (Registers PC SP W, W))
 branch2 = reassoc
       >>> first'
           ( getReg1
-        >>> first' (intro 1 >>> eq)
+        >>> first' (intro 0 >>> eq)
         >>> second' snd'
           )
       >>> reassoc'
@@ -279,7 +278,6 @@ decodeInstr = unsafeReinterpret
 fetch
     :: Circuit (Registers PC SP W) (BusCommand N W)
 fetch = proj #reg_PC
-    >>> traceC "PC"
     >>> serial
     >>> separate @N
     >>> fst'

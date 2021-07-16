@@ -16,7 +16,7 @@ data BusCommand n word
   = BusMemory (MemoryCommand n word)
   | BusAlu    (AluCommand word)
   | BusROM    (Addr n)
-  deriving stock Generic
+  deriving stock (Show, Generic)
   deriving anyclass Embed
 
 bus

@@ -10,6 +10,7 @@ import           Test.Hspec
 import           Test.Hspec.QuickCheck
 import Numeric.Natural (Natural)
 import Data.Bits
+import Data.Bool (bool)
 
 
 runProg :: [Instruction] -> Circuit () (Registers PC SP W)
@@ -25,7 +26,7 @@ runProg prog
 
 evalProgram :: [Instruction] -> Natural -> Maybe (Registers PC SP W)
 evalProgram prog t =
-  evalCircuit (runProg prog >>> traceC "final") () (t * 3 - 1)
+  evalCircuit (runProg prog) () (t * 3 - 1)
 
 
 spec :: Spec
@@ -56,21 +57,29 @@ spec = do
   --     ] 8)
   --     === Just 258
 
+  -- prop "BranchZ positive" $ \r n b -> do
+  --   let full_b = reify $ padV @8 @7 b
+  --   fmap reg_PC (evalProgram
+  --     [ ILoadLo r n   -- let a = 7
+  --     , IBranchZ r full_b
+  --     ] 2)
+  --     === (Just $ fromIntegral $ bool 2 (2 + full_b) $ n == 0)
+
   let b = 4
   prop "it multiplies!" $
     fmap reg_R11 (evalProgram
-      [ ILoadLo R1 7   -- let a = 7
-      , ILoadLo R2 0   --     i = 0
-      , ILoadLo R3 0   --     b = 4
-      , ILoadLo R4 0   --     r = 0
-      , ILoadLo R5 1   --     j = 1
+      [ ILoadLo R1 7    -- let a = 7
+      , ILoadLo R2 0    --     i = 0
+      , ILoadLo R3 b    --     b = `b`
+      , ILoadLo R4 0    --     r = 0
+      , ILoadLo R5 1    --     j = 1
       , IXOr R2 R3 R10  -- z = i ^ b
-      , IBranchZ R10 3
-      , IAdd R2 R5 R2  -- i++
-      , IAdd R1 R4 R4  -- r += a
-      , IJump R16 5
+      , IBranchZ R10 3  -- if ( z != 0 ) // aka  i /= b {
+      , IAdd R2 R5 R2   --   i++
+      , IAdd R1 R4 R4   --   r += a
+      , IJump R16 5     -- }
       , IMove R4 R11
-      ] 7)
+      ] (6 + (b + 1) * 2 + (b * 3)))
       === Just (b * 7)
 
 twosComplement :: (Num a , Bits a) => a -> a
