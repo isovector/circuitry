@@ -2,7 +2,7 @@ module Take2.Computer.Math where
 
 import           Prelude hiding ((.), id, sum)
 import           Take2.Machinery
-import qualified Yosys as Y
+import qualified Circus.Types as Y
 
 
 everyPair

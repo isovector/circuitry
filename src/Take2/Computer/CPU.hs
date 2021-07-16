@@ -10,9 +10,9 @@ module Take2.Computer.CPU where
 import Prelude hiding ((.), id, sum)
 import Take2.Computer.ALU
 import Take2.Computer.Bus
-import Take2.Computer.Memory
 import Take2.Computer.Register
 import Take2.Computer.Instruction
+import Take2.Computer.Poly
 import Take2.Machinery
 import Take2.Computer.Simple (eq, ext, sext)
 

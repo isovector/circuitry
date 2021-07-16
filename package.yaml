@@ -17,7 +17,7 @@ dependencies:
 - ghc-typelits-natnormalise
 - ghc-typelits-knownnat
 - ghc-typelits-extra
-- cirtography
+- circus
 - text
 - aeson
 - hspec

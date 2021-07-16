@@ -40,4 +40,3 @@ bus rom =
      :+| #_BusROM :=> mkRom rom >>> serial
      :+| End
 
-

@@ -6,7 +6,7 @@ import qualified Clash.Sized.Vector as V
 import           Prelude hiding ((.), id, sum)
 import           Take2.Machinery
 import           Take2.Primitives (gateDiagram, constantName)
-import qualified Yosys as Y
+import qualified Circus.Types as Y
 
 
 

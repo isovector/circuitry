@@ -60,22 +60,22 @@ instance GEmbed f => GEmbed (M1 _1 _2 f) where
   type GSizeOf (M1 _1 _2 f) = GSizeOf f
   gembed = gembed . unM1
   greify = M1 . greify
-  {-# INLINE[~2] gembed #-}
-  {-# INLINE[~2] greify #-}
+  {-# INLINABLE[~2] gembed #-}
+  {-# INLINABLE[~2] greify #-}
 
 instance GEmbed U1 where
   type GSizeOf U1 = 0
   gembed U1 = Nil
   greify _ = U1
-  {-# INLINE[~2] gembed #-}
-  {-# INLINE[~2] greify #-}
+  {-# INLINABLE[~2] gembed #-}
+  {-# INLINABLE[~2] greify #-}
 
 instance Embed a => GEmbed (K1 _1 a) where
   type GSizeOf (K1 _1 a) = SizeOf a
   gembed = embed . unK1
   greify = K1 . reify
-  {-# INLINE[~2] gembed #-}
-  {-# INLINE[~2] greify #-}
+  {-# INLINABLE[~2] gembed #-}
+  {-# INLINABLE[~2] greify #-}
 
 instance (GEmbed f, GEmbed g) => GEmbed (f :*: g) where
   type GSizeOf (f :*: g) = GSizeOf f + GSizeOf g
@@ -83,8 +83,8 @@ instance (GEmbed f, GEmbed g) => GEmbed (f :*: g) where
   greify v =
     let (a, b) = V.splitAtI v
      in greify a :*: greify b
-  {-# INLINE[~2] gembed #-}
-  {-# INLINE[~2] greify #-}
+  {-# INLINABLE[~2] gembed #-}
+  {-# INLINABLE[~2] greify #-}
 
 instance (GEmbed f, GEmbed g) => GEmbed (f :+: g) where
   type GSizeOf (f :+: g) = Max (GSizeOf f) (GSizeOf g) + 1
@@ -101,8 +101,8 @@ instance (GEmbed f, GEmbed g) => GEmbed (f :+: g) where
           False -> L1 $ greify $ V.takeI v
           True  -> R1 $ greify $ V.takeI v
   greify _ = error "impossible"
-  {-# INLINE[~2] gembed #-}
-  {-# INLINE[~2] greify #-}
+  {-# INLINABLE[~2] gembed #-}
+  {-# INLINABLE[~2] greify #-}
 
 
 instance Embed ()
@@ -113,13 +113,13 @@ embedWord :: (B.Bits a, KnownNat m) => a -> Vec m Bool
 embedWord w =
   fromMaybe (error "embedWord: faulty Bits instance") $ V.fromList $
     fmap (B.testBit w) [0 .. B.bitSize w - 1]
-{-# INLINE[~2] embedWord #-}
+{-# INLINABLE[~2] embedWord #-}
 
 reifyWord :: (B.Bits a, KnownNat m, Num a) => Vec m Bool -> a
 reifyWord w =
   let s b = B.shiftL (bool 0 1 b)
    in foldr @[] (B..|.) 0 $ zipWith s (V.toList w) [0..]
-{-# INLINE[~2] reifyWord #-}
+{-# INLINABLE[~2] reifyWord #-}
 
 
 instance Embed Word2 where
@@ -197,7 +197,7 @@ withSomeNat i f =
   case someNatVal i of
    Nothing -> error "don't be an idiot"
    Just (SomeNat n) -> f n
-{-# INLINE withSomeNat #-}
+{-# INLINABLE withSomeNat #-}
 
 
 data HList (ts :: [Type]) where

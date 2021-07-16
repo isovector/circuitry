@@ -7,6 +7,10 @@ module Take2.Circuit where
 
 
 import           Circuitry.Category (Category(..))
+import           Circus.DSL
+import           Circus.Simplify
+import           Circus.Types (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
+import qualified Circus.Types as Y
 import           Clash.Sized.Vector (Vec)
 import qualified Clash.Sized.Vector as V
 import           Control.Lens ((<>~))
@@ -25,8 +29,6 @@ import           Take2.Embed
 import           Take2.Graph
 import           Take2.Signal
 import           Test.QuickCheck.Arbitrary (Arbitrary)
-import           Yosys (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
-import qualified Yosys as Y
 
 
 data Circuit a b = Circuit
@@ -89,7 +91,7 @@ getGraph ro c
 
     output' <- unGraph (c_graph c) input
     unifyBits $ M.fromList $ V.toList $ V.zip output output'
-    fmap Y.simplify $
+    fmap simplify $
       gets gs_module
 
 

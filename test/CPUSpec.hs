@@ -1,16 +1,17 @@
 module CPUSpec where
 
 import qualified Clash.Sized.Vector as V
+import           Data.Bits
+import           Data.Bool (bool)
+import           Numeric.Natural (Natural)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Computer.CPU
 import           Take2.Computer.Instruction
+import           Take2.Computer.Poly
 import           Take2.Computer.Register
 import           Take2.Machinery
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
-import Numeric.Natural (Natural)
-import Data.Bits
-import Data.Bool (bool)
 
 
 runProg :: [Instruction] -> Circuit () (Registers PC SP W)
@@ -95,7 +96,7 @@ spec = do
       , IAdd R1 R4 R4   --   r += a
       , IJump R16 4     -- }
       , IMove R4 R11
-      ] (6 + (b + 1) * 2 + (b * 3)))
+      ] (5 + (b + 1) * 2 + (b * 3)))
       === Just (b * 7)
 
 twosComplement :: (Num a , Bits a) => a -> a

@@ -3,11 +3,11 @@
 
 module Take2.Computer.Register where
 
-import Data.Typeable
 import qualified Clash.Sized.Vector as V
+import           Data.Typeable
 import           Prelude hiding ((.), id, sum)
 import           Take2.Machinery
-import Test.QuickCheck.Arbitrary.Generic (genericArbitrary)
+import           Test.QuickCheck.Arbitrary.Generic (genericArbitrary)
 
 
 data Register

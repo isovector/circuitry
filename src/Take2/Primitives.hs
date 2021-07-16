@@ -5,6 +5,8 @@
 module Take2.Primitives where
 
 import           Circuitry.Category (Category(..), (>>>))
+import           Circus.DSL
+import qualified Circus.Types as Y
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import           Control.Lens ((-~))
@@ -14,7 +16,9 @@ import qualified Data.Aeson as A
 import           Data.Bool (bool)
 import           Data.Generics.Labels ()
 import qualified Data.Map as M
+import           Data.Maybe (isNothing)
 import qualified Data.Text as T
+import           Debug.Trace (trace)
 import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
@@ -22,11 +26,6 @@ import           Take2.Embed
 import           Take2.Graph
 import           Take2.Signal (Signal (..), primSignal)
 import           Unsafe.Coerce (unsafeCoerce)
-import qualified Yosys as Y
-import Data.Proxy
-import GHC.TypeLits.Extra
-import Debug.Trace (trace)
-import Data.Maybe (isNothing)
 
 
 primitive :: Circuit a b -> Circuit a b
@@ -54,9 +53,9 @@ pullDown = primitive $ Circuit gr $ Signal $ \(v :> Nil) ->
     gr :: Graph Bool Bool
     gr = Graph $ \(v :> Nil) -> do
       vcc <- freshBit
-      addCell $ mkCell (Y.CellGeneric "$gnd") mempty $
+      addCell $ Y.mkCell (Y.CellGeneric "$gnd") $
         M.singleton "A" (Y.Output, [vcc])
-      addCell $ mkCell (Y.CellGeneric "$r") (M.singleton "value" "10k") $
+      addCell $ Y.mkCell' (Y.CellGeneric "$r") (M.singleton "value" "10k") $
         M.fromList
           [ ("B", (Y.Input, [vcc]))
           , ("A", (Y.Output, [v]))
@@ -70,29 +69,14 @@ pullUp = primitive $ Circuit gr $ Signal $ \(v :> Nil) ->
     gr :: Graph Bool Bool
     gr = Graph $ \(v :> Nil) -> do
       vcc <- freshBit
-      addCell $ mkCell (Y.CellGeneric "$vcc") mempty $
+      addCell $ Y.mkCell (Y.CellGeneric "$vcc") $
         M.singleton "A" (Y.Output, [vcc])
-      addCell $ mkCell (Y.CellGeneric "$r") (M.singleton "value" "10k") $
+      addCell $ Y.mkCell' (Y.CellGeneric "$r") (M.singleton "value" "10k") $
         M.fromList
           [ ("A", (Y.Input, [vcc]))
           , ("B", (Y.Output, [v]))
           ]
       pure $ v :> Nil
-
-
-mkCell
-    :: Y.CellType
-    -> M.Map T.Text A.Value
-    -> M.Map Y.PortName (Y.Direction, [Y.Bit])
-    -> Y.Cell
-mkCell ty as m =
-  Y.Cell
-    ty
-    (M.fromList $ fmap (\(pn, bs) -> (Y.Width pn, length bs)) $ M.toList $ fmap snd m)
-    as
-    (fmap fst m)
-    (fmap snd m)
-
 
 
 swap :: forall a b. (OkCircuit a, OkCircuit b) => Circuit (a, b) (b, a)
@@ -184,7 +168,10 @@ pad a = primitive $ Circuit gr $ primSignal $ \v -> v V.++ V.concat (V.repeat @(
 
 
 nandGate :: Circuit (Bool, Bool) Bool
-nandGate = primitive $ Circuit gr $ Signal $ \(mb1 :> mb2 :> Nil) ->
+nandGate
+  = primitive
+  $ Circuit (binaryGateDiagram Y.CellNand)
+  $ Signal $ \(mb1 :> mb2 :> Nil) ->
     (c_roar nandGate, (:> Nil) $ fmap not $
       case (mb1, mb2) of
         (Just b1, Just b2) -> Just $ b1 && b2
@@ -192,12 +179,6 @@ nandGate = primitive $ Circuit gr $ Signal $ \(mb1 :> mb2 :> Nil) ->
         (Nothing, Just b2) -> Just b2
         (Nothing, Nothing) -> Nothing
     )
-  where
-    gr :: Graph (Bool, Bool) Bool
-    gr = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
-      o <- freshBit
-      addCell $ Y.mkMonoidalBinaryOp Y.CellNand "A" "B" "Y" [i1] [i2] [o]
-      pure $ Cons o Nil
 
 
 tribuf :: Circuit (Bool, Bool) Bool
@@ -207,7 +188,11 @@ tribuf = primitive $ Circuit gr $ Signal $ \(a :> en :> Nil) ->
     gr :: Graph (Bool, Bool) Bool
     gr = Graph $ \(Cons i1 (Cons i2 Nil)) -> do
       out <- freshBit
-      addCell $ Y.mkMonoidalBinaryOp Y.CellTribuf "A" "EN" "Y" [i1] [i2] [out]
+      addCell $ Y.mkCell Y.CellTribuf $ M.fromList
+        [  ("A",  (Y.Input, [i1]))
+        ,  ("EN", (Y.Input, [i2]))
+        ,  ("Y",  (Y.Output, [out]))
+        ]
       pure $ Cons out Nil
 
 ------------------------------------------------------------------------------
@@ -331,7 +316,7 @@ fixC s0 k0 = primitive . Circuit gr . go s0 $ c_roar k0
       let (b, s') = V.splitAtI o
           subst = M.fromList $ V.toList $ V.zip s s'
       unifyBits subst
-      pure $ unifyBitsImpl subst b
+      pure $ unifyBitsPure subst b
 
 transposeV
     :: forall m n a
@@ -500,8 +485,13 @@ binaryGateDiagram
 binaryGateDiagram ty = Graph $ \i -> do
   let (a, b) = V.splitAtI @(SizeOf a) i
   c <- fst <$> separatePorts @c
-  addCell $ Y.mkMonoidalBinaryOp ty "A" "B" "Y" (V.toList a) (V.toList b) (V.toList c)
+  addCell $ Y.mkCell ty $ M.fromList
+    [ ("A", (Y.Input, V.toList a))
+    , ("B", (Y.Input, V.toList b))
+    , ("Y", (Y.Output, V.toList c))
+    ]
   pure c
+
 
 traceC :: forall a. (Embed a, Show a) => String -> Circuit a a
 traceC n

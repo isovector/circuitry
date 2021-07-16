@@ -6,14 +6,7 @@ import Prelude hiding ((.), id, sum)
 import Take2.Machinery
 import Data.Proxy
 import Take2.Computer.Register
-
-
-type PC = Word16
-type SP = Word16
-type W = Word16
-type HalfW = Word8
-type N = 8
-
+import Take2.Computer.Poly
 
 proof :: Proxy (SizeOf Instruction) -> Proxy (SizeOf W)
 proof = id

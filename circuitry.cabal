@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f242a25663d46685e5a1d15ec1236d1d735eca9910046af78cadf6ca1608a67f
+-- hash: 88a1027c61b09a9560f8ececa80eb8792c2685d3a83d46031345c834e1126ebb
 
 name:           circuitry
 version:        0.1.0.0
@@ -28,6 +28,7 @@ library
       Take2.Computer.Instruction
       Take2.Computer.Math
       Take2.Computer.Memory
+      Take2.Computer.Poly
       Take2.Computer.Register
       Take2.Computer.Simple
       Take2.Coproduct
@@ -100,7 +101,7 @@ library
     , aeson
     , base
     , bytestring
-    , cirtography
+    , circus
     , clash-prelude
     , containers
     , generic-arbitrary
@@ -128,6 +129,7 @@ test-suite test
       MiscSpec
       ProductSpec
       RegisterSpec
+      SimpleSpec
       TribufSpec
       Paths_circuitry
   hs-source-dirs:
@@ -192,7 +194,7 @@ test-suite test
     , base
     , bytestring
     , circuitry
-    , cirtography
+    , circus
     , clash-prelude
     , containers
     , generic-arbitrary

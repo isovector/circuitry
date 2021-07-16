@@ -12,6 +12,8 @@ module Take2.Instances
   ) where
 
 import           Circuitry.Category
+import           Circus.DSL
+import qualified Circus.Types as Y
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import qualified Data.Aeson as A
@@ -24,13 +26,12 @@ import           GHC.TypeLits.Extra (Max)
 import           Prelude hiding ((.), id, sum)
 import           Take2.Circuit
 import           Take2.Embed
-import           Take2.Graph (Graph(Graph), addCell, unifyBits, unifyBitsImpl, GraphM)
+import           Take2.Graph (Graph(Graph), GraphM)
 import qualified Take2.Primitives as Prim
 import           Take2.Signal (Signal)
 import           Test.QuickCheck
 import           Type.Reflection (type (:~:) (Refl))
 import           Unsafe.Coerce (unsafeCoerce)
-import qualified Yosys as Y
 
 
 instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
@@ -234,9 +235,11 @@ tribufAll = Prim.gateDiagram gr
       let (i1, i2) = V.splitAtI @n i
       o <- fst <$> separatePorts @(Vec n Bool)
       addCell $
-        Y.mkMonoidalBinaryOp
-          Y.CellTribuf "A" "EN" "Y"
-          (V.toList i1) (V.toList i2) (V.toList o)
+        Y.mkCell Y.CellTribuf $ M.fromList
+          [ ("A", (Y.Input, V.toList i1))
+          , ("EN", (Y.Input, V.toList i2))
+          , ("Y", (Y.Output, V.toList o))
+          ]
       pure o
 
 
@@ -361,7 +364,7 @@ interface' builder get_name = builder $ Graph $ \a -> do
       (M.fromList $ ip <> op)
   let subst = M.fromList $ V.toList $ V.zip ab a
   unifyBits subst
-  pure $ unifyBitsImpl subst o
+  pure $ unifyBitsPure subst o
 
 
 sequenceMetaV
