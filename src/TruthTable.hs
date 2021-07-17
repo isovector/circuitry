@@ -18,6 +18,7 @@ class Enumerable a where
   default enumerate :: (Generic a, GEnumerable (Rep a)) => [a]
   enumerate = fmap to genumerate
 
+
 class GEnumerable f where
   genumerate :: [f x]
 
@@ -35,6 +36,7 @@ instance GEnumerable U1 where
 
 instance Enumerable a => GEnumerable (K1 _1 a) where
   genumerate = fmap K1 enumerate
+
 
 newtype EnumerateEnum a = EnumerateEnum a
 
@@ -87,21 +89,24 @@ buildTable ls@((i,o):_)
   $ buildHeader (length i) (length o)
   : buildSpacer (length i + length o)
   : fmap (uncurry buildRow) ls
-
 buildTable [] = error "empty table"
+
 
 buildHeader :: Int -> Int -> String
 buildHeader ins outs
   = columnize
   $ fmap (mappend "In " . show) [1 .. ins] <> fmap (mappend "Out " . show) [1 .. outs]
 
+
 buildSpacer :: Int -> String
 buildSpacer cols
   = columnize
   $ "---" <$ [1 .. cols]
 
+
 buildRow :: [String] -> [String] -> String
 buildRow ins outs = columnize $ ins <> outs
+
 
 columnize :: [String] -> String
 columnize ins = "| " <> intercalate " | " ins <> " |"
