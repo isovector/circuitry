@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 88a1027c61b09a9560f8ececa80eb8792c2685d3a83d46031345c834e1126ebb
+-- hash: 010fe75b9424ac1611c9989065134a59cd398b70fa25e9b7c0e49f81d2f13412
 
 name:           circuitry
 version:        0.1.0.0
@@ -18,6 +18,7 @@ build-type:     Simple
 library
   exposed-modules:
       Circuitry.Category
+      Design
       Take2
       Take2.Circuit
       Take2.Computer.Addressed
@@ -42,6 +43,7 @@ library
       Take2.Signal
       Take2.Sing
       Take2.Word
+      TruthTable
   hs-source-dirs:
       src
   default-extensions:
@@ -112,6 +114,7 @@ library
     , hspec
     , lens
     , mtl
+    , process
     , profunctors
     , syb
     , text
@@ -205,6 +208,7 @@ test-suite test
     , hspec
     , lens
     , mtl
+    , process
     , profunctors
     , syb
     , text

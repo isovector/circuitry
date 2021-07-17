@@ -21,4 +21,5 @@ import Take2.Product as X
 import Take2.Signal as X (Time)
 import Take2.Word as X
 import Test.QuickCheck as X (Property, Arbitrary(..), CoArbitrary(..), Function(..), property, (===), forAllShrink, counterexample, quickCheck, resize, oneof, applyFun, functionMap)
+import TruthTable as X
 

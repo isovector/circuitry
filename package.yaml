@@ -23,6 +23,7 @@ dependencies:
 - hspec
 - syb
 - generic-arbitrary
+- process
 
 default-extensions:
   - EmptyCase
