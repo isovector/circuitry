@@ -3,7 +3,7 @@
 module Take2.Computer.Instruction where
 
 import Prelude hiding ((.), id, sum)
-import Take2.Machinery
+import Circuitry.Machinery
 import Data.Proxy
 import Take2.Computer.Register
 import Take2.Computer.Poly

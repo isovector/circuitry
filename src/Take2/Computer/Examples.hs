@@ -1,7 +1,7 @@
 module Take2.Computer.Examples where
 
 import Prelude hiding ((.), id, sum)
-import Take2.Machinery
+import Circuitry.Machinery
 import Take2.Computer.Math
 
 

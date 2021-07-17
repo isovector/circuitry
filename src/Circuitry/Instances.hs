@@ -6,8 +6,8 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}
 
-module Take2.Instances
-  ( module Take2.Instances
+module Circuitry.Instances
+  ( module Circuitry.Instances
   , Prim.unsafeReinterpret
   ) where
 
@@ -24,11 +24,11 @@ import qualified Data.Text as T
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
 import           Prelude hiding ((.), id, sum)
-import           Take2.Circuit
-import           Take2.Embed
-import           Take2.Graph (Graph(Graph), GraphM)
-import qualified Take2.Primitives as Prim
-import           Take2.Signal (Signal)
+import           Circuitry.Circuit
+import           Circuitry.Embed
+import           Circuitry.Graph (Graph(Graph), GraphM)
+import qualified Circuitry.Primitives as Prim
+import           Circuitry.Signal (Signal)
 import           Test.QuickCheck
 import           Type.Reflection (type (:~:) (Refl))
 import           Unsafe.Coerce (unsafeCoerce)

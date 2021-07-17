@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 010fe75b9424ac1611c9989065134a59cd398b70fa25e9b7c0e49f81d2f13412
+-- hash: 7a271c6279b4f9a6f370a79c3898191285ca0567df8b4e20ab5f4af1accf6842
 
 name:           circuitry
 version:        0.1.0.0
@@ -18,9 +18,19 @@ build-type:     Simple
 library
   exposed-modules:
       Circuitry.Category
+      Circuitry.Circuit
+      Circuitry.Coproduct
+      Circuitry.Embed
+      Circuitry.Graph
+      Circuitry.Instances
+      Circuitry.Machinery
+      Circuitry.Numeric
+      Circuitry.Primitives
+      Circuitry.Product
+      Circuitry.Signal
+      Circuitry.Sing
+      Circuitry.Word
       Design
-      Take2
-      Take2.Circuit
       Take2.Computer.Addressed
       Take2.Computer.ALU
       Take2.Computer.Bus
@@ -32,17 +42,6 @@ library
       Take2.Computer.Poly
       Take2.Computer.Register
       Take2.Computer.Simple
-      Take2.Coproduct
-      Take2.Embed
-      Take2.Graph
-      Take2.Instances
-      Take2.Machinery
-      Take2.Numeric
-      Take2.Primitives
-      Take2.Product
-      Take2.Signal
-      Take2.Sing
-      Take2.Word
       TruthTable
   hs-source-dirs:
       src

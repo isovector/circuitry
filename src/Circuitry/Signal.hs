@@ -2,14 +2,14 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Take2.Signal where
+module Circuitry.Signal where
 
 import Circuitry.Category
 import Clash.Sized.Vector (Vec)
 import Data.Function (fix)
 import Numeric.Natural (Natural)
 import Prelude hiding (id, (.), sum, zip)
-import Take2.Embed
+import Circuitry.Embed
 import Test.QuickCheck (CoArbitrary(..), Arbitrary (..), Function (..), functionMap)
 
 

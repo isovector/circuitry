@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Take2.Circuit where
+module Circuitry.Circuit where
 
 
 import           Circuitry.Category (Category(..))
@@ -25,9 +25,9 @@ import           GHC.Generics (Generic)
 import           GHC.TypeLits (Symbol, KnownSymbol, symbolVal, natVal)
 import           GHC.TypeNats (KnownNat)
 import           Prelude hiding ((.), id)
-import           Take2.Embed
-import           Take2.Graph
-import           Take2.Signal
+import           Circuitry.Embed
+import           Circuitry.Graph
+import           Circuitry.Signal
 import           Test.QuickCheck.Arbitrary (Arbitrary)
 
 

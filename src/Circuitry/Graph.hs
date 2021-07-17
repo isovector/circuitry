@@ -2,7 +2,7 @@
 {-# LANGUAGE MagicHash            #-}
 {-# LANGUAGE OverloadedLabels     #-}
 
-module Take2.Graph where
+module Circuitry.Graph where
 
 import           Circuitry.Category (Category(..))
 import           Clash.Sized.Vector (Vec(..))
@@ -12,7 +12,7 @@ import           Control.Monad.State
 import           Data.Generics.Labels ()
 import           GHC.Generics
 import           Prelude hiding ((.), id, sum)
-import           Take2.Embed
+import           Circuitry.Embed
 import           Circus.Types (Bit)
 import           Circus.DSL
 

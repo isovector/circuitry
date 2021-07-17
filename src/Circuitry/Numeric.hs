@@ -1,13 +1,13 @@
 
-module Take2.Numeric where
+module Circuitry.Numeric where
 
 import           Circuitry.Category (first')
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
 import           Data.Word
-import           Take2.Embed
-import Take2.Word
+import           Circuitry.Embed
+import Circuitry.Word
 
 class Numeric a where
   zero :: a

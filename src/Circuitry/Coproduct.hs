@@ -3,7 +3,7 @@
 
 {-# OPTIONS_GHC -fplugin-opt GHC.TypeLits.Normalise:allow-negated-numbers #-}
 
-module Take2.Coproduct where
+module Circuitry.Coproduct where
 
 import           Circuitry.Category
 import           Clash.Sized.Vector (Vec (..))
@@ -17,11 +17,11 @@ import           GHC.OverloadedLabels
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra (Max)
 import           Prelude hiding (id)
-import           Take2.Circuit (Circuit, SeparatePorts)
-import           Take2.Embed hiding (Length)
-import           Take2.Instances
-import           Take2.Primitives (Dict(Dict), pad, bypassing)
-import           Take2.Sing
+import           Circuitry.Circuit (Circuit, SeparatePorts)
+import           Circuitry.Embed hiding (Length)
+import           Circuitry.Instances
+import           Circuitry.Primitives (Dict(Dict), pad, bypassing)
+import           Circuitry.Sing
 import           Unsafe.Coerce (unsafeCoerce)
 
 

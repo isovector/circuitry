@@ -6,7 +6,7 @@
 module Take2.Computer.Bus where
 
 import Prelude hiding ((.), id, sum)
-import Take2.Machinery
+import Circuitry.Machinery
 import Take2.Computer.Memory
 import Take2.Computer.ALU
 import Type.Reflection

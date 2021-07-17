@@ -6,7 +6,7 @@ module Take2.Computer.Register where
 import qualified Clash.Sized.Vector as V
 import           Data.Typeable
 import           Prelude hiding ((.), id, sum)
-import           Take2.Machinery
+import           Circuitry.Machinery
 import           Test.QuickCheck.Arbitrary.Generic (genericArbitrary)
 
 

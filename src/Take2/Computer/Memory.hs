@@ -1,10 +1,11 @@
 {-# LANGUAGE UndecidableInstances #-}
+
 module Take2.Computer.Memory where
 
 import Prelude hiding ((.), id, sum)
 import Take2.Computer.Simple
 import Take2.Computer.Addressed
-import Take2.Machinery
+import Circuitry.Machinery
 import Test.QuickCheck.Arbitrary.Generic (genericArbitrary, genericShrink)
 import Data.Typeable (Typeable)
 

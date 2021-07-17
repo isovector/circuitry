@@ -9,8 +9,8 @@ import Data.List (intercalate)
 import Data.Maybe (isJust, isNothing, fromJust)
 import GHC.Generics
 import GHC.TypeLits (type (<=))
-import Take2.Circuit
-import Take2.Embed
+import Circuitry.Circuit
+import Circuitry.Embed
 
 
 class Enumerable a where

@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Take2.Primitives where
+module Circuitry.Primitives where
 
 import           Circuitry.Category (Category(..), (>>>))
 import           Circus.DSL
@@ -21,10 +21,10 @@ import qualified Data.Text as T
 import           Debug.Trace (trace)
 import           GHC.TypeLits
 import           Prelude hiding ((.), id, sum)
-import           Take2.Circuit
-import           Take2.Embed
-import           Take2.Graph
-import           Take2.Signal (Signal (..), primSignal)
+import           Circuitry.Circuit
+import           Circuitry.Embed
+import           Circuitry.Graph
+import           Circuitry.Signal (Signal (..), primSignal)
 import           Unsafe.Coerce (unsafeCoerce)
 
 

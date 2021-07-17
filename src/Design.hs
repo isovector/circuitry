@@ -6,7 +6,7 @@ import Data.List (group)
 import Data.Maybe (fromMaybe, isJust)
 import Prelude hiding ((.), id)
 import System.Process (callProcess)
-import Take2.Machinery
+import Circuitry.Machinery
 
 
 __design

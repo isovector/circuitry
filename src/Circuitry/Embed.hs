@@ -4,8 +4,8 @@
 {-# OPTIONS_GHC -Wno-deprecations #-}
 {-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}
 
-module Take2.Embed
-  ( module Take2.Embed
+module Circuitry.Embed
+  ( module Circuitry.Embed
   , Identity(..)
   ) where
 
@@ -24,7 +24,7 @@ import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra
 import           Prelude hiding ((.), id, sum)
-import           Take2.Word
+import           Circuitry.Word
 import           Test.QuickCheck (Arbitrary(..), oneof)
 import Data.Functor.Identity
 

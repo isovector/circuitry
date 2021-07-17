@@ -2,7 +2,7 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Take2.Product (proj, replace, ProjName, FlattenSels) where
+module Circuitry.Product (proj, replace, ProjName, FlattenSels) where
 
 import Circuitry.Category
 import Clash.Sized.Vector (Vec (..))
@@ -11,10 +11,10 @@ import Data.Proxy
 import GHC.Generics
 import GHC.OverloadedLabels (IsLabel, fromLabel)
 import GHC.TypeLits
-import Take2.Circuit
-import Take2.Embed
-import Take2.Instances
-import Take2.Primitives (Dict(Dict))
+import Circuitry.Circuit
+import Circuitry.Embed
+import Circuitry.Instances
+import Circuitry.Primitives (Dict(Dict))
 import Unsafe.Coerce (unsafeCoerce)
 
 data ProjName (name  :: Symbol) = ProjName

@@ -1,4 +1,4 @@
-module Take2.Word (Word2 (..), Word3(..), Word4 (..)) where
+module Circuitry.Word (Word2 (..), Word3(..), Word4 (..)) where
 
 import Data.Bits
 import Data.Typeable

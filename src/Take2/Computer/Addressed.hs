@@ -1,7 +1,7 @@
 module Take2.Computer.Addressed where
 
 import Prelude hiding ((.), id, sum)
-import Take2.Machinery
+import Circuitry.Machinery
 
 ------------------------------------------------------------------------------
 -- | Duplicate the given circuit @2^n@ times, and put a decoder on the address.

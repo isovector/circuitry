@@ -1,7 +1,7 @@
 module Take2.Computer.Math where
 
 import           Prelude hiding ((.), id, sum)
-import           Take2.Machinery
+import           Circuitry.Machinery
 import qualified Circus.Types as Y
 
 

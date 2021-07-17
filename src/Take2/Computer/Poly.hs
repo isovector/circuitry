@@ -1,7 +1,7 @@
 module Take2.Computer.Poly where
 
 import Prelude hiding ((.), id, sum)
-import Take2.Machinery
+import Circuitry.Machinery
 
 type PC = Word16
 type SP = Word16

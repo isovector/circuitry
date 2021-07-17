@@ -4,8 +4,8 @@ module Take2.Computer.Simple where
 
 import qualified Clash.Sized.Vector as V
 import           Prelude hiding ((.), id, sum)
-import           Take2.Machinery
-import           Take2.Primitives (gateDiagram, constantName)
+import           Circuitry.Machinery
+import           Circuitry.Primitives (gateDiagram, constantName)
 import qualified Circus.Types as Y
 
 

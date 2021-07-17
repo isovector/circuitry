@@ -13,7 +13,7 @@ import Take2.Computer.Bus
 import Take2.Computer.Register
 import Take2.Computer.Instruction
 import Take2.Computer.Poly
-import Take2.Machinery
+import Circuitry.Machinery
 import Take2.Computer.Simple (eq, ext, sext)
 
 

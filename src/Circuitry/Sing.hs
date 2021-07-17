@@ -1,6 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module Take2.Sing where
+module Circuitry.Sing where
 
 import GHC.TypeLits
 import Data.Kind (Constraint)
