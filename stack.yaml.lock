@@ -5,26 +5,12 @@
 
 packages:
 - completed:
-    hackage: mfsolve-0.3.2.0@sha256:19ce2822b8d3cf906e983a237341698349dcef49d873b1b03d141276b4b0e8dc,1155
+    hackage: circus-0.1.0.0@sha256:04f61dc224f97dfbc4e166cd45f4aa3b70ad11ff6419a00f1a8d13d1f7aa77db,1700
     pantry-tree:
-      size: 262
-      sha256: 194ef83e8a4008c156a76b87fcda74dd3ea5ca3274d3a01b63ca62bd5d8228a2
+      size: 431
+      sha256: b68ba364d96aea4d7a848803e5290b428f1df38bdf9c02f1a4a67cbb6920c4fc
   original:
-    hackage: mfsolve-0.3.2.0
-- completed:
-    hackage: diagrams-contrib-1.4.4@sha256:4f767211b35c60a018534c23cee1b00f560df999c111e5a2c1629d6fcac077d6,4741
-    pantry-tree:
-      size: 11387
-      sha256: bb39e2886a9a8d8e258ba7d6d73ac8b12f2d6ff594ecb9a5ed6c899f7f3976e7
-  original:
-    hackage: diagrams-contrib-1.4.4
-- completed:
-    hackage: catalyst-0.0.0.1@sha256:a313d125b4f322a47439914f472dc2f07ec47ef02efa5a6154fb97dfad2fcd33,1548
-    pantry-tree:
-      size: 681
-      sha256: 91ecf4f6ab3eb3e02a81ae77d735ed2983b063d37e4b2cd0a067c2c97f839342
-  original:
-    hackage: catalyst-0.0.0.1
+    hackage: circus-0.1.0.0
 - completed:
     hackage: unordered-containers-0.2.12.0@sha256:164a47850c4536c8b7cc12f74578588cf3b6c331f04e671306d2dcb806284bb1,4978
     pantry-tree:
@@ -60,13 +46,6 @@ packages:
       sha256: aea6b83dd91703fd130d98ecfed88b8f16841b22990c837c8fde89f9f6cca809
   original:
     hackage: lazysmallcheck-0.6@sha256:dac7a1e4877681f1260309e863e896674dd6efc1159897b7945893e693f2a6bc,1696
-- completed:
-    hackage: recover-rtti-0.3.0.0@sha256:52b8ccd7333489d497a2e25bba8f5d6c7ad4dedecfc0218333f395ae639d92f6,3555
-    pantry-tree:
-      size: 1768
-      sha256: 6362ad27e76d2a2de8e829ef9a848843cf5581ca7c3914b7dba5d59b7931069d
-  original:
-    hackage: recover-rtti-0.3.0.0@sha256:52b8ccd7333489d497a2e25bba8f5d6c7ad4dedecfc0218333f395ae639d92f6,3555
 snapshots:
 - completed:
     size: 534126
