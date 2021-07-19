@@ -10,11 +10,13 @@ module Circuitry.Embed
   ) where
 
 import           Circuitry.Category (Category(..))
+import           Circuitry.Word
 import           Clash.Sized.Vector (Vec(..))
 import qualified Clash.Sized.Vector as V
 import qualified Data.Bits as B
 import           Data.Bool (bool)
 import           Data.Foldable hiding (sum)
+import           Data.Functor.Identity
 import           Data.Generics.Labels ()
 import           Data.Kind (Type)
 import           Data.Maybe (fromMaybe)
@@ -24,9 +26,7 @@ import           GHC.Generics
 import           GHC.TypeLits
 import           GHC.TypeLits.Extra
 import           Prelude hiding ((.), id, sum)
-import           Circuitry.Word
 import           Test.QuickCheck (Arbitrary(..), oneof)
-import Data.Functor.Identity
 
 deriving anyclass instance Embed a => Embed (Identity a)
 

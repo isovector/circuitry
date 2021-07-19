@@ -3,7 +3,7 @@ module Circuitry.Word (Word2 (..), Word3(..), Word4 (..)) where
 import Data.Bits
 import Data.Typeable
 import Data.Ratio
-import Test.QuickCheck (Arbitrary, arbitrary, shrink, genericShrink)
+import Test.QuickCheck (Arbitrary, arbitrary, shrink)
 import Test.QuickCheck.Function
 import Data.List (nub)
 import GHC.Generics (Generic)

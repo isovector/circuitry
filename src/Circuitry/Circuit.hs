@@ -7,6 +7,9 @@ module Circuitry.Circuit where
 
 
 import           Circuitry.Category (Category(..))
+import           Circuitry.Embed
+import           Circuitry.Graph
+import           Circuitry.Signal
 import           Circus.DSL
 import           Circus.Simplify
 import           Circus.Types (Module, modulePorts, Port (Port), Direction (Input, Output), PortName (PortName))
@@ -19,15 +22,13 @@ import           Control.Monad.Reader (runReaderT)
 import           Control.Monad.State (evalState, gets, modify')
 import           Data.Generics.Labels ()
 import qualified Data.Map as M
+import           Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import           Data.Typeable
 import           GHC.Generics (Generic)
 import           GHC.TypeLits (Symbol, KnownSymbol, symbolVal, natVal)
 import           GHC.TypeNats (KnownNat)
 import           Prelude hiding ((.), id)
-import           Circuitry.Embed
-import           Circuitry.Graph
-import           Circuitry.Signal
 import           Test.QuickCheck.Arbitrary (Arbitrary)
 
 
@@ -67,28 +68,32 @@ evalCircuitTMV :: (Embed b, Embed a) => Circuit a b -> (Time -> Vec (SizeOf a) (
 evalCircuitTMV c f t = last $ reallyPumpSignal (c_roar c) f t
 
 
-getGraph :: forall a b. (SeparatePorts a, SeparatePorts b) => RenderOptions -> Circuit a b -> Module
+getGraph :: forall a b. (SeparatePorts a, SeparatePorts b, Embed a, Embed b) => RenderOptions -> Circuit a b -> Module
 getGraph ro c
   = flip evalState (GraphState 0 mempty)
   $ flip runReaderT ro
   $ unGraphM
   $ do
-    (input, ips) <- separatePorts @a
-    (output, ops) <- separatePorts @b
+    input <- synthesizeBits @a
+    output <- synthesizeBits @b
+    ips <- separatePorts @a
+    ops <- separatePorts @b
 
-    let mkPort :: Direction -> String -> Int -> (PortName, [Y.Bit]) -> (PortName, Port)
-        mkPort dir pre ix (PortName pn, bits) =
-          ( PortName (T.pack (pre <> show ix <> " : ") <> pn)
+    let mkPort :: Direction -> String -> Int -> (Maybe PortName, [Y.Bit]) -> (PortName, Port)
+        mkPort dir pre ix (pn, bits) =
+          ( fromMaybe (PortName $ T.pack $ pre <> show ix) pn
           , Port dir bits
           )
 
     modify' $ #gs_module <>~
       mempty
         { modulePorts =
-            M.fromList $ fmap (uncurry $ mkPort Input "in") (zip [0..] ips)
-                      <> fmap (uncurry $ mkPort Output "out") (zip [0..] ops)
+            M.fromList $ fmap (uncurry $ mkPort Input "I") (zip [1..] ips)
+                      <> fmap (uncurry $ mkPort Output "O") (zip [1..] ops)
         }
 
+    unifyBits $ M.fromList (zip (join $ fmap snd ips) $ V.toList input)
+             <> M.fromList (zip (join $ fmap snd ops) $ V.toList output)
     output' <- unGraph (c_graph c) input
     unifyBits $ M.fromList $ V.toList $ V.zip output output'
     fmap simplify $
@@ -105,13 +110,13 @@ class Embed a => OkCircuit a
 instance Embed a => OkCircuit a
 
 class Nameable a where
-  nameOf :: String
+  nameOf :: Maybe String
 
-instance {-# OVERLAPPABLE #-} Typeable a => Nameable a where
-  nameOf = show $ typeRep $ Proxy @a
+instance {-# OVERLAPPABLE #-} Nameable a where
+  nameOf = Nothing
 
 instance (Nameable a, KnownNat n) => Nameable (Vec n a) where
-  nameOf = nameOf @a <> "[" <> show (natVal $ Proxy @n) <> "]"
+  nameOf = fmap (<> "[" <> show (natVal $ Proxy @n) <> "]") $ nameOf @a
 
 newtype Addr n = Addr { getAddr :: Vec n Bool }
   deriving stock (Eq, Ord, Show, Generic)
@@ -119,17 +124,16 @@ newtype Addr n = Addr { getAddr :: Vec n Bool }
   deriving anyclass Embed
 
 class SeparatePorts a where
-  separatePorts :: GraphM (V.Vec (SizeOf a) Y.Bit, [(PortName, [Y.Bit])])
+  separatePorts :: GraphM [(Maybe PortName, [Y.Bit])]
 
 instance SeparatePorts () where
-  separatePorts = pure (V.Nil, mempty)
+  separatePorts = pure mempty
 
 instance {-# OVERLAPPABLE #-} (Nameable a, Embed a) => SeparatePorts a where
   separatePorts = do
     b <- synthesizeBits @a
     pure
-      ( b
-      , [ ( Y.PortName $ T.pack $ nameOf @a
+      ( [ ( fmap (Y.PortName . T.pack) $ nameOf @a
           , V.toList b
           )
         ]
@@ -137,12 +141,12 @@ instance {-# OVERLAPPABLE #-} (Nameable a, Embed a) => SeparatePorts a where
 
 instance (KnownSymbol name, SeparatePorts a) => SeparatePorts (Named name a) where
   separatePorts = do
-    (a, b) <- separatePorts @a
-    pure (a, pure (PortName $ T.pack (symbolVal $ Proxy @name), join $ fmap snd b))
+    b <- separatePorts @a
+    pure $ pure (Just $ PortName $ T.pack (symbolVal $ Proxy @name), join $ fmap snd b)
 
 instance {-# OVERLAPPING #-} (SeparatePorts a, SeparatePorts b) => SeparatePorts (a, b) where
   separatePorts = do
-    (va, a) <- separatePorts @a
-    (vb, b) <- separatePorts @b
-    pure (va V.++ vb,  a <> b)
+    a <- separatePorts @a
+    b <- separatePorts @b
+    pure $ a <> b
 

@@ -34,7 +34,7 @@ coerceGraph
 coerceGraph = Graph . unGraph
 
 
-synthesizeBits :: (Embed a) => GraphM (Vec (SizeOf a) Bit)
+synthesizeBits :: Embed a => GraphM (Vec (SizeOf a) Bit)
 synthesizeBits = flip V.traverse# (V.repeat ()) $ const freshBit
 
 

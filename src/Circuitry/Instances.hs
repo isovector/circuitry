@@ -26,12 +26,13 @@ import           GHC.TypeLits.Extra (Max)
 import           Prelude hiding ((.), id, sum)
 import           Circuitry.Circuit
 import           Circuitry.Embed
-import           Circuitry.Graph (Graph(Graph), GraphM)
+import           Circuitry.Graph (Graph(Graph), GraphM, synthesizeBits)
 import qualified Circuitry.Primitives as Prim
 import           Circuitry.Signal (Signal)
 import           Test.QuickCheck
 import           Type.Reflection (type (:~:) (Refl))
 import           Unsafe.Coerce (unsafeCoerce)
+import Data.Maybe (fromMaybe)
 
 
 instance Arbitrary (Signal a b) => Arbitrary (Circuit a b) where
@@ -233,7 +234,7 @@ tribufAll = Prim.gateDiagram gr
     gr :: Graph (Vec n Bool, Bool) (Vec n Bool)
     gr = Graph $ \i -> do
       let (i1, i2) = V.splitAtI @n i
-      o <- fst <$> separatePorts @(Vec n Bool)
+      o <- synthesizeBits @(Vec n Bool)
       addCell $
         Y.mkCell Y.CellTribuf $ M.fromList
           [ ("A", (Y.Input, V.toList i1))
@@ -319,7 +320,7 @@ deject = serial >>> unconsC >>> snd' >>> unsafeParse
 
 blackbox
     :: forall a b
-     . (KnownNat (SizeOf a), SeparatePorts a, SeparatePorts b, KnownNat (SizeOf b))
+     . (SeparatePorts a, SeparatePorts b, Embed a, Embed b)
     => String
     -> Circuit a b
     -> Circuit a b
@@ -328,7 +329,7 @@ blackbox = interface' Prim.unobservable . pure
 
 component
     :: forall a b
-     . (KnownNat (SizeOf a), SeparatePorts a, SeparatePorts b, KnownNat (SizeOf b))
+     . (SeparatePorts a, SeparatePorts b, Embed a, Embed b)
     => String
     -> Circuit a b
     -> Circuit a b
@@ -337,21 +338,22 @@ component = interface' Prim.diagrammed . pure
 
 interface'
     :: forall a b
-     . (KnownNat (SizeOf a), SeparatePorts a, SeparatePorts b, KnownNat (SizeOf b))
+     . (SeparatePorts a, SeparatePorts b, Embed a, Embed b)
     => (Graph a b -> Circuit a b -> Circuit a b)
     -> GraphM String
     -> Circuit a b
     -> Circuit a b
 interface' builder get_name = builder $ Graph $ \a -> do
-  let mkPort :: String -> Int -> Y.PortName -> Y.PortName
-      mkPort pre ix (Y.PortName pn) =
-        Y.PortName (T.pack (pre <> show ix <> " : ") <> pn)
+  let mkPort :: String -> Int -> Maybe Y.PortName -> Y.PortName
+      mkPort pre ix = fromMaybe $ Y.PortName $ T.pack $ pre <> show ix
 
-  (ab, ip0) <- separatePorts @a
-  (o, op0) <- separatePorts @b
+  ab <- synthesizeBits @a
+  ip0 <- separatePorts @a
+  o <- synthesizeBits @b
+  op0 <- separatePorts @b
 
-  let ip = zipWith (\ix -> first' $ mkPort "i" ix ) [0..] ip0
-      op = zipWith (\ix -> first' $ mkPort "o" ix ) [0..] op0
+  let ip = zipWith (\ix -> first' $ mkPort "i" ix ) [1..] ip0
+      op = zipWith (\ix -> first' $ mkPort "o" ix ) [1..] op0
 
   name <- get_name
   addCell $

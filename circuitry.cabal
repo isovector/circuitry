@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bfd05cb32255039d300e6c9c22197c23cfba17115725a2de5768b821629e3bad
+-- hash: 1a6e3b9e149b052239e0731a5e65ee45a475ff96357bb2059db7cea05d7d6bcc
 
 name:           circuitry
 version:        0.1.0.0
@@ -30,8 +30,6 @@ library
       Circuitry.Signal
       Circuitry.Sing
       Circuitry.Word
-      Design
-      TruthTable
   hs-source-dirs:
       src
   default-extensions:
@@ -112,15 +110,10 @@ test-suite test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
-      BusSpec
       CoproductSpec
-      CPUSpec
       EmbedSpec
-      MemSpec
       MiscSpec
       ProductSpec
-      RegisterSpec
-      SimpleSpec
       TribufSpec
       Paths_circuitry
   hs-source-dirs:

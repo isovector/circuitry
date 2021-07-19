@@ -457,11 +457,11 @@ gateDiagram g c = c
 
 unaryGateDiagram
     :: forall a c
-     . (Embed a, SeparatePorts c)
+     . (Embed a, Embed c)
     => Y.CellType
     -> Graph a c
 unaryGateDiagram ty = Graph $ \a -> do
-  c <- fst <$> separatePorts @c
+  c <- synthesizeBits @c
   addCell $
     Y.Cell
       ty
@@ -479,12 +479,12 @@ unaryGateDiagram ty = Graph $ \a -> do
 
 binaryGateDiagram
     :: forall a b c
-     . (Embed a, Embed b, SeparatePorts c)
+     . (Embed a, Embed b, Embed c)
     => Y.CellType
     -> Graph (a, b) c
 binaryGateDiagram ty = Graph $ \i -> do
   let (a, b) = V.splitAtI @(SizeOf a) i
-  c <- fst <$> separatePorts @c
+  c <- synthesizeBits @c
   addCell $ Y.mkCell ty $ M.fromList
     [ ("A", (Y.Input, V.toList a))
     , ("B", (Y.Input, V.toList b))
