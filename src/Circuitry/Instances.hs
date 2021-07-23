@@ -11,6 +11,7 @@ module Circuitry.Instances
   , Prim.unsafeReinterpret
   ) where
 
+import Control.Monad (join)
 import           Circuitry.Category
 import           Circus.DSL
 import qualified Circus.Types as Y
@@ -324,7 +325,7 @@ blackbox
     => String
     -> Circuit a b
     -> Circuit a b
-blackbox = interface' Prim.unobservable . pure
+blackbox = interface' (mkPort "i") (mkPort "o") Prim.unobservable . pure
 
 
 component
@@ -333,27 +334,55 @@ component
     => String
     -> Circuit a b
     -> Circuit a b
-component = interface' Prim.diagrammed . pure
+component = component' (mkPort "i") (mkPort "o")
+
+mkPort :: String -> Int -> Maybe Y.PortName -> Y.PortName
+mkPort pre ix = fromMaybe $ Y.PortName $ T.pack $ pre <> show ix
+
+
+named
+    :: forall a b
+     . (SeparatePorts a, SeparatePorts b, Embed a, Embed b)
+    => String
+    -> [String]
+    -> [String]
+    -> Circuit a b
+    -> Circuit a b
+named n is os = component' (mk is) (mk os) n
+  where
+    mk :: [String] -> Int -> Maybe Y.PortName -> Y.PortName
+    mk ps i _ = Y.PortName $ T.pack $ (ps <> fmap (show @Int) [0..]) !! i
+
+
+
+component'
+    :: forall a b
+     . (SeparatePorts a, SeparatePorts b, Embed a, Embed b)
+    => (Int -> Maybe Y.PortName -> Y.PortName)
+    -> (Int -> Maybe Y.PortName -> Y.PortName)
+    -> String
+    -> Circuit a b
+    -> Circuit a b
+component' iport oport = interface' iport oport Prim.diagrammed . pure
 
 
 interface'
     :: forall a b
      . (SeparatePorts a, SeparatePorts b, Embed a, Embed b)
-    => (Graph a b -> Circuit a b -> Circuit a b)
+    => (Int -> Maybe Y.PortName -> Y.PortName)
+    -> (Int -> Maybe Y.PortName -> Y.PortName)
+    -> (Graph a b -> Circuit a b -> Circuit a b)
     -> GraphM String
     -> Circuit a b
     -> Circuit a b
-interface' builder get_name = builder $ Graph $ \a -> do
-  let mkPort :: String -> Int -> Maybe Y.PortName -> Y.PortName
-      mkPort pre ix = fromMaybe $ Y.PortName $ T.pack $ pre <> show ix
-
+interface' mk_i_port mk_o_port builder get_name = builder $ Graph $ \a -> do
   ab <- synthesizeBits @a
   ip0 <- separatePorts @a
   o <- synthesizeBits @b
   op0 <- separatePorts @b
 
-  let ip = zipWith (\ix -> first' $ mkPort "i" ix ) [1..] ip0
-      op = zipWith (\ix -> first' $ mkPort "o" ix ) [1..] op0
+  let ip = zipWith (\ix -> first' $ mk_i_port ix) [1..] ip0
+      op = zipWith (\ix -> first' $ mk_o_port ix) [1..] op0
 
   name <- get_name
   addCell $
@@ -364,6 +393,8 @@ interface' builder get_name = builder $ Graph $ \a -> do
                  <> fmap ((, Y.Output) . fst) op
       )
       (M.fromList $ ip <> op)
+  unifyBits $ M.fromList (zip (join $ fmap snd ip0) $ V.toList ab)
+            <> M.fromList (zip (join $ fmap snd op0) $ V.toList o)
   let subst = M.fromList $ V.toList $ V.zip ab a
   unifyBits subst
   pure $ unifyBitsPure subst o

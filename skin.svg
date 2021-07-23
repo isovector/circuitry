@@ -92,6 +92,7 @@ line {
 
     <g s:x="0" s:y="5" s:pid="A"/>
     <g s:x="0" s:y="20" s:pid="B"/>
+    <g s:x="0" s:y="12.5" s:pid="C"/>
     <g s:x="30" s:y="12.5" s:pid="Y"/>
   </g>
   <g s:type="nand" transform="translate(150,100)" s:width="30" s:height="25">

@@ -101,8 +101,8 @@ getGraph ro c
 
 
 newtype Named (n :: Symbol) a = Named a
-  deriving stock (Eq, Ord, Show, Functor)
-  deriving newtype Embed
+  deriving stock (Eq, Ord, Functor)
+  deriving newtype (Show, Embed)
 
 
 

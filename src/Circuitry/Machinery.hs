@@ -16,7 +16,7 @@ import Circuitry.Embed as X
 import Circuitry.Graph as X (RenderOptions (..), synthesizeBits)
 import Circuitry.Instances as X
 import Circuitry.Numeric as X
-import Circuitry.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, diagrammed, binaryGateDiagram, unaryGateDiagram, transposeV, tribuf, crossV, unsafeShort, shortcircuit, pullDown, pullUp, traceC, replicateC)
+import Circuitry.Primitives as X (nandGate, mapFoldVC, zipVC, cloneV, fixC, foldVC, pad, diagrammed, binaryGateDiagram, unaryGateDiagram, unaryGateDiagram', transposeV, tribuf, crossV, unsafeShort, shortcircuit, pullDown, pullUp, traceC, replicateC)
 import Circuitry.Product as X
 import Circuitry.Signal as X (Time)
 import Circuitry.Word as X

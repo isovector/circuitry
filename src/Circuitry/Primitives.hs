@@ -460,19 +460,27 @@ unaryGateDiagram
      . (Embed a, Embed c)
     => Y.CellType
     -> Graph a c
-unaryGateDiagram ty = Graph $ \a -> do
+unaryGateDiagram = unaryGateDiagram' "A"
+
+unaryGateDiagram'
+    :: forall a c
+     . (Embed a, Embed c)
+    => Y.PortName
+    -> Y.CellType
+    -> Graph a c
+unaryGateDiagram' p ty = Graph $ \a -> do
   c <- synthesizeBits @c
   addCell $
     Y.Cell
       ty
-      (M.singleton (Y.Width "A") $ V.length a)
+      (M.singleton (Y.Width p) $ V.length a)
       mempty
       (M.fromList
-        [ ("A", Y.Input)
+        [ (p, Y.Input)
         , ("Y", Y.Output)
         ])
       (M.fromList
-        [ ("A", V.toList a)
+        [ (p, V.toList a)
         , ("Y", V.toList c)
         ])
   pure c
