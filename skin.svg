@@ -4,9 +4,10 @@
   width="800" height="300">
   <s:properties>
     <s:layoutEngine
-      org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers="35"
-      org.eclipse.elk.spacing.nodeNode= "35"
-      org.eclipse.elk.layered.layering.strategy= "LONGEST_PATH"
+      org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers="18"
+      org.eclipse.elk.spacing.nodeNode= "18"
+      org.eclipse.elk.layered.compaction.postCompaction.strategy = "LEFT"
+      org.eclipse.elk.layered.thoroughness = "250"
     />
     <s:low_priority_alias val="$dff" />
   </s:properties>
@@ -119,6 +120,7 @@ line {
     <path d="M0,0 A30 25 0 0 1 0,25" class="$cell_id"/>
 
     <g s:x="2" s:y="5" s:pid="A"/>
+    <g s:x="3" s:y="12.5" s:pid="C"/>
     <g s:x="2" s:y="20" s:pid="B"/>
     <g s:x="30" s:y="12.5" s:pid="Y"/>
   </g>
@@ -147,6 +149,7 @@ line {
     <path d="M0,0 A30 25 0 0 1 0,25" class="$cell_id"/>
 
     <g s:x="2" s:y="5" s:pid="A"/>
+    <g s:x="3" s:y="12.5" s:pid="C"/>
     <g s:x="2" s:y="20" s:pid="B"/>
     <g s:x="33" s:y="12.5" s:pid="Y"/>
   </g>
@@ -187,6 +190,22 @@ line {
     <g s:x="2" s:y="5" s:pid="A"/>
     <g s:x="2" s:y="20" s:pid="B"/>
     <g s:x="26" s:y="12.5" s:pid="Y"/>
+    <g s:x="14" s:y="25" s:pid="Cout"/>
+  </g>
+
+  <g s:type="addsub" transform="translate(50, 150)" s:width="25" s:height="25">
+    <s:alias val="$addsub"/>
+
+    <circle r="12.5" cx="12.5" cy="12.5" class="$cell_id"/>
+    <line x1="7.5" x2="17.5" y1="12.5" y2="12.5" class="$cell_id"/>
+    <line x1="12.5" x2="12.5" y1="7.5" y2="17.5" class="$cell_id"/>
+    <line x1="7.5" x2="17.5" y1="17.5" y2="17.5" class="$cell_id"/>
+
+    <g s:x="14" s:y="0" s:pid="S"/>
+    <g s:x="2" s:y="5" s:pid="A"/>
+    <g s:x="2" s:y="20" s:pid="B"/>
+    <g s:x="26" s:y="12.5" s:pid="Y"/>
+    <g s:x="14" s:y="25" s:pid="Cout"/>
   </g>
 
   <g s:type="sub" transform="translate(150,150)" s:width="25" s:height="25">
