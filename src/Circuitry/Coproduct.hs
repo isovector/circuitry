@@ -49,7 +49,7 @@ data Elim (xs :: Tree (Symbol, Type)) b (r :: Type) where
   (:->)
       :: (Embed x, Typeable x)
       => InjName name
-      -> Circuit (x, b) r
+      -> Circuit (Bool, (x, b)) r
       -> Elim ('Leaf '(name, x)) b r
   (:~>)
       :: InjName name
@@ -226,24 +226,26 @@ gelim
     -> Elim xs b r
     -> Circuit (Bool, (BitsOf (Coproduct xs), b)) (BitsOf r)
 gelim _ (name@InjName :-> f) =
-  blah name $ first' unsafeParse >>> f
+  blah name $ second' (first' unsafeParse) >>> f
 gelim _ (name@InjName :=> f) =
-  blah name $ first' unsafeParse >>> fst' >>> f
+  blah name $ snd' >>> first' unsafeParse >>> fst' >>> f
 gelim _ (name@InjName :~> f) =
-  blah name $ snd' >>> f
+  blah name $ snd' >>> snd' >>> f
 gelim _ (name@InjName :=~> f) =
-  blah name $ first' unsafeParse >>> fst' >>> f
+  blah name $ snd' >>> first' unsafeParse >>> fst' >>> f
 gelim g (Both ls rs) = bypassing $ coproductBranch g ls rs
 
 
 blah
     :: (Embed a, Embed r, SeparatePorts a, KnownSymbol nm)
     => InjName nm
-    -> Circuit a r
+    -> Circuit (Bool, a) r
     -> Circuit (Bool, a) (BitsOf r)
 blah name f
     = component (symbolVal name <> ":")
-    $ second' (f >>> serial)
+    $ first' copy
+  >>> reassoc'
+  >>> second' (f >>> serial)
   >>> swap
   >>> tribufAll
 

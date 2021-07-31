@@ -24,14 +24,13 @@ empty = InjName :-> (consume >>> serial >>> pad False >>> unsafeParse)
 
 test :: Circuit Coprod (Word4)
 test =
-    (elim_ $ foldElim
-               $ #_Ctor1 :=> snd'
-             :+| #_Ctor2 :=> id
-             :+| #_Ctor3 :=> serial >>> separate >>> fst' >>> unsafeParse
-             :+| #_Ctor4 :=> serial >>> pad False >>> unsafeParse
-             :+| End
+  elim_ $ foldElim
+        $ #_Ctor1 :=> snd'
+      :+| #_Ctor2 :=> id
+      :+| #_Ctor3 :=> serial >>> separate >>> fst' >>> unsafeParse
+      :+| #_Ctor4 :=> serial >>> pad False >>> unsafeParse
+      :+| End
 
-        )
 
 instance Arbitrary Coprod where
   arbitrary = oneof
