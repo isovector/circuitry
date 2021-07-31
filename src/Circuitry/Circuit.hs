@@ -51,20 +51,20 @@ reallyPumpSignal sig f n
      in v : reallyPumpSignal sig' (f . (+ 1)) (n - 1)
 
 
-evalCircuit :: (Embed b, Embed a) => Circuit a b -> a -> Time -> Maybe b
+evalCircuit :: (Reify b, Reify a) => Circuit a b -> a -> Time -> Maybe b
 evalCircuit c a t = evalCircuitT c (const a) t
 
-evalCircuitMV :: (Embed b, Embed a) => Circuit a b -> Vec (SizeOf a) (Maybe Bool) -> Time -> Vec (SizeOf b) (Maybe Bool)
+evalCircuitMV :: (Reify b, Reify a) => Circuit a b -> Vec (SizeOf a) (Maybe Bool) -> Time -> Vec (SizeOf b) (Maybe Bool)
 evalCircuitMV c a t = evalCircuitTMV c (const a) t
 
 
-evalCircuitT :: (Embed b, Embed a) => Circuit a b -> (Time -> a) -> Time -> Maybe b
+evalCircuitT :: (Reify b, Reify a) => Circuit a b -> (Time -> a) -> Time -> Maybe b
 evalCircuitT c f t = fmap reify $ V.traverse# id $ last $ reallyPumpSignal (c_roar c) (fmap Just . embed . f) t
 
-evalCircuitTT :: (Embed b, Embed a) => Circuit a b -> (Time -> a) -> Time -> [Maybe b]
+evalCircuitTT :: (Reify b, Reify a) => Circuit a b -> (Time -> a) -> Time -> [Maybe b]
 evalCircuitTT c f t = fmap (fmap reify . V.traverse# id) $ reallyPumpSignal (c_roar c) (fmap Just . embed . f) t
 
-evalCircuitTMV :: (Embed b, Embed a) => Circuit a b -> (Time -> Vec (SizeOf a) (Maybe Bool)) -> Time -> Vec (SizeOf b) (Maybe Bool)
+evalCircuitTMV :: (Reify b, Reify a) => Circuit a b -> (Time -> Vec (SizeOf a) (Maybe Bool)) -> Time -> Vec (SizeOf b) (Maybe Bool)
 evalCircuitTMV c f t = last $ reallyPumpSignal (c_roar c) f t
 
 
@@ -102,7 +102,9 @@ getGraph ro c
 
 newtype Named (n :: Symbol) a = Named a
   deriving stock (Eq, Ord, Functor)
-  deriving newtype (Show, Embed)
+  deriving newtype (Show, Reify)
+
+deriving newtype instance KnownNat (SizeOf a) => Embed (Named nm a)
 
 
 

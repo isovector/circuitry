@@ -139,7 +139,7 @@ fst' :: (OkCircuit a, OkCircuit b) => Circuit (a, b) a
 fst' = primitive $ raw $ Circuit (Graph $ pure . V.takeI) $ primSignal V.takeI
 
 
-constantName :: (Show a, Embed a) => a -> GraphM String
+constantName :: (Show a, Reify a) => a -> GraphM String
 constantName a = do
   asks ro_unpack_constants >>= pure . \case
     False -> show a
@@ -148,10 +148,13 @@ constantName a = do
 
 pad
     :: forall m n a
-     . (Show a, Embed a, KnownNat m, KnownNat n, m <= n)
+     . (Show a, Reify a, KnownNat m, KnownNat n, m <= n)
     => a
     -> Circuit (Vec m a) (Vec n a)
-pad a = primitive $ Circuit gr $ primSignal $ \v -> v V.++ V.concat (V.repeat @(n - m) $ fmap Just $ embed a)
+pad a = primitive
+       $ Circuit gr
+       $ primSignal
+       $ \v -> v V.++ V.concat (V.repeat @(n - m) $ fmap Just $ embed a)
   where
     gr :: Graph (Vec m a) (Vec n a)
     gr = Graph $ \v -> do
@@ -296,7 +299,7 @@ cloneV = primitive $ Circuit gr $ primSignal $ V.concat . V.repeat
 
 fixC
     :: forall s a b
-     . (Embed s, Embed a, Embed b)
+     . (Reify s, Embed a, Embed b)
     => s
     -> Circuit (a, s) (b, s)
     -> Circuit a b
@@ -425,7 +428,7 @@ notGate
 ------------------------------------------------------------------------------
 -- | Too slow to run real world physics? JET STREAM IT, BABY.
 -- This will fall back to the direct implementation if any of the wires are Z.
-shortcircuit :: (Embed a, Embed b) => (a -> b) -> Circuit a b -> Circuit a b
+shortcircuit :: (Reify a, Reify b) => (a -> b) -> Circuit a b -> Circuit a b
 shortcircuit f c = Circuit (c_graph c) $ Signal $ \ma ->
   case V.traverse# id ma of
     Just a  -> (c_roar $ shortcircuit f c, fmap Just $ embed $ f (reify a) )
@@ -501,7 +504,7 @@ binaryGateDiagram ty = Graph $ \i -> do
   pure c
 
 
-traceC :: forall a. (Embed a, Show a) => String -> Circuit a a
+traceC :: forall a. (Reify a, Show a) => String -> Circuit a a
 traceC n
   = primitive
   $ Circuit id

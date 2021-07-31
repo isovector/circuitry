@@ -166,7 +166,7 @@ eitherE l r = serial
                  (separate >>> first' (unsafeParse >>> l) >>> fst')
 
 
-constC :: forall a. (Show a, Embed a) => a -> Circuit () a
+constC :: forall a. (Show a, Reify a) => a -> Circuit () a
 constC a = Prim.unsafeReinterpret @_ @(Vec 0 a) >>> Prim.pad a >>> lower
 
 
@@ -424,7 +424,7 @@ pairwiseShort
     => Circuit (Vec m Bool, Vec m Bool) (Vec m Bool)
 pairwiseShort = Prim.zipVC >>> mapV (serial >>> Prim.unsafeShort)
 
-intro :: forall b a. (Embed a, Embed b, Show b) => b -> Circuit a (a, b)
+intro :: forall b a. (Embed a, Reify b, Show b) => b -> Circuit a (a, b)
 intro b = create >>> second' (constC b)
 
 todo :: (Embed a, Embed b) => Circuit a b

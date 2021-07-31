@@ -278,9 +278,10 @@ type family FoldCoprod (f :: Type -> Type) :: Tree (Symbol, Type) where
 
 instance (Embed x, KnownSymbol name) => Embed (Coproduct ('Leaf '(name, x))) where
   type SizeOf (Coproduct ('Leaf '(name, x))) = SizeOf x
+
+instance (Reify x, KnownSymbol name) => Reify (Coproduct ('Leaf '(name, x))) where
   embed (Here _ x) = embed x
   reify v = Here (InjName @name) (reify v)
-
 
 instance ( KnownNat (SizeOf (Coproduct ls))
          , KnownNat (SizeOf (Coproduct rs))
@@ -289,6 +290,11 @@ instance ( KnownNat (SizeOf (Coproduct ls))
          ) => Embed (Coproduct ('Branch ls rs)) where
   type SizeOf (Coproduct ('Branch ls rs)) = Max (SizeOf (Coproduct ls)) (SizeOf (Coproduct rs)) + 1
 
+instance ( KnownNat (SizeOf (Coproduct ls))
+         , KnownNat (SizeOf (Coproduct rs))
+         , Reify (Coproduct ls)
+         , Reify (Coproduct rs)
+         ) => Reify (Coproduct ('Branch ls rs)) where
   {-# INLINE embed #-}
   {-# INLINE reify #-}
 
