@@ -118,6 +118,16 @@ consume :: OkCircuit a => Circuit a ()
 consume = primitive $ raw $ Circuit (Graph $ const $ pure Nil) $ primSignal $ const Nil
 
 
+coerceC
+    :: ( Embed a, Embed b1, Embed c, Embed b2
+       , SizeOf b2 ~ SizeOf c
+       , SizeOf a ~ SizeOf b1
+       )
+    => Circuit b1 b2
+    -> Circuit a c
+coerceC c = unsafeReinterpret . c . unsafeReinterpret
+
+
 unsafeReinterpret :: (OkCircuit a, OkCircuit b, SizeOf a ~ SizeOf b) => Circuit a b
 unsafeReinterpret = raw id
 

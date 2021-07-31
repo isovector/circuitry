@@ -6,8 +6,11 @@ module Circuitry.Shared where
 
 import           Circuitry.Circuit
 import           Circuitry.Embed
+import           Circuitry.Graph
 import           Circuitry.Primitives
 import           Circuitry.Signal
+import           Circus.DSL (unifyBits)
+import           Circus.Types (Bit (..))
 import qualified Clash.Sized.Vector as V
 import           Data.Function (fix)
 import           Data.IORef
@@ -17,17 +20,15 @@ import           Data.Maybe (fromJust)
 import           Data.Word (Word8)
 import           System.IO.Unsafe (unsafePerformIO)
 import           Unsafe.Coerce (unsafeCoerce)
-import Circuitry.Graph
-import Circus.Types (Bit (..))
-import Circus.DSL (unifyBits)
-import Debug.Trace (traceM)
 
 
 instance Embed (a -> b) where
   type SizeOf (a -> b) = 8
 
+
 data SomeSignal where
   SomeSignal :: (Embed a, Embed b) => Signal a b -> SomeSignal
+
 
 sharedMap :: IORef (Map Word8 SomeSignal)
 sharedMap = unsafePerformIO $ newIORef mempty
@@ -59,8 +60,10 @@ share c = unsafePerformIO $ do
         pure $ pure $ V.repeat $ embedBit ix
 {-# NOINLINE share #-}
 
+
 embedBit :: Word8 -> Bit
 embedBit = Bit . fromIntegral
+
 
 eval :: forall a b. (Embed a, Embed b) => Circuit (a -> b, a) b
 eval
@@ -86,6 +89,5 @@ eval
         pure $ do
           unifyBits $ M.fromList $ zip (V.toList a) a'
           pure $ V.unsafeFromList b
-
 {-# NOINLINE eval #-}
 
