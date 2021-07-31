@@ -204,7 +204,8 @@ elim
        )
     => Elim xs b r
     -> Circuit (a, b) r
-elim e = first' serial >>> gelim e >>> unsafeParse
+elim e = first' serial >>> intro True >>> swap >>> gelim fst' e >>> unsafeParse
+
 
 elim_
     :: ( xs ~ FoldCoprod (Rep a)
@@ -215,38 +216,78 @@ elim_
        )
     => Elim xs () r
     -> Circuit a r
-elim_ e = serial >>> create >>> gelim e >>> unsafeParse
+elim_ e = serial >>> create >>> intro True >>> swap >>> gelim fst' e >>> unsafeParse
 
 
 gelim
     :: forall xs b r
      . (Embed r, Embed (Coproduct xs), KnownNat (SizeOf b), Embed b, SeparatePorts b)
-    => Elim xs b r
-    -> Circuit (BitsOf (Coproduct xs), b) (BitsOf r)
-gelim (name@InjName :-> f) = bypassing $ component (symbolVal name) (first' unsafeParse) >>> f >>> serial
-gelim (name@InjName :=> f) = bypassing $ component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
-gelim (name@InjName :~> f) = bypassing $ component (symbolVal name) snd' >>> f >>> serial
-gelim (name@InjName :=~> f) = bypassing $ component (symbolVal name) (first' unsafeParse) >>> fst' >>> f >>> serial
-gelim (Both ls rs) = bypassing $ coproductBranch ls rs
+    => Circuit (Bool, Bool) Bool
+    -> Elim xs b r
+    -> Circuit (Bool, (BitsOf (Coproduct xs), b)) (BitsOf r)
+gelim _ (name@InjName :-> f) =
+  blah name $ first' unsafeParse >>> f
+gelim _ (name@InjName :=> f) =
+  blah name $ first' unsafeParse >>> fst' >>> f
+gelim _ (name@InjName :~> f) =
+  blah name $ snd' >>> f
+gelim _ (name@InjName :=~> f) =
+  blah name $ first' unsafeParse >>> fst' >>> f
+gelim g (Both ls rs) = bypassing $ coproductBranch g ls rs
+
+
+blah
+    :: (Embed a, Embed r, SeparatePorts a, KnownSymbol nm)
+    => InjName nm
+    -> Circuit a r
+    -> Circuit (Bool, a) (BitsOf r)
+blah name f
+    = component (symbolVal name <> ":")
+    $ second' (f >>> serial)
+  >>> swap
+  >>> tribufAll
+
 
 coproductBranch
     :: forall ls rs b r
     . (Embed r, Embed (Coproduct ls), Embed (Coproduct rs), Embed b, SeparatePorts b)
-    => Elim ls b r
+    => Circuit (Bool, Bool) Bool
+    -> Elim ls b r
     -> Elim rs b r
-    -> Circuit (BitsOf (Coproduct ('Branch ls rs)), b) (BitsOf r)
-coproductBranch ls rs
-    = first' (unconsC >>> component "scrutinize" (scrutinize @(SizeOf (Coproduct ls)) @(SizeOf (Coproduct rs))))
-  >>> swap
-  >>> distribP
-  -- TODO(sandy): THIS DOESNT TRIBUF BEFORE ELIMINATING
-  >>> (reassoc >>> first' (swap >>> gelim ls))
-  *** (reassoc >>> first' (swap >>> gelim rs))
-  >>> -- component "unify"
-      ( (tribufAll >>> serial)
-    *** (tribufAll >>> serial)
-    >>> pairwiseShort
+    -> Circuit (Bool, (BitsOf (Coproduct ('Branch ls rs)), b)) (BitsOf r)
+coproductBranch g ls rs
+    = second'
+      ( first'
+        ( unconsC
+      >>> -- component "scrutinize"
+          (scrutinize @(SizeOf (Coproduct ls)) @(SizeOf (Coproduct rs)))
+        )
+    >>> swap
+    >>> distribP
       )
+  >>> distribP
+  >>> scrutinizeToGelim g ls
+  *** scrutinizeToGelim g rs
+  >>> pairwiseShort
+
+
+scrutinizeToGelim
+    :: (Embed a, Embed r, Embed (Coproduct xs), SeparatePorts a)
+    => Circuit (Bool, Bool) Bool
+    -> Elim xs a r
+    -> Circuit
+         (Bool, (a, (Vec (SizeOf (Coproduct xs)) Bool, Bool)))
+         (Vec (SizeOf r) Bool)
+scrutinizeToGelim g e
+    = swap
+  >>> reassoc'
+  >>> second' reassoc'
+  >>> (second' $ second' g)
+  >>> swap
+  >>> first' swap
+  >>> reassoc'
+  >>> gelim andGate e
+
 
 scrutinize
     :: forall a r
@@ -257,8 +298,8 @@ scrutinize
       = bypassing
       $ swap
     >>> copy
-    >>> (second' (notGate >>> copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst'))
-    *** (second' (            copy) >>> reassoc >>> first' (tribufAll >>> separate >>> fst'))
+    >>> (second' (notGate >>> copy) >>> reassoc >>> first' (fst' >>> separate >>> fst'))
+    *** (second' (            copy) >>> reassoc >>> first' (fst' >>> separate >>> fst'))
 
 
 type family FoldCoprod2 (f :: Type -> Type) :: Type where

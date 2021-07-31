@@ -6,6 +6,9 @@ import Prelude hiding ((.), id, sum)
 import Circuitry.Machinery
 import Test.Hspec
 import Test.Hspec.QuickCheck
+import Data.Typeable (Typeable)
+import GHC.TypeLits (KnownSymbol)
+import qualified Clash.Sized.Vector as V
 
 
 data Coprod
@@ -15,6 +18,20 @@ data Coprod
   | Ctor4 (Maybe Bool)
   deriving stock (Eq, Show, Generic)
   deriving anyclass (Embed, Reify)
+
+empty :: (Typeable x, KnownSymbol name, Embed x, Embed b, Embed r) => Elim ('Leaf '(name, x)) b r
+empty = InjName :-> (consume >>> serial >>> pad False >>> unsafeParse)
+
+test :: Circuit Coprod (Word4)
+test =
+    (elim_ $ foldElim
+               $ #_Ctor1 :=> snd'
+             :+| #_Ctor2 :=> id
+             :+| #_Ctor3 :=> serial >>> separate >>> fst' >>> unsafeParse
+             :+| #_Ctor4 :=> serial >>> pad False >>> unsafeParse
+             :+| End
+
+        )
 
 instance Arbitrary Coprod where
   arbitrary = oneof
@@ -27,47 +44,25 @@ instance Arbitrary Coprod where
 
 spec :: Spec
 spec = do
-  let empty = InjName :-> (consume >>> serial >>> pad False >>> unsafeParse)
-
   prop "eliminates ctor1" $ \(val1 :: Bool) (val2 :: Word4) -> do
-    evalCircuit
-        (elim_ $ foldElim
-               $ #_Ctor1 :=> id
-             :+| empty
-             :+| empty
-             :+| empty
-             :+| End
-
-        )
+    evalCircuit test
         (Ctor1 val1 val2)
         0
-      === Just (val1, val2)
+      === Just val2
 
   prop "eliminates ctor2" $ \(val :: Word4) -> do
     evalCircuit
-        (elim_ $ foldElim
-               $ empty
-               :+| #_Ctor2 :=> id
-               :+| empty
-               :+| empty
-               :+| End
-        )
+        test
         (Ctor2 val)
         0
       === Just val
 
-  prop "eliminates ctor3" $ \(val :: Word8) -> do
+  prop "eliminates ctor3" $ \(val1 :: Word4) (val2 :: Word4) -> do
     evalCircuit
-        (elim_ $ foldElim
-               $ empty
-             :+| empty
-             :+| #_Ctor3 :=> id
-             :+| empty
-             :+| End
-        )
-        (Ctor3 val)
+        test
+        (Ctor3 $ reify $ embed val1 V.++ embed val2)
         0
-      === Just val
+      === Just val1
 
   prop "eliminates ctor4" $ \(val :: Maybe Bool) -> do
     evalCircuit
