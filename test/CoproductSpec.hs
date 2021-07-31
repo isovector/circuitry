@@ -3,7 +3,7 @@
 module CoproductSpec where
 
 import Prelude hiding ((.), id, sum)
-import Take2.Machinery
+import Circuitry.Machinery
 import Test.Hspec
 import Test.Hspec.QuickCheck
 
@@ -14,7 +14,7 @@ data Coprod
   | Ctor3 Word8
   | Ctor4 (Maybe Bool)
   deriving stock (Eq, Show, Generic)
-  deriving anyclass (Embed)
+  deriving anyclass (Embed, Reify)
 
 instance Arbitrary Coprod where
   arbitrary = oneof

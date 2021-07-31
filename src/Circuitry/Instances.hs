@@ -430,3 +430,6 @@ intro b = create >>> second' (constC b)
 todo :: (Embed a, Embed b) => Circuit a b
 todo = create >>> snd' >>> serial >>> Prim.pad False >>> unsafeParse
 
+pointwise :: (Embed a, Embed b, Embed c, KnownNat n) => Circuit (a, b) c -> Circuit (Vec n a, Vec n b) (Vec n c)
+pointwise c = Prim.zipVC >>> mapV c
+

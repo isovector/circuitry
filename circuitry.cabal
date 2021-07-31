@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1a6e3b9e149b052239e0731a5e65ee45a475ff96357bb2059db7cea05d7d6bcc
+-- hash: 5b29d1475a6ed3ebe31689f01df0a41251ac8969a3d83fd6f406485a48c0bd47
 
 name:           circuitry
 version:        0.1.0.0
@@ -27,6 +27,7 @@ library
       Circuitry.Numeric
       Circuitry.Primitives
       Circuitry.Product
+      Circuitry.Shared
       Circuitry.Signal
       Circuitry.Sing
       Circuitry.Word

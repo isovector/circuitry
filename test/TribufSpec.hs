@@ -1,13 +1,12 @@
 module TribufSpec where
 
+import           Circuitry.Machinery
 import qualified Clash.Sized.Vector as V
 import           Data.Bool (bool)
+import           Data.Maybe (fromMaybe)
 import           Prelude hiding ((.), id, sum)
-import           Take2.Computer.Simple
-import           Take2.Machinery
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
-import Data.Maybe (fromMaybe)
 
 spec :: Spec
 spec = do

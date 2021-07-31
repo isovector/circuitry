@@ -1,8 +1,7 @@
 module ProductSpec where
 
 import Prelude hiding ((.), id, sum)
-import Take2.Machinery
-import Take2.Product
+import Circuitry.Machinery
 import Test.Hspec
 import Test.Hspec.QuickCheck
 
@@ -14,7 +13,7 @@ data Rec = Rec
   , rec4 :: Vec 5 (Either Bool Word2)
   }
   deriving stock (Eq, Show, Generic)
-  deriving anyclass (Embed)
+  deriving anyclass (Embed, Reify)
 
 instance Arbitrary Rec where
   arbitrary = Rec <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary

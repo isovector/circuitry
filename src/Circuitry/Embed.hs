@@ -120,7 +120,10 @@ instance (GReify f, GReify g) => GReify (f :+: g) where
 
 
 instance Embed ()
+instance Reify ()
+
 instance Embed a => Embed (Maybe a)
+instance Reify a => Reify (Maybe a)
 
 
 embedWord :: (B.Bits a, KnownNat m) => a -> Vec m Bool
